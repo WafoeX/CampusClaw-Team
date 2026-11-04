@@ -1,0 +1,16 @@
+[project]
+name = "campusclaw"
+version = "0.0.1"
+requires-python = ">=3.13,<3.14"
+dependencies = ["flask>=3.1,<4", "gunicorn>=23,<27", "pymysql[rsa]>=1.1,<2"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-randomly>=3,<5", "pytest-socket>=0.7,<1", "ruff>=0.12,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
+pythonpath = ["."]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]

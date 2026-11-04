@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        APP_BUILD_REVISION: ${APP_BUILD_REVISION:?请设置源码提交号}
+    image: campusclaw-skeleton:${APP_BUILD_REVISION:?请设置源码提交号}
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?请设置应用库名}
+      MYSQL_USER: ${MYSQL_USER:?请设置应用账号}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请设置应用口令}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?请设置 Qdrant 密钥}
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-8000}:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/live', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 30s
+
+  mysql:
+    image: public.ecr.aws/docker/library/mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请设置 MySQL 管理口令}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?请设置应用库名}
+      MYSQL_USER: ${MYSQL_USER:?请设置应用账号}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请设置应用口令}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.3@sha256:31407c0e8e32eb771b71718f1a4772e2ad47a07557917b21ac96792f40eb8007
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?请设置 Qdrant 密钥}
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/6333; printf 'GET /healthz HTTP/1.0\r\n\r\n' >&3; grep -m1 -q ' 200 ' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql-data:
+  qdrant-data:

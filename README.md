@@ -2,11 +2,11 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段：最小运行骨架已合入 `main`，可作为后续开发的起点。** 教学业务及正式页面尚未实现；课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
+**当前阶段：开发骨架已合入 `main`。** 组员可以复用应用分层、配置和依赖环境，开始实现班级认证和资料入库。教学业务及正式页面尚未实现；课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
 
 ## 开发者快速开始
 
-首次在干净的 `main` 工作区用 Docker Compose 启动开发环境。在仓库根目录将 [`.env.example`](.env.example) 复制为 `.env`（已有则沿用），填写 MySQL 库名、应用账号及口令、管理口令和 Qdrant 密钥。默认从本机 `8000` 端口访问；若该端口被占用，在 `.env` 设置 `APP_HOST_PORT`，并同步替换下面的端口。
+从 `main` 拉取代码后，用 Docker Compose 启动开发环境。在仓库根目录将 [`.env.example`](.env.example) 复制为 `.env`（已有则沿用），填写 MySQL 库名、应用账号及口令、管理口令和 Qdrant 密钥。默认从本机 `8000` 端口访问；若该端口被占用，在 `.env` 设置 `APP_HOST_PORT`，并同步替换下面的端口。
 
 ```bash
 export APP_BUILD_REVISION="$(git rev-parse HEAD)"
@@ -14,7 +14,7 @@ docker compose up --build -d
 curl -fsS http://127.0.0.1:8000/health
 ```
 
-初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。遇到启动问题可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
+初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
 
 日常修改代码后，只重建应用，继续使用正在运行的 MySQL 和 Qdrant：
 
@@ -35,7 +35,7 @@ docker compose logs --tail=50 app
 | 连接 MySQL、Qdrant 等依赖 | 在 [`app/adapters/`](app/adapters/) 放外部访问代码，由装配层传给服务；骨架已有连通探测，业务表和迁移随业务变更加入。 |
 | 新增检查 | [`tests/unit/`](tests/unit/) 放单元检查，[`tests/api/`](tests/api/) 放接口检查，[`tests/integration/`](tests/integration/) 放真实依赖集成。GitHub Actions 继续运行 `make check`；本地完整重跑按改动需要安排。 |
 
-后续业务入口见[班级认证与资料入库任务](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md)。日常开发入口与第 7 课的成员复现、正式评审及归档分别记录。
+后续业务入口见[班级认证与资料入库任务](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md)。骨架的交付项见[开发骨架任务](openspec/changes/2026-11-04-add-skeleton/tasks.md)。
 
 ## 项目价值与用户场景
 
@@ -107,10 +107,10 @@ docker compose logs --tail=50 app
 
 | 编号 | 本课要完成的任务与判据 | 当前状态与责任角色 |
 | --- | --- | --- |
-| C7-01 建仓与协作 | 小写短名、成员全加入、首次提交最小集合、忽略规则/许可状态、课程任课教师可查看仓库内容；编码前主干保护 | Git 与文档已建立；命名和首次提交范围有历史偏差；主干保护已启用；仓库公开，课程任课教师无需加入或另行访问确认；普通身份真实拒绝已验证；成员协作和历史偏差处置待核验；组长与运维责任人 |
+| C7-01 建仓与协作 | 小写短名、成员全加入、首次提交最小集合、忽略规则/许可状态、课程任课教师可查看仓库内容；编码前主干保护 | Git 与文档已建立；命名和首次提交范围有历史偏差；主干保护已启用；仓库公开，课程任课教师无需加入或另行访问确认；成员协作待课程核验，规则阻断已有历史记录；组长与运维责任人 |
 | C7-02 骨架规约 | 独立变更具备 proposal、design、specs、tasks；能力→场景对应，每能力至少四条真实失败路径，严格校验通过 | 骨架四类规划齐备并严格校验通过，PR #3 已批准合并；课程逐项人工验收待完成；实施与评审责任人 |
 | C7-03 五类规范生效 | 五类最小条目、规则入口与按需技能齐备；用页面、一读一写接口及违规样本验证规则能发现问题 | 八规范、五技能载体已建立；正向页面/接口及移除授权等隔离技术预演已有记录，V2 与正式 V3/V4 人工结论待完成；实施与评审责任人 |
-| C7-04 最小运行骨架 | 分层与通用授权机制、空值 `.env.example`、外置配置且缺失失败、匿名 `/health` 返回版本/时间/依赖状态、单行 JSON 请求标识日志、Dockerfile/Compose 一键启动 | 已合入 main，并在独立 Compose 项目通过启动和依赖故障复测；跨成员复现待验证 |
+| C7-04 最小运行骨架 | 分层与通用授权机制、空值 `.env.example`、外置配置且缺失失败、匿名 `/health` 返回版本/时间/依赖状态、单行 JSON 请求标识日志、Dockerfile/Compose 一键启动 | 已交付，主干干净源码可启动并达到就绪 |
 | C7-05 真实测试与门禁 | 健康能力正常/失败/边界用例，独立数据，一键门禁（本项目选 `make check`）；失败非零、改坏逻辑能变红 | 代码检查、断网测试和真实依赖集成已有结果，完整门禁与故障注入验收见[骨架证据](docs/changes/2026-11-04-add-skeleton.md) |
 | C7-06 独立会话与跨成员复现 | 无历史会话只给仓库/变更名能执行，另一次相同改动遵守同一规范；每名成员在自己机器按 README 冷启动 | 未执行；当前审查不充当独立会话或跨机器证据；全组与评审责任人 |
 | C7-07 回滚、归档与标签 | 本课完成当前/前一可运行版本的回滚演练，记录步骤/耗时；验收及人工评审后归档骨架变更，建立真实版本标签，证据汇总 `docs/lesson-07/` | A/B 制品与本机回滚已验证，归档及版本标签待人工验收；运维与评审责任人 |
@@ -125,7 +125,7 @@ docker compose logs --tail=50 app
 
 | 步骤 | 已交付载体 | 待验证现象 |
 | --- | --- | --- |
-| 建仓库 | 本地 Git、已配置的 GitHub origin、README、AGENTS.md、忽略规则及协作约定 | 推送结果见初始化记录和远端分支；主干保护已启用，真实直推拒绝已实测，成员独立复现待取得 |
+| 建仓库 | 本地 Git、已配置的 GitHub origin、README、AGENTS.md、忽略规则及协作约定 | 推送结果见初始化记录和远端分支；主干保护已启用，成员独立复现待课程核验，规则阻断已有历史记录 |
 | 定规约 | 本次纯文档变更的规划与校验 | 骨架四类规划和三段式场景已建立，教学业务规约随课次补齐 |
 | 立规范 | 八份规则、五个技能、必读映射 | 独立会话待验证；代码正向与违规技术预演已执行，人工结论待完成 |
 | 落骨架 | 已合入 main 的 Flask 服务、Dockerfile、Compose 和 Makefile | 本机和远程 CI 门禁已通过，A/B 制品和隔离回滚已验证；PR #3 已批准合并，课程剩余验收及标签待完成 |
@@ -149,9 +149,7 @@ docker compose logs --tail=50 app
 
 ### 合并检查与主干复验
 
-当前交付按用户要求不创建 PR，改动在现有变更分支提交与推送，人工验收在仓库证据中记录。主干保护由管理员维护；本轮不把 PR 创建或连接器的 PR 写权限作为待办。
-
-`Skeleton check` 对目标为 `main` 的 PR、`change/**` 推送及 `main` 推送均运行 `make check`。PR 绿灯验证候选，主干绿灯验证实际合并结果。远程 main 已将 `make check` 设为对所有人必需；本轮实际验证缺失/失败检查均阻断推送且主干不变。具体步骤和剩余验收见[验收收尾](docs/lesson-07/acceptance.md)。
+`Skeleton check` 对目标为 `main` 的 PR、`change/**` 推送及 `main` 推送均运行 `make check`。[骨架复验 PR #5](https://github.com/WafoeX/CampusClaw-Team/pull/5) 已合入，[合并前检查](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41778385185) 已通过。主干 CI 已通过。既有规则阻断记录和其他课程事项见[验收收尾](docs/lesson-07/acceptance.md)。
 
 ### 骨架冷启动
 
@@ -180,9 +178,9 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 3. 用只绑定回环地址的代理建立一个固定入口，转发当前侧的 `/health`，仅在该侧就绪时转发 `/live`。先指向 A 并确认版本，再指向已就绪的 B 并确认版本。执行 `docker compose -p campusclaw-drill-b --env-file .env.drill-b stop mysql`，检查固定入口返回 503，直连 B 的 `/live` 仍为 200。确认 A 就绪后将代理指回 A，从同一入口验证 200、A 版本和请求标识，并用 A 的应用日志匹配。记录故障检测、切换、复核及总耗时。
 4. 启动 B 的 MySQL，验证 B 可重新就绪。关闭临时代理，使用上面两个项目及各自配置运行 `down --volumes` 回收演练专用容器和卷，保留 A/B 镜像。
 
-认证安全基线为访问令牌仅在内存持有；若使用刷新令牌，必须采用受限安全 Cookie 并轮换。选题说明中的 `sessionStorage` 是外部历史实现，差异及例外流程见[安全规范](docs/standards/03-安全开发规范.md)。
-
 ## 小组协作与增量流程
+
+各功能变更在实现过程中完成适用的测试、合并检查和评审，并记录结果。核心功能齐备后，由[项目最终验收变更](openspec/changes/2026-11-04-project-final-acceptance/proposal.md)在同一候选上验证跨功能流程。
 
 - 使用 `main` 为主干、`change/<变更名>` 为后续短分支。首次建仓按用户明确指令初始化和推送 `main`；常规后续变更禁止直接推送主干，先自检和评审再合并。本次用户明确授权的文档直推按[单次例外](docs/standards/08-评审与完成定义规范.md)执行，不推广到后续变更。GitHub 已确认远程 `main` 启用保护，复测见[骨架证据](docs/changes/2026-11-04-add-skeleton.md)。
 - 每次先明确边界，建立 proposal、design、specs、tasks；场景采用“前置条件→操作→可观测结果”。本次纯文档的 `skip_specs: true` 不适用于业务行为变更。

@@ -188,3 +188,80 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 另在实际未提交工作区运行工具，退出 1 并提示先提交/清理，目标报告不存在。该负向操作不计作成员成功复现。README、design、课程验收和 tasks 已同步使用步骤与本轮无 PR 范围。任务 3.4 的三人独立环境和实名交叉评审仍未取得，保持未勾选；其他外部/人工验收条件不被工具报告替代，主干规则与历史缺证事实保留。
 
 提交 `291ae28f520514be7280b6048eb07fed727892ae` 后，从该提交导出干净源码，在专用项目 `campusclaw-main-9c18cf55b532` 用空卷、动态端口和临时合成配置真实冷启动，执行新命令完整 CLI。命令退出 0，生成 `reports/cold-start-agent-local.json`，工作区干净、报告版本等于该提交、两项依赖 ready，GET/HEAD 检查通过，环境为本机 macOS 与 Docker/Compose；人工评审字段保持待填写。启动及核验合计 10.965 秒，镜像 ID 为 `sha256:9629e668da5f6488c7f67bf9165f52d1e6512b7f3ad9f0b3fe65bc68a2bf4a29`。临时容器、网络和卷按本次项目标签确认无残留，保留本机镜像。此为助手本机技术验证，不填作任一成员独立验收。
+
+### 开发交接与课程验收分开记录（2026-11-04）
+
+**变更说明（4.2 的文档交接部分）。** 用户确认 GitHub 远程仓库已配置，要求优先交付可供组员开发的基础，不以重复本机测试或补齐边界验收为开发前置。[README 快速开始](../../README.md#开发者快速开始)说明首次启动、仅重建应用、查看日志和接入业务的位置；本地迭代标识与干净源码取证分开。课程证据继续在[验收收尾](../lesson-07/acceptance.md)跟踪。
+
+**验证记录。** `openspec-apply-change` 输入为本仓库和 `2026-11-04-add-skeleton`；读取 README、AGENTS、全部变更规划和规格，CLI 确认 `spec-driven`、`ready`、8/15，`openspec validate 2026-11-04-add-skeleton --strict` 退出 0。GitHub 只读查询确认 [PR #5](https://github.com/WafoeX/CampusClaw-Team/pull/5) 合入 `fed5822c709f1ef0349d394f88d6997660a272c6`，候选 `8cfe03e` 的 [Skeleton check](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41778385185) 成功。用户确认的远程配置与实测拒绝分别记录，本轮未实测或修改规则；未运行应用测试、Compose 或完整门禁。
+
+**评审结论。** `project-review` 以本次 README、课程入口、验收页和变更证据的文档差异为输入，对照现有应用工厂、HTTP 与授权模块、Dockerfile、Compose、CI 工作流及后端、安全、运维和评审规范。文档差异、改动文件的本地链接目标、示例 Shell 语法及开发镜像标识格式检查通过。仅交付开发文档，未改运行行为、门禁、业务权限或原有勾选。开发骨架已在主干，8/15 仍为原课程任务进度；课程人工验收与证据待补。
+
+### 2026-11-04 逐项审计与主干保护实测
+
+用户要求检查已完成任务并继续推进。本轮使用 `openspec-apply-change` 和 `project-review`，读取最新 main 的根规则、骨架规划/任务、评审规则和运行证据。同步远端后确认：PR #5 已由 WafoeX 于北京时间 13:27:11 批准、13:27:40 合并；此为仓库中已发生的外部操作，本轮助手没有创建 PR。后续两项业务规划也已合入，当前 main 为 `7f84c9d93b39a613639558cc4dae63f60ba84778`，业务实现范围仍不计入本骨架任务。原工作区干净，从 main 建立 `change/2026-11-04-skeleton-acceptance-audit` 继续留证。
+
+[最新 main 门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41779718233) completed/success，实际日志为 49 项单元/接口、4 项进程和 1 项真实集成通过，合计 54 项；严格规约再次退出 0。分支接口当前返回 protected=true、required_status_checks.enforcement_level=everyone、contexts=[make check]，检查来源 app_id=15368。此前“必需检查关闭”的记录为历史状态，当前设置已补齐。
+
+#### 已勾选的 8 项审计
+
+| 任务 | 本轮核对的交付与证据 |
+| --- | --- |
+| 1.1 | 远程 main 保护已开启，当前必需检查及实际拒绝结果见下表。 |
+| 1.2 | proposal/design/三能力 specs/tasks 齐备，本轮严格校验退出 0。 |
+| 2.1 | app 工厂、api/http、services/access 的分层和默认拒绝，以及 tests/api/test_access.py 可追溯；最新 main 门禁通过。 |
+| 2.2 | config、observability、server/wsgi 与健康/启动测试可追溯；本轮最新主干冷启动再次核对探针、版本与关联日志。 |
+| 2.3 | uv.lock、Dockerfile、Compose、空值样例和 README 均存在；最新 main 使用真实 MySQL/Qdrant 空卷冷启动通过。 |
+| 2.4 | Makefile、检查脚本、三层测试和标准归档追溯回归均存在；远程完整门禁 54 项通过，未修改阈值或跳过检查。 |
+| 3.1 | 历史 B 的版本/制品、依赖故障、乱序与清理证据保留；当前源码对应的全部门禁再次由 main CI 通过。 |
+| 4.1 | 既有 A/B 同一入口切换、故障撤流、回退、恢复和分段耗时记录可追溯；本轮未将文档提交或新主干冷启动充当新的 A/B 演练。 |
+
+上述八项均找到对应交付与运行证据，保留原勾选。剩余任务逐条拆分当前已取得与仍缺的证明，不把部分实现记作整项完成。
+
+#### 2.5 / 3.5 的真实缺失与红灯阻断
+
+在使用已获授权的 ricemin0216 SSH 身份前，先把当前 main 推到本轮正常变更分支，退出 0，证明同一身份可写短分支。随后用独立临时 Git index 生成基于最新 main 的两个真正快进候选；正式工作区和交付分支源码均未改动，不创建 PR，不使用 dry-run 或强推。
+
+| 场景 | 候选与操作 | 实际结果 |
+| --- | --- | --- |
+| 必需检查缺失 | 候选 `ba21e63394c194fa7c0f22a3ee30e7afca258b93` 只新增无害的临时说明，未发布触发任何工作流；普通 push `<候选>:refs/heads/main` | 退出 1，GH006，明确提示 Required status check make check is expected，并提示需 PR。推送前后 main 均为 `7f84c9d93b39a613639558cc4dae63f60ba84778`。 |
+| 必需检查失败 | 临时分支 `change/2026-11-04-protection-negative-ad4293c3`，候选 `04eb8aeee8f34ab677255cd89ff822fa889c78ed`，只在隔离候选将核心未就绪的 503 改成 200，保持所有测试断言 | [真实远程门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41780170154) failure，3 个原健康/HEAD/超时断言失败（3 failed、46 passed），make 退出 2。再普通 push 此候选至 main，退出 1、GH006，明确提示 Required status check make check is failing。main 前后仍相同。 |
+| 清理 | 删除本轮临时故障分支并查询远端引用 | 删除成功；该临时引用不存在，main 不变。正式工作区 app/tests/Dockerfile/Compose/依赖锁/门禁无改动，坏样本没有进入正常验收分支或 main。 |
+
+原始脱敏输出保留于 `reports/protection-audit.json`。两次实际主干推送均因保护规则被拒，不是网络、认证、非快进或无变更拒绝。本轮证明补齐了现时技术行为；首份代码 PR #3 合并前缺证的历史事实仍保留，不能把本次执行时间倒填回首次合并之前。
+
+#### 4.2 的最新主干冷启动复验
+
+从精确 main 提交 `7f84c9d93b39a613639558cc4dae63f60ba84778` 导出干净源码，在专用项目 `campusclaw-main-77af2247eacf` 以空卷、临时合成配置和动态端口启动。启动及核验合计 15.680 秒，双依赖 ready，健康版本与源码一致；两个探针 GET/HEAD、根/静态路径拒绝、非法方法、请求标识关联日志通过，容器内路由只含 /health 和 /live 的 GET/HEAD。实际成员取证 CLI 退出 0，生成 `reports/cold-start-main-audit.json`；汇总记录为 `reports/main-audit-verification.json`。镜像 ID `sha256:f303a2d704985875777d75ac6856fa1e3b9c271f18bfaadc41fb6250bd514a6e` 已留存。临时容器、网络和卷按项目标签确认无残留。助手本机验证仍不计三名成员跨机器验收。
+
+#### 当前结论
+
+2.5 的 A 基线、必需检查配置、缺失/失败阻断技术证据现已具备；3.5 的普通 SSH 身份直推拒绝证据已具备；4.2 的 PR #5 批准/合并事实与最新 main 冷启动证据已具备。由于原任务还包含首次合并前时点、人工复核、三人实名协作等完整条件，这三项仍保持未勾选，待实际评审处理历史偏差和剩余证明。3.2 的 V2、3.3 的正式 V4 人工结论、3.4 的三人独立复现，以及 4.3 的最终人工验收/实际归档和标签，仍无足够新证据。本轮保持 8/15 的严格计数，技术缺口已缩小，当前管理员不再需要重复开启必需检查。
+
+### 开发交接（2026-11-04）
+
+**变更说明。** 延续用户优先交付开发基础的要求，在已有验收审计的分支上补齐 README 快速开始，说明首次启动、只重建应用、日志查看及业务代码的接入位置。课程验收页列出已有 CI 和冷启动证据的共同复现候选，供三名成员确认。
+
+**验证记录。** 按 `openspec-apply-change` 读取根规则、README、骨架规划和任务，并按 `project-review` 对照现有审计及评审规范。GitHub 只读查询确认主干运行 41779718233 的 `make check` 作业和门禁步骤成功。严格规约、文档差异、本地链接及命令语法检查通过。
+
+**评审结论。** 本次交接涉及四份 Markdown 文档。课程任务仍为 8/15，成员独立复现及正式验收待相应人员留证。
+
+### 开发骨架范围修订（2026-11-04）
+
+**变更说明。** 按用户要求把骨架完成条件聚焦于业务开发所需的应用分层、通用接口、依赖环境、检查入口和开发指南。原任务清单中的仓库规则演练、成员取证、课程评审和归档由课程验收页记录。认证、资料与检索规划同步改为复用可运行的骨架基线。
+
+**验证记录。** 使用 `openspec-update-change` 对照根规则、README、骨架规划、三项规格和下游依赖，使用 `project-review` 核对运行证据及文档一致性。三个相关变更的 `openspec validate <变更名> --strict` 均退出 0。检索变更仍有 CA-04 归档提示，须先同步第 3 课规格。骨架 apply 状态为 `all_done`，开发交付为 5/5，由已有实现和既有运行证据支持。差异与本地链接检查通过。本轮未执行安全测试、故障演练或运行门禁。
+
+**评审结论。** 文档修订待人工复核。正式能力规格、应用实现和已有测试门禁沿用当前版本。课程验收和归档状态见验收页。
+
+### 实现测试与项目最终验收（2026-11-04）
+
+按用户要求，骨架任务明确记录实现阶段已执行的测试和门禁。用 `openspec-update-change` 同步提案、设计及任务，用 `openspec-propose` 建立[项目最终验收变更](../../openspec/changes/2026-11-04-project-final-acceptance/proposal.md)。各功能实现变更继续保留自己的测试、门禁和评审证据。项目最终验收在核心功能齐备后验证同一候选的跨功能流程，第 7 课证据仍由课程入口记录。
+
+骨架和最终验收变更的 OpenSpec 严格校验均退出 0。最终验收变更的规划齐备，验收任务尚未执行。此次文档修订沿用既有骨架运行与 CI 证据。
+
+### GitHub Actions 运行时升级（2026-11-04）
+
+GitHub 报告 checkout、setup-node 和 setup-uv 仍声明 Node.js 20。将三个 Action 分别固定到 v7.0.1、v7.1.0、v10.3.3 的完整提交号，读取各官方标签及其 `action.yml` 核实运行时均为 `node24`。工作流继续使用 Node.js 22 安装 OpenSpec，使用 uv 0.12.16 和 Python 3.13 执行现有 `make check`。
+
+工作流 YAML 解析、安装参数核对和差异检查通过。CI 配置变更待人工复核，运行结果以对应提交的 GitHub Actions 记录为准。

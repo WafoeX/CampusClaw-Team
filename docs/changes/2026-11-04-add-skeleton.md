@@ -259,3 +259,9 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 按用户要求，骨架任务明确记录实现阶段已执行的测试和门禁。用 `openspec-update-change` 同步提案、设计及任务，用 `openspec-propose` 建立[项目最终验收变更](../../openspec/changes/2026-11-04-project-final-acceptance/proposal.md)。各功能实现变更继续保留自己的测试、门禁和评审证据。项目最终验收在核心功能齐备后验证同一候选的跨功能流程，第 7 课证据仍由课程入口记录。
 
 骨架和最终验收变更的 OpenSpec 严格校验均退出 0。最终验收变更的规划齐备，验收任务尚未执行。此次文档修订沿用既有骨架运行与 CI 证据。
+
+### GitHub Actions 运行时升级（2026-11-04）
+
+GitHub 报告 checkout、setup-node 和 setup-uv 仍声明 Node.js 20。将三个 Action 分别固定到 v7.0.1、v7.1.0、v10.3.3 的完整提交号，读取各官方标签及其 `action.yml` 核实运行时均为 `node24`。工作流继续使用 Node.js 22 安装 OpenSpec，使用 uv 0.12.16 和 Python 3.13 执行现有 `make check`。
+
+工作流 YAML 解析、安装参数核对和差异检查通过。CI 配置变更待人工复核，运行结果以对应提交的 GitHub Actions 记录为准。

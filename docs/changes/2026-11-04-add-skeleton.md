@@ -68,3 +68,11 @@
 运行直接依赖为 Flask（HTTP）、Gunicorn（WSGI）、PyMySQL（只读连通探测），其 RSA 依赖用于连接 MySQL 默认认证。开发直接依赖为 pytest、pytest-randomly、pytest-socket 和 Ruff。锁定版本在 `uv.lock`，安装元数据核对发现 cffi 为 MIT-0，需评审逐项确认；MySQL/Qdrant 基础设施分发条款、其他依赖元数据和人工评审待补。运行镜像调整用于修复制品实际发现，复测采用相同 High/Critical 阻断配置。
 
 当前完成任务 2.1–2.4。本机阶段性故障注入不计作独立会话或 V4 的完整证据。任务 2.5 的 A 制品留存、远程 PR 检查与必需状态验证，以及后续成员复现、课程回滚和人工评审仍待完成。原始脱敏检查记录位于忽略的 `reports/2026-11-04-add-skeleton/`。
+
+### 基线 A 与远程候选
+
+骨架提交 `abba2291d9d4e13be3e277fed726fb12e6979151` 已推送并用远程引用复核。以该提交构建并保留本机镜像 `campusclaw-skeleton:abba2291d9d4e13be3e277fed726fb12e6979151`，镜像 ID `sha256:fb396ae9b3f1d498b024184a235448e425f5560abf8b16667e798d67ed69bda5`。
+
+从同一提交、空卷及合成配置执行 `docker compose up --build -d` 后 6.32 秒内确认 `/live` 为 200，`/health` 为 200、两项依赖就绪、版本等于源码提交，健康响应的请求标识可在该版本 JSON 日志中找到。测试项目、网络和两份临时卷已清理，保留应用镜像。课内回退可用相同 Compose 配置和独立环境，设置 `APP_BUILD_REVISION` 为上述提交，再用 `docker compose up --no-build -d` 启用已保留的镜像，启动前核对镜像 ID。B 制品及切换耗时仍待取得。
+
+提交附带 `Skeleton check` 工作流，调用仓库的 `make check`。[首个分支 CI 作业](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41764433314)已完成，GitHub Jobs 接口显示 `Run the repository gate` 及整体作业均为 `success`。分支 CI 与首份代码 PR 上的必需检查状态分开判定，任务 2.5 保持开放。仓库管理员需添加必需检查 `make check`，评审在首次代码合并前核验缺失或失败确实阻断。

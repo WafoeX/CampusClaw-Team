@@ -44,6 +44,12 @@ def check_layers():
                             root in sys.stdlib_module_names
                             or (layer == "api" and root in API_DEPENDENCIES)
                             or (layer == "adapters" and root in ADAPTER_DEPENDENCIES)
+                            or (
+                                layer == "adapters"
+                                and root == "alembic"
+                                and (ROOT / "app" / "adapters" / "migrations")
+                                in path.parents
+                            )
                         )
                     if not permitted:
                         errors.append(f"{path}:{node.lineno} {layer} 导入了 {module}")

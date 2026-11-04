@@ -108,7 +108,7 @@ def stack(tmp_path_factory):
     config.write_text(
         "\n".join(
             (
-                "MYSQL_DATABASE=campusclaw_test",
+                f"MYSQL_DATABASE=campusclaw_test_{run_id}",
                 "MYSQL_USER=campusclaw_test",
                 f"MYSQL_PASSWORD={uuid.uuid4().hex}",
                 f"MYSQL_ROOT_PASSWORD={uuid.uuid4().hex}",
@@ -219,6 +219,7 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     port = int(compose("port", "app", "8080").rsplit(":", 1)[1])
     observed = inspect_probes(port, version)
     assert set(observed) == {"/health", "/live"}
+    verify_auth_migration(compose)
 
     compose("stop", "mysql")
     code, unready, _ = status("not_ready")
@@ -247,3 +248,15 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
         row.get("event") == "draining" and row["version"] == version for row in rows
     )
     assert any(row.get("event") == "stopped" and row["forced"] is False for row in rows)
+
+
+def verify_auth_migration(compose):
+    # 任务 1.2：已就绪骨架库与空库，迁移重跑、种子保留和降级。
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("auth_runtime.py").read_text(),
+    )

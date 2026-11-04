@@ -114,3 +114,39 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 | 核心故障误报 | 只将未就绪的 HTTP 503 改成 200。原健康断言失败，完整 `make check` 退出 2。对应 OPS-03/TEST-07。 |
 
 每项单独恢复后均复跑完整 `make check`，五次退出 0。临时实验仓库和浏览器配置已清理，交付候选的路由表只含 `/health`、`/live` 的 GET/HEAD，跟踪文件中没有样本。清理后对原分支复跑 `make check` 退出 0，共 37 项测试，包含真实 Compose 冷启动。原始脱敏命令输出、浏览器驱动和最小样本差异保留在忽略目录 `reports/2026-11-04-add-skeleton/`。这些结果供后续 V3/V4 人工复核。独立会话 V2、正式 V3/V4 人工结论、三名成员各自冷启动及首次代码合并门禁尚未取得，任务 3.2、3.3 和 3.4 保持开放。
+
+
+### 主干合并后复验与文档同步
+
+#### 变更说明
+
+2026-11-04，用户要求继续完善项目骨架。本轮按 `openspec-apply-change` 推进第 4 组任务中的 4.2，使用 `project-review` 做交付自检。读取根 AGENTS/README、OpenSpec status/apply 指向的 proposal/design/三项 specs/tasks、测试/安全/运维/评审规范及真实门禁、容器与测试文件。CLI 返回 spec-driven、ready、8/15；4/4 规划齐备与实施验收分别判定。
+
+本轮从远程克隆于 `/Users/rice/Downloads/campusclaw-team`，基于 main `90817fb67b841ab2011319903e79079b88a1ce1e` 创建 `change/2026-11-04-skeleton-main-verification`。工作流增加 main 推送触发，继续调用原 `make check`，检查阶段与阈值不变；同步设计及 CK-N01 的执行入口说明。README 修正骨架仍在分支的过时表述、补充版本核对及存活/就绪区别，课程入口明确区分历史表和当前状态，新增[验收收尾](../lesson-07/acceptance.md)集中列明真实缺口及操作步骤。未引入业务路由、模型调用或数据迁移。
+
+#### 验证记录
+
+| 检查 | 实际结果 |
+| --- | --- |
+| GitHub 合并与评审 | 只读查询 PR #3 及 reviews；`ricemin0216` 于 UTC 04:01:26 批准，UTC 04:01:38 合并到上述 main。批准事实不扩展为课程外部证明齐备。 |
+| 主干保护 | 分支接口返回 protected=true；必需检查 enforcement_level=off、contexts=[]、checks=[]。确认任务 2.5/3.5 仍有缺口；本轮未修改远程保护，也未执行直推探针。首次代码已合并而证据尚缺的历史偏差保留，不能以后补验证回填为合并前完成。 |
+| 环境 | 本机 macOS arm64；Python 3.13.15、uv 0.12.16、OpenSpec 1.13.0、Docker 29.9.2、Compose 5.6.1。uv/OpenSpec 与 Python 安装于临时目录，依赖按 uv.lock 安装；Docker 初始未启动，启动 Docker Desktop 后继续。 |
+| 完整门禁 | `make check` 退出 0；Ruff 格式/静态、分层及场景追溯通过；断网单元/接口 32 项、进程 4 项、真实 Compose 集成 1 项，共 37 项通过。Gitleaks 未发现匹配项，依赖锁 High/Critical 扫描为 0；集成中候选镜像扫描通过，原阈值保持。原始输出保留于忽略目录 `reports/main-make-check.log`。 |
+| 主干干净源码冷启动 | 从 git archive 导出 main 精确提交，在独立项目 `campusclaw-main-275786d53319` 使用临时合成配置、动态端口与空卷执行 `docker compose up --build -d`。启动、探针及协议核验合计 12.179 秒；匿名 /health 为 200/ready，两项依赖 ready，版本等于 main；/live 为 200，两个 HEAD 均无正文，根路径及静态入口 404、POST /health 为 405。 |
+| 主干版本、路由及日志 | 实际镜像 `campusclaw-skeleton:90817fb67b841ab2011319903e79079b88a1ce1e`，ID `sha256:b70fe910276a3b02d28487562abbd147ad352cf1af7df26fb8bf5265d3bd5813`，保留本机镜像。容器内默认应用路由只含 /health 与 /live 的 GET/HEAD；健康请求标识与 JSON 日志匹配。报告为 `reports/main-verification.json`。 |
+| 隔离清理 | 上述主干项目 down --volumes 后，按本次项目标签枚举容器/网络/卷均无残留；保留本机镜像。完整门禁的集成套件也执行其隔离清理断言。 |
+| 工作流配置 | 用 YAML 解析器读取实际工作流，确认 PR(main)、push(change/**、main) 均保留且作业执行 make check。主干推送的远程触发需工作流合并后取得实际运行结果，本机解析不充当远程触发证明。 |
+
+#### 评审结论与剩余项
+
+助手自检：本轮差异限 4.2 的主干复验、CI 触发与文档同步；CI/OpenSpec 属约束文件，按 REV-08 待人工复核。本轮没有授权/AI/迁移行为变更，相关业务专项验收不适用；真实容器依赖检查已执行。文档收尾后另执行严格规约、链接与差异检查，结果以下方追加为准。
+
+任务 4.2 已推进文档与主干冷启动部分，但仍保留未勾选。7 项未完成任务维持开放：缺必需检查及阻断实测、V2、正式 V3/V4 人工结论、三人跨机器复现、角色与教师访问等外部证明，以及最终归档/标签。当前分支的人工评审尚未发生，既有 PR #3 的批准不能代替本轮批准，也不能代替全课验收。
+
+文档收尾复核：`make check-static check-secrets` 退出 0，最终差异的严格规约、格式、静态、分层/场景和机密扫描通过；`git diff --check` 退出 0，73 个本地 Markdown 链接目标有效。首次临时链接检查器误将带括号的原有 PDF 文件名截断，改用支持括号的解析规则后通过，未修改原文件名。最终运行/构建输入与 main 一致，应用、测试、Dockerfile、Compose 和依赖锁无差异。本轮工作区改动尚未提交或推送，远程工作流触发与本轮人工评审未执行；原始收尾输出保留于 `reports/main-final-review.log`。
+
+### 评审候选准备（2026-11-04）
+
+用户继续要求开展下一步工作，本轮沿用 `openspec-apply-change` 与 `project-review` 推进任务 4.2 的候选提交及评审准备。重新读取根规则、README、全部骨架规划与任务、评审规范；CLI 返回 spec-driven/ready、8/15 完成。远程 main 仍为 `90817fb67b841ab2011319903e79079b88a1ce1e`，当前没有开放 PR。GitHub 连接具有 push 权限，但 admin/maintain 均为 false；main 的必需检查仍关闭。提交仅包含前述八个 CI/规划/文档文件，运行源码和构建输入未变，沿用本机完整 37 项门禁及主干冷启动记录。
+
+本轮准备在既有变更分支提交并创建评审 PR，让远程工作流对候选实际执行完整门禁；提交、PR 和 CI 的实际结果随后追加。必需检查设置、真实保护拒绝、跨成员复现与人工验收仍由对应角色完成，不自动合并或关闭任务。

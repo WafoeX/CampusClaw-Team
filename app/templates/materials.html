@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ '教师工作台' if view == 'console' else '班级资料' }} · CampusClaw</title>
+  <style nonce="{{ nonce }}">
+    :root {
+      color-scheme: light;
+      --accent: #861d15; --text: #202733; --muted: #505d6c; --line: #d9dde4;
+      font: 16px/1.55 system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); background: #f3f4f6; }
+    [hidden] { display: none !important; }
+    .shell { min-height: 100dvh; display: grid; grid-template-columns: 224px minmax(0,1fr); }
+    aside { padding: 24px 16px; background: #fff; border-right: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 20px; margin-bottom: 24px; }
+    .mark { display: grid; place-items: center; width: 40px; height: 40px; background: var(--accent); border-radius: 12px; }
+    nav { display: grid; gap: 8px; }
+    a { color: var(--accent); }
+    nav a { padding: 8px 12px; border-radius: 8px; color: var(--text); text-decoration: none; }
+    nav a[aria-current=page] { background: #f4e5e3; color: var(--accent); font-weight: 700; }
+    header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--line); background: white; }
+    .identity { display: flex; align-items: center; gap: 8px; }
+    .identity span, .muted { color: var(--muted); }
+    main { max-width: 1100px; margin-inline: auto; padding: 32px; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 20px; }
+    .card { padding: 24px; margin-top: 16px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 2px 4px #2027330a; }
+    form, label { display: grid; gap: 8px; }
+    form { gap: 16px; }
+    input, textarea, button, select { font: inherit; padding: 8px 12px; border: 1px solid #aab2bf; border-radius: 8px; background: #fff; color: inherit; min-width: 0; }
+    textarea { resize: vertical; min-height: 120px; }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button:disabled { opacity: .7; cursor: wait; }
+    :focus-visible { outline: 3px solid #3567aa; outline-offset: 3px; }
+    .row, .pagination { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row { justify-content: space-between; }
+    ul { margin: 0; padding: 0; list-style: none; }
+    li { display: grid; gap: 8px; padding: 16px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f6f7f9; padding: 16px; border-radius: 8px; }
+    .status { margin-top: 16px; min-height: 1.55em; }
+    .error { color: var(--accent); }
+    .pagination { margin-top: 16px; }
+    @media (max-width: 767px) {
+      .shell { grid-template-columns: 1fr; }
+      aside, header, main { padding: 16px; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { margin-bottom: 8px; }
+      nav { display: flex; flex-wrap: wrap; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand"><span class="mark" aria-hidden="true">🎓</span><strong>CampusClaw</strong></div>
+    <nav aria-label="班级导航">
+      <a href="/materials"{% if view != 'console' %} aria-current="page"{% endif %}>班级资料</a>
+      {% if actor.role == 'teacher' %}
+      <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
+      {% endif %}
+    </nav>
+  </aside>
+  <div>
+    <header>
+      <strong>{{ actor.class_name }}</strong>
+      <div class="identity">
+        <span>{{ actor.login_name }} · {{ '教师' if actor.role == 'teacher' else '学生' }}</span>
+        <button id="logout" type="button">退出登录</button>
+      </div>
+    </header>
+    <main>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台'}[view] }}</h1>
+      <p class="muted">资料仅向当前班级的已授权成员开放。</p>
+      <p id="notice" class="status" role="status"></p>
+      {% if view == 'console' %}
+      <section class="card" aria-labelledby="upload-title">
+        <h2 id="upload-title">上传资料</h2>
+        <form id="upload" method="post">
+          <label>资料标题 <input name="title" maxlength="120" required></label>
+          <label>原文来源 <select name="source"><option value="text">输入文字</option><option value="file">上传文件</option></select></label>
+          <label id="text-field">原文 <textarea name="text" required></textarea></label>
+          <label id="file-field" hidden>文件 <input type="file" name="file" accept=".txt,.md,.markdown" disabled></label>
+          <p id="capacity" class="muted" role="status">单份原文大小上限为 1 MiB。</p>
+          <button class="primary" type="submit">保存资料</button>
+        </form>
+        <p id="upload-status" class="status" role="status"></p>
+      </section>
+      {% endif %}
+      <section class="card" aria-label="资料内容">
+        {% if view == 'detail' %}
+        <div class="row"><a href="/materials">返回资料列表</a><button id="download" type="button" hidden>下载原文</button></div>
+        <h2 id="detail-title"></h2>
+        <pre id="body" hidden></pre>
+        {% else %}
+        <h2>{{ '管理本班资料' if view == 'console' else '资料列表' }}</h2>
+        <ul id="materials"></ul>
+        <div id="pagination" class="pagination" hidden>
+          <button id="previous" type="button">上一页</button>
+          <span id="page"></span>
+          <button id="next" type="button">下一页</button>
+        </div>
+        {% endif %}
+        <p id="status" class="status" role="status"></p>
+        <button id="retry" type="button" hidden>重试加载</button>
+      </section>
+    </main>
+  </div>
+</div>
+<script nonce="{{ nonce }}">
+  const view = {{ view | tojson }};
+  const target = {{ target | tojson }};
+  {% include "_material_script.html" %}
+</script>
+</body>
+</html>

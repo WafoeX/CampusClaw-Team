@@ -7,11 +7,14 @@ from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 
 from app.api.http import success
 from app.services.access import AccessDenied, Identity
+from app.services.materials import READ_MATERIALS, WRITE_MATERIALS
 
 COOKIE = "__Host-campusclaw_session"
 COOKIE_OPTIONS = {"secure": True, "httponly": True, "samesite": "Strict", "path": "/"}
 LOGIN_NAME = re.compile(r"[a-zA-Z0-9_-]{1,64}")
-DETAIL_PATH = re.compile(r"/materials/[a-f0-9-]{36}")
+DETAIL_PATH = re.compile(
+    r"/materials/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
 AUTH_POLICIES = {
     ("current_session", "GET"): "session",
     ("current_session", "HEAD"): "session",
@@ -29,7 +32,12 @@ def resolve_session(auth):
     if actor is None:
         return None
     g.actor = actor
-    return Identity(actor.id, actor.class_id, frozenset({"session"}))
+    permissions = {"session"}
+    if actor.role in {"teacher", "student"}:
+        permissions.add(READ_MATERIALS)
+    if actor.role == "teacher":
+        permissions.add(WRITE_MATERIALS)
+    return Identity(actor.id, actor.class_id, frozenset(permissions))
 
 
 def _login_input():

@@ -26,7 +26,17 @@ engine = mysql_engine(
 assert not inspect(engine).get_table_names()
 migrate(engine)
 migrate(engine)
-expected = {"alembic_version", "classes", "accounts", "auth_sessions", "auth_audits"}
+expected = {
+    "alembic_version",
+    "classes",
+    "accounts",
+    "auth_sessions",
+    "auth_audits",
+    "materials",
+    "material_bodies",
+    "material_uploads",
+    "material_deletions",
+}
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [
     "account_id"

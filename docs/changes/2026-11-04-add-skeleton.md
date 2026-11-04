@@ -188,3 +188,45 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 另在实际未提交工作区运行工具，退出 1 并提示先提交/清理，目标报告不存在。该负向操作不计作成员成功复现。README、design、课程验收和 tasks 已同步使用步骤与本轮无 PR 范围。任务 3.4 的三人独立环境和实名交叉评审仍未取得，保持未勾选；其他外部/人工验收条件不被工具报告替代，主干规则与历史缺证事实保留。
 
 提交 `291ae28f520514be7280b6048eb07fed727892ae` 后，从该提交导出干净源码，在专用项目 `campusclaw-main-9c18cf55b532` 用空卷、动态端口和临时合成配置真实冷启动，执行新命令完整 CLI。命令退出 0，生成 `reports/cold-start-agent-local.json`，工作区干净、报告版本等于该提交、两项依赖 ready，GET/HEAD 检查通过，环境为本机 macOS 与 Docker/Compose；人工评审字段保持待填写。启动及核验合计 10.965 秒，镜像 ID 为 `sha256:9629e668da5f6488c7f67bf9165f52d1e6512b7f3ad9f0b3fe65bc68a2bf4a29`。临时容器、网络和卷按本次项目标签确认无残留，保留本机镜像。此为助手本机技术验证，不填作任一成员独立验收。
+
+
+### 2026-11-04 逐项审计与主干保护实测
+
+用户要求检查已完成任务并继续推进。本轮使用 `openspec-apply-change` 和 `project-review`，读取最新 main 的根规则、骨架规划/任务、评审规则和运行证据。同步远端后确认：PR #5 已由 WafoeX 于北京时间 13:27:11 批准、13:27:40 合并；此为仓库中已发生的外部操作，本轮助手没有创建 PR。后续两项业务规划也已合入，当前 main 为 `7f84c9d93b39a613639558cc4dae63f60ba84778`，业务实现范围仍不计入本骨架任务。原工作区干净，从 main 建立 `change/2026-11-04-skeleton-acceptance-audit` 继续留证。
+
+[最新 main 门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41779718233) completed/success，实际日志为 49 项单元/接口、4 项进程和 1 项真实集成通过，合计 54 项；严格规约再次退出 0。分支接口当前返回 protected=true、required_status_checks.enforcement_level=everyone、contexts=[make check]，检查来源 app_id=15368。此前“必需检查关闭”的记录为历史状态，当前设置已补齐。
+
+#### 已勾选的 8 项审计
+
+| 任务 | 本轮核对的交付与证据 |
+| --- | --- |
+| 1.1 | 远程 main 保护已开启，当前必需检查及实际拒绝结果见下表。 |
+| 1.2 | proposal/design/三能力 specs/tasks 齐备，本轮严格校验退出 0。 |
+| 2.1 | app 工厂、api/http、services/access 的分层和默认拒绝，以及 tests/api/test_access.py 可追溯；最新 main 门禁通过。 |
+| 2.2 | config、observability、server/wsgi 与健康/启动测试可追溯；本轮最新主干冷启动再次核对探针、版本与关联日志。 |
+| 2.3 | uv.lock、Dockerfile、Compose、空值样例和 README 均存在；最新 main 使用真实 MySQL/Qdrant 空卷冷启动通过。 |
+| 2.4 | Makefile、检查脚本、三层测试和标准归档追溯回归均存在；远程完整门禁 54 项通过，未修改阈值或跳过检查。 |
+| 3.1 | 历史 B 的版本/制品、依赖故障、乱序与清理证据保留；当前源码对应的全部门禁再次由 main CI 通过。 |
+| 4.1 | 既有 A/B 同一入口切换、故障撤流、回退、恢复和分段耗时记录可追溯；本轮未将文档提交或新主干冷启动充当新的 A/B 演练。 |
+
+上述八项均找到对应交付与运行证据，保留原勾选。剩余任务逐条拆分当前已取得与仍缺的证明，不把部分实现记作整项完成。
+
+#### 2.5 / 3.5 的真实缺失与红灯阻断
+
+在使用已获授权的 ricemin0216 SSH 身份前，先把当前 main 推到本轮正常变更分支，退出 0，证明同一身份可写短分支。随后用独立临时 Git index 生成基于最新 main 的两个真正快进候选；正式工作区和交付分支源码均未改动，不创建 PR，不使用 dry-run 或强推。
+
+| 场景 | 候选与操作 | 实际结果 |
+| --- | --- | --- |
+| 必需检查缺失 | 候选 `ba21e63394c194fa7c0f22a3ee30e7afca258b93` 只新增无害的临时说明，未发布触发任何工作流；普通 push `<候选>:refs/heads/main` | 退出 1，GH006，明确提示 Required status check make check is expected，并提示需 PR。推送前后 main 均为 `7f84c9d93b39a613639558cc4dae63f60ba84778`。 |
+| 必需检查失败 | 临时分支 `change/2026-11-04-protection-negative-ad4293c3`，候选 `04eb8aeee8f34ab677255cd89ff822fa889c78ed`，只在隔离候选将核心未就绪的 503 改成 200，保持所有测试断言 | [真实远程门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41780170154) failure，3 个原健康/HEAD/超时断言失败（3 failed、46 passed），make 退出 2。再普通 push 此候选至 main，退出 1、GH006，明确提示 Required status check make check is failing。main 前后仍相同。 |
+| 清理 | 删除本轮临时故障分支并查询远端引用 | 删除成功；该临时引用不存在，main 不变。正式工作区 app/tests/Dockerfile/Compose/依赖锁/门禁无改动，坏样本没有进入正常验收分支或 main。 |
+
+原始脱敏输出保留于 `reports/protection-audit.json`。两次实际主干推送均因保护规则被拒，不是网络、认证、非快进或无变更拒绝。本轮证明补齐了现时技术行为；首份代码 PR #3 合并前缺证的历史事实仍保留，不能把本次执行时间倒填回首次合并之前。
+
+#### 4.2 的最新主干冷启动复验
+
+从精确 main 提交 `7f84c9d93b39a613639558cc4dae63f60ba84778` 导出干净源码，在专用项目 `campusclaw-main-77af2247eacf` 以空卷、临时合成配置和动态端口启动。启动及核验合计 15.680 秒，双依赖 ready，健康版本与源码一致；两个探针 GET/HEAD、根/静态路径拒绝、非法方法、请求标识关联日志通过，容器内路由只含 /health 和 /live 的 GET/HEAD。实际成员取证 CLI 退出 0，生成 `reports/cold-start-main-audit.json`；汇总记录为 `reports/main-audit-verification.json`。镜像 ID `sha256:f303a2d704985875777d75ac6856fa1e3b9c271f18bfaadc41fb6250bd514a6e` 已留存。临时容器、网络和卷按项目标签确认无残留。助手本机验证仍不计三名成员跨机器验收。
+
+#### 当前结论
+
+2.5 的 A 基线、必需检查配置、缺失/失败阻断技术证据现已具备；3.5 的普通 SSH 身份直推拒绝证据已具备；4.2 的 PR #5 批准/合并事实与最新 main 冷启动证据已具备。由于原任务还包含首次合并前时点、人工复核、三人实名协作等完整条件，这三项仍保持未勾选，待实际评审处理历史偏差和剩余证明。3.2 的 V2、3.3 的正式 V4 人工结论、3.4 的三人独立复现，以及 4.3 的最终人工验收/实际归档和标签，仍无足够新证据。本轮保持 8/15 的严格计数，技术缺口已缩小，当前管理员不再需要重复开启必需检查。

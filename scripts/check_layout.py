@@ -52,7 +52,12 @@ def check_layers():
 def check_scenarios():
     change = CHANGE_ROOT / CHANGE
     if not change.is_dir():
-        matches = list((CHANGE_ROOT / "archive").glob(f"*-{CHANGE}"))
+        archive = CHANGE_ROOT / "archive"
+        matches = [
+            path
+            for path in [archive / CHANGE, *archive.glob(f"*-{CHANGE}")]
+            if path.is_dir()
+        ]
         if len(matches) != 1:
             return ["找不到唯一骨架规约"]
         change = matches[0]

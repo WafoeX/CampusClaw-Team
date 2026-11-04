@@ -52,3 +52,19 @@
 本次更新 README、AGENTS.md、评审规范及骨架 proposal/design/tasks。为减少开工前重复取证，短分支开发以已启用保护和严格校验为前置条件。真实直推拒绝、规约人工复核和必需 CI 检查仍须在首份代码合并前验证。组长用三人实际提交与 PR 汇总协作与角色，教师访问在课程交付前核验。影响限于协作证据的时点和形式，运行、授权与门禁规约沿用原有验收条件。课程入口保留既有记录并追加当前进展。
 
 `openspec-update-change` 按 CLI 报告的现有文件路径同步三份规划，用户本轮已授权修改。`openspec validate 2026-11-04-add-skeleton --strict`、`openspec validate establish-project-standards --strict` 和 `git diff --check` 均退出 0，CLI 记录 2/15 项完成。约束文件调整待人工复核。应用代码及真实直推探针尚未执行。
+
+## 第 2 组骨架实现与本机验证
+
+协作文档提交 `c3995a25ea5efab8217703f627c3401810b3819b` 已推送，`git ls-remote` 与本地提交一致。随后按 `openspec-apply-change` 继续任务 2.1–2.4。`project-add-tests` 按 RT/AC 场景补齐配置、授权、探针、日志、停机和真实依赖用例；`check_layout.py` 检查分层及运行/授权场景映射，测试函数名保留对应编号。默认运行装配只有 `/health`、`/live`，授权夹具均位于测试目录。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 应用接口与单元 | `uv run --locked pytest -q --disable-socket tests/unit tests/api` 通过 25 项，覆盖授权失败和副作用、配置错误、探针协议、超时和日志脱敏。乱序复验使用 pytest-randomly，测试独立运行。 |
+| 启动与停机 | `uv run --locked pytest -q tests/test_startup.py` 通过 4 项。首次 Gunicorn 进程因根日志配置缺失而退出 1，补齐日志配置后通过。复测核对配置错误在监听前退出，以及已进入健康探测的请求在 SIGTERM 后收到响应并有结构化停机记录。 |
+| 真实依赖与制品 | Docker Desktop 29.4.2、Compose v5.1.3，独立项目使用临时卷、合成凭据、随机应用端口和隔离网络。冷启动、真实 MySQL 停启、真实 Qdrant 停启和撤就绪通过，应用只发布回环端口。测试版标识使用随机 40 位测试值；可追溯的 A/B 源码和制品仍需另验。 |
+| 门禁 | `make check` 初次因 Debian 运行镜像高危发现退出 2。改用固定 Alpine 运行镜像后，剩余 5 项来自运行层随包管理工具引入的 Python 组件；移除运行层的打包工具后，保持扫描配置并完整复测，`make check` 退出 0。Gitleaks 扫描本地可达历史及待版本化工作文件，未发现匹配项。Trivy 的依赖锁和应用制品扫描通过当前 High/Critical 阻断。 |
+| 门禁负向 | 临时副本将核心故障响应改成 200，原断言使 `make check` 退出 2，原工作区同一断言通过。独立副本缺失授权用例文件时，场景检查退出 1。外部测试数据库目标覆盖被集成夹具拒绝，pytest 退出 1，未创建测试项目。 |
+
+运行直接依赖为 Flask（HTTP）、Gunicorn（WSGI）、PyMySQL（只读连通探测），其 RSA 依赖用于连接 MySQL 默认认证。开发直接依赖为 pytest、pytest-randomly、pytest-socket 和 Ruff。锁定版本在 `uv.lock`，安装元数据核对发现 cffi 为 MIT-0，需评审逐项确认；MySQL/Qdrant 基础设施分发条款、其他依赖元数据和人工评审待补。运行镜像调整用于修复制品实际发现，复测采用相同 High/Critical 阻断配置。
+
+当前完成任务 2.1–2.4。本机阶段性故障注入不计作独立会话或 V4 的完整证据。任务 2.5 的 A 制品留存、远程 PR 检查与必需状态验证，以及后续成员复现、课程回滚和人工评审仍待完成。原始脱敏检查记录位于忽略的 `reports/2026-11-04-add-skeleton/`。

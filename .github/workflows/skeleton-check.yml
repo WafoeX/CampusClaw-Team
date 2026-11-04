@@ -1,0 +1,32 @@
+name: Skeleton check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ["change/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: make check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.12.16"
+          python-version: "3.13"
+      - name: Install OpenSpec
+        run: npm install --global @fission-ai/openspec@1.13.0
+      - name: Run the repository gate
+        run: make check

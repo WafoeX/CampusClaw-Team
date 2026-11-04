@@ -78,7 +78,7 @@
 | C7-04 最小运行骨架 | 分层与通用授权机制、空值 `.env.example`、外置配置且缺失失败、匿名 `/health` 返回版本/时间/依赖状态、单行 JSON 请求标识日志、Dockerfile/Compose 一键启动 | 骨架分支已实现并在独立 Compose 项目通过启动和依赖故障复测；跨成员复现待验证 |
 | C7-05 真实测试与门禁 | 健康能力正常/失败/边界用例，独立数据，一键门禁（本项目选 `make check`）；失败非零、改坏逻辑能变红 | 代码检查、断网测试和真实依赖集成已有结果，完整门禁与故障注入验收见[骨架证据](docs/changes/2026-11-04-add-skeleton.md) |
 | C7-06 独立会话与跨成员复现 | 无历史会话只给仓库/变更名能执行，另一次相同改动遵守同一规范；每名成员在自己机器按 README 冷启动 | 未执行；当前审查不充当独立会话或跨机器证据；全组与评审责任人 |
-| C7-07 回滚、归档与标签 | 本课完成当前/前一可运行版本的回滚演练，记录步骤/耗时；验收及人工评审后归档骨架变更，建立真实版本标签，证据汇总 `docs/lesson-07/` | 没有运行制品、标签或演练；首次版本缺前一版本须先建立可验证基线，不能将回滚记为不适用；运维与评审责任人 |
+| C7-07 回滚、归档与标签 | 本课完成当前/前一可运行版本的回滚演练，记录步骤/耗时；验收及人工评审后归档骨架变更，建立真实版本标签，证据汇总 `docs/lesson-07/` | A/B 制品与本机回滚已验证，归档及版本标签待人工验收；运维与评审责任人 |
 
 来源：[四步与课内完成要求](https://devops.hello1023.com/课件/第7课-课件-小组项目启动/pages/project.html)、[仓库与主干保护](https://devops.hello1023.com/课件/第7课-课件-小组项目启动/pages/repo.html)、[规约验收](https://devops.hello1023.com/课件/第7课-课件-小组项目启动/pages/spec.html)、[骨架五维核查](https://devops.hello1023.com/课件/第7课-课件-小组项目启动/pages/skeleton.html)、[本课回滚演练](https://devops.hello1023.com/课件/第7课-课件-小组项目启动/pages/std-ops.html)。深入核对的 33 页来源、正式任务清单、逐项缺口和关闭条件见[第 7 课证据入口](docs/lesson-07/README.md)，文档检查见[验证记录](docs/changes/establish-project-standards.md)。
 
@@ -93,7 +93,7 @@
 | 建仓库 | 本地 Git、已配置的 GitHub origin、README、AGENTS.md、忽略规则及协作约定 | 推送结果见初始化记录和远端分支；主干保护已启用，全员复现及应用启动待验证 |
 | 定规约 | 本次纯文档变更的规划与校验 | 骨架四类规划和三段式场景已建立，教学业务规约随课次补齐 |
 | 立规范 | 八份规则、五个技能、必读映射 | 独立会话待验证；代码正向与违规检查待实现后执行 |
-| 落骨架 | 骨架分支的 Flask 服务、Dockerfile、Compose 和 Makefile | 完整门禁、可追溯里程碑制品、回滚和标签待完成 |
+| 落骨架 | 骨架分支的 Flask 服务、Dockerfile、Compose 和 Makefile | 本机和远程 CI 门禁已通过，A/B 制品和隔离回滚已验证；首份代码合并验收及标签待完成 |
 
 本次载体交付不代表整课四步完成。文档自检、人工批准和运行验证分别记录，人工评审状态见验证记录。
 
@@ -118,6 +118,13 @@
 2. 确认工作区对应要验证的源码提交，执行 `export APP_BUILD_REVISION=$(git rev-parse HEAD)`，再运行 `docker compose up --build -d`。镜像写入该版本；应用缺少必需配置时在监听前退出。
 3. 执行 `curl -fsS http://127.0.0.1:8000/health`，使用自定义端口时替换端口。确认返回版本和 MySQL 状态。仅 Qdrant 不可用时为 200 且 `status=degraded`，MySQL 不可用时为 503。独立的 `/live` 用于确认进程仍可响应。
 4. 执行 `docker compose logs app` 查看单行 JSON 请求标识日志，使用 `docker compose down` 停止当前项目并保留本机卷。
+
+### 课内回滚复现
+
+1. 从[骨架验证记录](docs/changes/2026-11-04-add-skeleton.md)取得 A/B 的提交和镜像 ID。用 `docker image inspect --format '{{.Id}}' campusclaw-skeleton:<提交>` 核对本机保留的制品。需要重建时，在各自对应的源码提交上设置 `APP_BUILD_REVISION` 并执行 `docker compose build app`，另行登记新制品 ID。
+2. 准备 `.env.drill-a` 和 `.env.drill-b`，按冷启动填写合成配置，分别设定 A/B 的 `APP_BUILD_REVISION` 及不同的 `APP_HOST_PORT`，例如 18081 和 18082。在没有同名项目的情况下，分别用 `docker compose -p campusclaw-drill-a --env-file .env.drill-a up --no-build -d` 和 B 对应命令启动，两侧均等待 `/health` 返回 200 且版本匹配。
+3. 用只绑定回环地址的代理建立一个固定入口，转发当前侧的 `/health`，仅在该侧就绪时转发 `/live`。先指向 A 并确认版本，再指向已就绪的 B 并确认版本。执行 `docker compose -p campusclaw-drill-b --env-file .env.drill-b stop mysql`，检查固定入口返回 503，直连 B 的 `/live` 仍为 200。确认 A 就绪后将代理指回 A，从同一入口验证 200、A 版本和请求标识，并用 A 的应用日志匹配。记录故障检测、切换、复核及总耗时。
+4. 启动 B 的 MySQL，验证 B 可重新就绪。关闭临时代理，使用上面两个项目及各自配置运行 `down --volumes` 回收演练专用容器和卷，保留 A/B 镜像。
 
 认证安全基线为访问令牌仅在内存持有；若使用刷新令牌，必须采用受限安全 Cookie 并轮换。选题说明中的 `sessionStorage` 是外部历史实现，差异及例外流程见[安全规范](docs/standards/03-安全开发规范.md)。
 
@@ -148,4 +155,4 @@
 4. 在已有仓库历史、镜像层、报告与备份中排查副本，按权限协调清理；删除文件不替代撤销和轮换。
 5. 将脱敏后的原因、处置人、验证和防再发措施归档到变更记录，提交人工复核。
 
-本仓库尚无运行秘密、镜像或部署，此处为未来操作约定。
+目前运行记录来自本机及 CI 隔离验证，发布环境按实际授权建立。

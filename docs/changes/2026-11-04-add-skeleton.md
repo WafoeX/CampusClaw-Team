@@ -76,3 +76,11 @@
 从同一提交、空卷及合成配置执行 `docker compose up --build -d` 后 6.32 秒内确认 `/live` 为 200，`/health` 为 200、两项依赖就绪、版本等于源码提交，健康响应的请求标识可在该版本 JSON 日志中找到。测试项目、网络和两份临时卷已清理，保留应用镜像。课内回退可用相同 Compose 配置和独立环境，设置 `APP_BUILD_REVISION` 为上述提交，再用 `docker compose up --no-build -d` 启用已保留的镜像，启动前核对镜像 ID。B 制品及切换耗时仍待取得。
 
 提交附带 `Skeleton check` 工作流，调用仓库的 `make check`。[首个分支 CI 作业](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41764433314)已完成，GitHub Jobs 接口显示 `Run the repository gate` 及整体作业均为 `success`。分支 CI 与首份代码 PR 上的必需检查状态分开判定，任务 2.5 保持开放。仓库管理员需添加必需检查 `make check`，评审在首次代码合并前核验缺失或失败确实阻断。
+
+### 候选 B 门禁回归
+
+在现有变更分支继续任务 3.1 的独立工作。复查 [PR #3](https://github.com/WafoeX/CampusClaw-Team/pull/3) 仍开放，GitHub 分支接口确认 `main` 已启用保护，`required_status_checks` 当时为 `off` 且无检查项。分支开发继续，任务 2.5 的远程设置及阻断实测仍开放。
+
+`make check` 的三个测试阶段统一拒绝空收集、跳过、预期失败和只收集而未执行。工作目录环境的 `PYTEST_ADDOPTS` 不会缩小门禁选定的范围。依赖锁扫描纳入开发依赖，Compose 验证退出后按本次项目标签检查容器、卷和网络。`project-add-tests` 补七个退出语义用例，断网的单元及接口以种子 `1702` 乱序复跑通过 32 项。最新完整 `make check` 退出 0，共 32 项断网单元/接口、4 项进程和 1 项真实 Compose 集成测试通过，依赖锁扫描返回 0 项 High/Critical 发现。
+
+真实扫描负向验证覆盖 CK-F03 与 CK-F05。无缓存的一次性 Trivy 容器断网，因无法取得漏洞数据库退出 1；Gitleaks 对临时目录中的合成秘密退出 1，输出未回显合成值。首次记录脚本对 Gitleaks 诊断文字的匹配失败，按实际 `leaks found: 1` 修正后重跑通过。CK-B01 另在独立项目用不兼容扫描器使 `make check-integration` 退出 2，实际核对项目标签下无容器、网络和卷残留。结合基线阶段的目标覆盖、缺用例及误报就绪演练，CK-N01、F01–F05、B01 均已有本机证据。合成秘密和故障配置只在临时环境使用。

@@ -25,16 +25,16 @@ check-static:
 	$(RUN) python scripts/check_layout.py
 
 check-test:
-	$(RUN) pytest -q --disable-socket tests/unit tests/api
-	$(RUN) pytest -q tests/test_startup.py
+	$(RUN) python scripts/check_pytest.py -q --disable-socket tests/unit tests/api
+	$(RUN) python scripts/check_pytest.py -q tests/test_startup.py
 
 check-secrets:
 	$(RUN) python scripts/check_secrets.py "$(GITLEAKS)"
 
 check-dependencies:
 	mkdir -p "$(TRIVY_CACHE)"
-	docker run --rm --mount "type=bind,src=$(TRIVY_CACHE),dst=/cache" --mount "type=bind,src=$(CURDIR)/uv.lock,dst=/scan/uv.lock,readonly" "$(TRIVY)" fs --cache-dir /cache --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /scan
+	docker run --rm --mount "type=bind,src=$(TRIVY_CACHE),dst=/cache" --mount "type=bind,src=$(CURDIR)/uv.lock,dst=/scan/uv.lock,readonly" "$(TRIVY)" fs --cache-dir /cache --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress --include-dev-deps --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /scan
 
 check-integration:
 	mkdir -p "$(TRIVY_CACHE)"
-	CAMPUSCLAW_IMAGE_SCANNER="$(TRIVY)" CAMPUSCLAW_SCANNER_CACHE="$(TRIVY_CACHE)" $(RUN) pytest -q --tb=short tests/integration
+	CAMPUSCLAW_IMAGE_SCANNER="$(TRIVY)" CAMPUSCLAW_SCANNER_CACHE="$(TRIVY_CACHE)" $(RUN) python scripts/check_pytest.py -q --tb=short tests/integration

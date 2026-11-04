@@ -77,6 +77,22 @@ def eventually(action, timeout=90):
     pytest.fail("隔离服务在时限内未达到预期状态")
 
 
+def assert_project_clean(project, env):
+    label = f"label=com.docker.compose.project={project}"
+    for list_command in (
+        ["ps", "-aq"],
+        ["network", "ls", "-q"],
+        ["volume", "ls", "-q"],
+    ):
+        remaining = subprocess.check_output(
+            ["docker", *list_command, "--filter", label],
+            env=env,
+            text=True,
+            timeout=30,
+        ).strip()
+        assert not remaining, f"隔离项目 {project} 清理后仍有资源：{remaining}"
+
+
 @pytest.fixture(scope="module")
 def stack(tmp_path_factory):
     overrides = sorted(key for key in COMPOSE_OVERRIDES if os.environ.get(key))
@@ -160,6 +176,7 @@ def stack(tmp_path_factory):
     finally:
         try:
             compose("down", "--volumes", "--remove-orphans")
+            assert_project_clean(project, env)
         finally:
             image = f"campusclaw-skeleton:{version}"
             present = (

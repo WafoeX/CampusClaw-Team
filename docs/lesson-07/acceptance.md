@@ -5,6 +5,7 @@
 | 事项 | 证据和状态 |
 | --- | --- |
 | 骨架合并与运行 | PR #3 交付骨架，PR #5 补齐主干复验。主干 `7f84c9d` 的 CI 和干净源码冷启动已有记录。[PR #3](https://github.com/WafoeX/CampusClaw-Team/pull/3) · [PR #5](https://github.com/WafoeX/CampusClaw-Team/pull/5) · [主干 CI](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41779718233) |
+| 骨架接入修订 | 先前开发工作区候选的探测隔离、公开路由装配和分层回归已通过本地完整门禁，人工复核待完成。[本轮验证证据](../changes/2026-11-04-add-skeleton.md#业务接入审查修正2026-11-04) |
 | 仓库规则与回滚 | 既有主干规则阻断、A/B 回滚及首次合并前证据缺口保留在历史记录。[骨架证据](../changes/2026-11-04-add-skeleton.md) |
 | 课程协作与规范取证 | 正向样本和违规预演已有记录。独立会话、三人实名协作、成员复现和正式人工复核待课程验收。课程任课教师直接查看公开仓库。 |
 | 课程归档 | 待人工验收后按授权归档、同步主规格并打标签。 |

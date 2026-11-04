@@ -14,7 +14,9 @@ def success(data):
     return jsonify(code=0, message="成功", data=data, request_id=g.request_id)
 
 
-def install_http(app, *, version, health, resolve_identity, policies):
+def install_http(
+    app, *, version, health, resolve_identity, policies, public_routes, draining
+):
     @app.before_request
     def prepare_request():
         g.request_id = uuid4().hex
@@ -27,11 +29,16 @@ def install_http(app, *, version, health, resolve_identity, policies):
             "HEAD",
         } and request.url_rule.rule == PUBLIC_PROBES.get(request.endpoint):
             return None
-        permission = policies.get(key)
-        if not permission:
-            raise AccessDenied(403, 1200, "当前账号无此操作权限")
-        g.identity = authorize(resolve_identity, permission)
-        if health.sample()[0] != 200:
+        if (
+            request.endpoint,
+            request.url_rule.rule,
+            request.method,
+        ) not in public_routes:
+            permission = policies.get(key)
+            if not permission:
+                raise AccessDenied(403, 1200, "当前账号无此操作权限")
+            g.identity = authorize(resolve_identity, permission)
+        if draining():
             raise AccessDenied(503, 1500, "依赖服务暂不可用，请稍后重试")
 
     @app.get("/live", provide_automatic_options=False)

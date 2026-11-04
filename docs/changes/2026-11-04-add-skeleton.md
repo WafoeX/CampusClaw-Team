@@ -166,3 +166,12 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 
 
 教师术语核验：用户进一步明确“教师”指课程任课教师，而非系统实现的教师角色。实际差异核对确认 app、产品设计规范和安全开发规范均无改动；教师/学生认证、教师工作台、班级隔离、教师仅可看授权反馈及本班测验提交等业务要求保留。将当前课程交付文档中的相关称呼明确为“课程任课教师（项目评阅人）”，并在 README 和验收入口写明两个身份边界；历史证据中的仓库访问教师同样指课程评阅人，不代表系统角色权限。
+
+
+### SSH 推送恢复与远程门禁
+
+用户完成 SSH 配置后，本轮实际运行 `ssh -o BatchMode=yes -o ConnectTimeout=10 -T git@github.com`，GitHub 返回已成功认证为 ricemin0216。该测试因 GitHub 不提供 shell 而退出 1，与认证成功提示并存，不判为认证失败。origin 已为仓库 SSH 地址；普通 `git push --set-upstream origin change/2026-11-04-skeleton-main-verification` 成功，远程引用核对对应 `c717188811a5a6f788a673a35851ebff774bb022`，包含之前的 `33e090f` 与归档追溯修复提交。
+
+[远程 Skeleton check](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41776337351) 针对此提交 completed/success，作业 `make check` 及 Run the repository gate 均成功。此为变更分支推送检查，不冒充 PR 或 main 合并后的检查。本轮仅补充推送和远程验证记录，不改运行/构建输入。
+
+连接器创建草稿 PR 返回 403 Resource not accessible by integration；通过浏览器比较页继续时控制接口超时，未能提交表单，因此尚无本分支 PR。比较入口为 https://github.com/WafoeX/CampusClaw-Team/compare/main...change/2026-11-04-skeleton-main-verification?expand=1 。推送已成功，应用 PR 权限与 SSH 推送身份分开判断。main 仍为 `90817fb67b841ab2011319903e79079b88a1ce1e`，必需状态检查仍关闭，不能把远程绿灯写成失败合并阻断已设置。任务仍为 8/15，待人工/成员/管理员条件不变。

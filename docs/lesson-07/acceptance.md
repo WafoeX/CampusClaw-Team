@@ -16,7 +16,7 @@
 | C7-06 独立复现 | README 提供冷启动入口 | 三人逐人提交真实环境、命令、版本和交叉评审；同机重跑不能代替 |
 | C7-07 回滚与归档 | A/B 不可变制品和本机回滚已有证据 | 最终课程人工验收、归档、主规格同步和真实版本标签 |
 
-合并事实：[PR #3](https://github.com/WafoeX/CampusClaw-Team/pull/3)，批准人为 `ricemin0216`，于北京时间 2026-11-04 12:01:38 合入 `90817fb67b841ab2011319903e79079b88a1ce1e`。历史候选 [CI](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41768156034) 通过；本轮本机命令及结果见[骨架证据最新追加](../changes/2026-11-04-add-skeleton.md#主干合并后复验与文档同步)。
+合并事实：[PR #3](https://github.com/WafoeX/CampusClaw-Team/pull/3)，批准人为 `ricemin0216`，于北京时间 2026-11-04 12:01:38 合入 `90817fb67b841ab2011319903e79079b88a1ce1e`。历史候选 [CI](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41768156034) 通过；推送候选 `c717188` 的[远程门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41776337351)已成功；本轮本机命令及结果见[骨架证据最新追加](../changes/2026-11-04-add-skeleton.md#主干合并后复验与文档同步)。
 
 课程任课教师查阅范围：用户已明确项目评阅人只需查看仓库内的内容；远程仓库为 public，因此不要求邀请教师、授予成员权限或取得单独访问确认。
 
@@ -44,7 +44,7 @@
 | Collaborators | 三名成员的开发权限；课程任课教师无需邀请，只查看公开内容。 |
 | Settings → Actions → General | 允许当前固定版本的工作流 Actions 运行；如有首次贡献者工作流等待审批，由管理员审批。工作流只需 contents: read，不因此授予作业仓库写权限。 |
 | GitHub App 安装授权 | 当前连接对本仓库创建 Git tree 返回 403。确认仓库在授权范围内；发布源码需要 Contents 写入，修改 .github/workflows 还需要 Workflows 权限，创建 PR 需要 Pull requests 写入。用户自身 push=true 不代表应用已获得这些权限。 |
-| 本机 Git 推送身份与网络 | HTTPS 到 github.com:443 超时，本机没有 SSH 身份。可恢复 GitHub 网络连通并配置本机 Git 登录，或修复上述应用授权；不向聊天发送令牌、口令或私钥。 |
+| 本机 Git 推送身份与网络 | 用户已配置 SSH；以 ricemin0216 成功认证，变更分支已实际推送并通过远程门禁。本机 Git 推送问题已解决；连接器创建 PR 仍返回 403，须修复应用的 Pull requests 写权限或由成员从比较页创建 PR。不向聊天发送令牌、口令或私钥。 |
 
 管理员自己操作 main 保护即可，不需要为了设置规则而给助手长期管理员权限。GitHub 官方说明：[保护分支](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches)、[应用权限](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app)。
 
@@ -65,5 +65,5 @@
 | 3.4 | 待三名成员在各自机器复现同一最终提交并交叉评审。 |
 | 3.5 | 待普通成员真实直推拒绝、实名协作、许可和历史偏差处置；课程任课教师的仓库单独访问证明已按用户要求取消。 |
 | 4.1 | 已完成：真实 A/B 本机回滚与耗时已有记录。 |
-| 4.2 | 部分完成：文档、主干冷启动和待提交候选已有；等待远程推送、CI 和剩余人工/外部证明。 |
+| 4.2 | 部分完成：文档、主干冷启动、候选推送及远程 CI 已完成；等待 PR 创建、人工评审和剩余外部证明。 |
 | 4.3 | 部分完成：标准归档位置的追溯正反向验证通过；最终人工验收、真实归档/主规格同步和标签仍未执行。 |

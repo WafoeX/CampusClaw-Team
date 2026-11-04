@@ -116,6 +116,8 @@
 
 ### 合并检查与主干复验
 
+当前交付按用户要求不创建 PR，改动在现有变更分支提交与推送，人工验收在仓库证据中记录。主干保护由管理员维护；本轮不把 PR 创建或连接器的 PR 写权限作为待办。
+
 `Skeleton check` 对目标为 `main` 的 PR、`change/**` 推送及 `main` 推送均运行 `make check`。PR 绿灯验证候选，主干绿灯验证实际合并结果。运维仍须在主干保护中将实际生成的 `make check` 设为必需并验证失败阻断；仅开启工作流不等于已经配置此保护。具体步骤和剩余验收见[验收收尾](docs/lesson-07/acceptance.md)。
 
 ### 骨架冷启动
@@ -125,6 +127,18 @@
 3. 执行 `curl -fsS http://127.0.0.1:8000/health`，使用自定义端口时替换端口。确认返回版本和 MySQL 状态。仅 Qdrant 不可用时为 200 且 `status=degraded`，MySQL 不可用时为 503。独立的 `/live` 用于确认进程仍可响应。
    `docker compose up` 返回成功或容器显示 healthy 只说明进程启动/存活。依赖初始化期间允许 `/health` 暂为 503，应等待并确认版本匹配且 `status=ready`、两项依赖均为 `ready`；`degraded` 表示向量依赖不可用，不能作为两项依赖均正常的冷启动验收。
 4. 执行 `docker compose logs app` 查看单行 JSON 请求标识日志，使用 `docker compose down` 停止当前项目并保留本机卷。
+
+### 成员冷启动记录
+
+任务 3.4 的三名成员须各自在自己的干净克隆上启动全组约定的同一提交。服务就绪后执行以下命令；端口应与本人 `APP_HOST_PORT` 一致，输出文件名可换为成员标识：
+
+```bash
+uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/cold-start-member-a.json
+```
+
+命令核对干净工作区、运行版本与当前提交一致、MySQL/Qdrant 均就绪、双探针的 GET/HEAD 及请求标识，记录系统与 Docker/Compose 版本。失败非零退出，不生成通过记录或覆盖旧报告；仅请求本机回环探针，不读取环境文件、口令、主机名或完整容器配置。`degraded` 可用于运行降级，但不满足完整冷启动验收。
+
+将生成的脱敏记录连同成员姓名、实际启动命令、遇阻/复测说明和另一成员的实名交叉评审汇总到课程证据。该命令只提供机器检查结果；每人的独立运行、V2 会话和人工评审仍须实际发生。
 
 ### 课内回滚复现
 

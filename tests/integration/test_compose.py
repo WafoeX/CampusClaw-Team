@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.verify_runtime import inspect_probes
+
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_OVERRIDES = {
     "COMPOSE_FILE",
@@ -214,6 +216,9 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     assert len(published["app"]) == 1
     assert published["app"][0]["URL"] == "127.0.0.1"
     assert published["app"][0]["TargetPort"] == 8080
+    port = int(compose("port", "app", "8080").rsplit(":", 1)[1])
+    observed = inspect_probes(port, version)
+    assert set(observed) == {"/health", "/live"}
 
     compose("stop", "mysql")
     code, unready, _ = status("not_ready")

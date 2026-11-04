@@ -175,3 +175,14 @@ GitHub 当前提交的检查接口确认 B 的两次 `make check` 均为 `succes
 [远程 Skeleton check](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41776337351) 针对此提交 completed/success，作业 `make check` 及 Run the repository gate 均成功。此为变更分支推送检查，不冒充 PR 或 main 合并后的检查。本轮仅补充推送和远程验证记录，不改运行/构建输入。
 
 连接器创建草稿 PR 返回 403 Resource not accessible by integration；通过浏览器比较页继续时控制接口超时，未能提交表单，因此尚无本分支 PR。比较入口为 https://github.com/WafoeX/CampusClaw-Team/compare/main...change/2026-11-04-skeleton-main-verification?expand=1 。推送已成功，应用 PR 权限与 SSH 推送身份分开判断。main 仍为 `90817fb67b841ab2011319903e79079b88a1ce1e`，必需状态检查仍关闭，不能把远程绿灯写成失败合并阻断已设置。任务仍为 8/15，待人工/成员/管理员条件不变。
+
+
+### 无 PR 交付与成员冷启动取证命令
+
+用户明确本轮不创建 PR，并要求继续任务。本轮继续既有 `2026-11-04-add-skeleton`（apply 状态 ready、8/15），不创建 PR、不扩大连接器权限，使用现有变更分支提交与 SSH 推送。只读核验 main 仍为 `90817fb67b841ab2011319903e79079b88a1ce1e`、protected=true、必需状态检查关闭；此前文档提交 `260285d` 的远程检查也 completed/success。管理员剩余事项集中为 2.5 的必需 make check/失败与缺失阻断证明、3.5 的保护范围/绕过与普通成员直推拒绝配合，以及三名成员开发权限；Actions 已工作、SSH 已解决、课程任课教师不需加入仓库。
+
+按 `openspec-apply-change`、`project-add-tests`、`project-review` 推进 3.4 的工具支持。读取根规则、README、骨架全部规划和场景、测试/安全/运维规则及现有集成测试。新增 `scripts/verify_runtime.py`，成员在服务已就绪后运行 `uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/cold-start-member-a.json`。工具拒绝非干净工作区，要求运行版本等于当前 Git 提交、MySQL/Qdrant 均 ready、双探针 GET/HEAD 状态/媒体类型/不可缓存头和请求标识匹配。只请求 127.0.0.1，禁用代理和重定向跟随，限制响应大小；输出限定字段的系统与 Docker/Compose 版本、提交和请求标识，不读取 .env、凭据、主机名或完整容器配置。不覆盖旧报告；错误非零且不产生成功记录。身份、实际启动步骤及交叉评审明确待成员填写。
+
+新增 10 项回归覆盖 RT-N01/N02/B03 的正常取证、版本不符、未完全就绪（RT-F03/B01）、HEAD 正文/缓存指令异常、脏工作区、RT-F05 敏感字段不进入报告，以及 CK-F02/F03 的旧证据不覆盖、失败不写通过报告。真实 Compose 冷启动测试调用同一探针核验函数，核验真实 MySQL/Qdrant 下的该路径。本机 `make check` 退出 0，共 49 项断网单元/接口、4 项进程、1 项真实集成，合计 54 项；静态、规约、机密与依赖/制品扫描通过原有阈值。原始输出为 `reports/member-runtime-make-check.log`。
+
+另在实际未提交工作区运行工具，退出 1 并提示先提交/清理，目标报告不存在。该负向操作不计作成员成功复现。README、design、课程验收和 tasks 已同步使用步骤与本轮无 PR 范围。任务 3.4 的三人独立环境和实名交叉评审仍未取得，保持未勾选；其他外部/人工验收条件不被工具报告替代，主干规则与历史缺证事实保留。

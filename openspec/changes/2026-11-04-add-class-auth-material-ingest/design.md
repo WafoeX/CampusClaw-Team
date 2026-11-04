@@ -29,6 +29,8 @@
 | PATCH、DELETE `/api/v1/materials/{id}` | 本班教师 | 200/0；PATCH 更新标题或顺序，DELETE 确认删除 |
 | GET `/api/v1/materials/{id}/download` | 本班师生 | 200 附件字节，`Content-Type: application/octet-stream`、安全的 `Content-Disposition: attachment`、`X-Content-Type-Options: nosniff` |
 
+- 列表数据包含 `items`、`total`、`page`、`page_size`。资料对象包含 `id`、`title`、`sort_order`、`source_format`、`media_type`、`byte_size`、`character_count`、`content_version`、`revision`、`original_only`，详情另带纯文本 `text`。组织请求接受 `revision` 及至少一个变更字段 `title` 或 `sort_order`。删除成功返回 `id` 和 `deleted=true`。
+
 - 复用骨架 `X-Request-ID`、统一响应和路由错误。公共探针仍独立。只为登录页 GET/HEAD 和登录 API POST 增设公开声明，受保护方法逐项登记，未登记入口维持 403/1200，非法方法维持 405/Allow。受保护 API 的校验顺序为身份→功能权限→参数→资源归属与业务状态→原文或持久化动作；依赖错误失败关闭。客户端身份头忽略，未声明查询、表单或 JSON 字段返回 400/1000。格式合法 ID 在当前班级过滤后找不到时返回 404/1300，与已删除或跨班同构。下载失败使用同一 JSON 错误，先取完有界正文再发送附件头。含凭据或资料的响应使用 `Cache-Control: no-store`。
 - 页面沿用 `/login`、`/materials`、`/materials/{id}`、`/console`。登录页内嵌启动 CSS/JS，其他资源若需独立请求须精确登记。未登录或已到期时，页面专用 401 处理规则重定向至登录页，API 仍返回 401。返回地址只接受 `/materials`、合法资料详情路径或 `/console`，禁止外部地址、路径歧义及任意查询或片段。有效会话可直访及刷新，重登录后以当前角色重新授权返回路径。下载使用授权同源 API；Fetch 下载使用后撤销临时对象 URL。资料视图具备加载、正常、空、错误四态，预览只写文本节点，错误提示关联请求标识。
 - 登录页采用深红渐变品牌区与白色表单区，右侧使用有标签的账号和口令输入、主按钮与就地错误提示。资料与教师工作台沿用浅灰底、白色侧栏和班级顶栏、浅红选中背景与细边框圆角卡片。顶栏显示当前身份和退出。导航只列本变更已实现且当前角色有权访问的入口；数据来自受保护 API。窄屏单列，支持键盘与清晰焦点，正文对比度符合 PROD-09。

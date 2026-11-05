@@ -15,7 +15,15 @@ def success(data):
 
 
 def install_http(
-    app, *, version, health, resolve_identity, policies, public_routes, draining
+    app,
+    *,
+    version,
+    health,
+    resolve_identity,
+    policies,
+    public_routes,
+    draining,
+    page_login=None,
 ):
     @app.before_request
     def prepare_request():
@@ -58,6 +66,10 @@ def install_http(
 
     @app.errorhandler(AccessDenied)
     def refused(error):
+        if error.status == 401 and page_login is not None:
+            redirect_response = page_login()
+            if redirect_response is not None:
+                return redirect_response
         return jsonify(
             code=error.code, message=error.message, data=None, request_id=g.request_id
         ), error.status

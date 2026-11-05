@@ -1,5 +1,7 @@
 *
 !app/
 !app/**/*.py
+!app/templates/
+!app/templates/*.html
 !pyproject.toml
 !uv.lock

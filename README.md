@@ -14,7 +14,7 @@ docker compose up --build -d
 curl -fsS http://127.0.0.1:8000/health
 ```
 
-初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。骨架接入修订的候选契约由部署入口按就绪撤流，业务请求各自处理实际依赖故障，应用进入排空后拒绝新的已登记业务请求。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
+初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。部署入口按就绪撤流；业务请求各自处理实际依赖故障，应用进入排空后拒绝新的已登记业务请求。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
 
 日常修改代码后，只重建应用，继续使用正在运行的 MySQL 和 Qdrant：
 
@@ -31,7 +31,7 @@ docker compose logs --tail=50 app
 | 要做的事 | 现有入口 |
 | --- | --- |
 | 注册路由、装配依赖 | 在 [`app/api/`](app/api/) 放 HTTP 处理器，由 [Flask 应用工厂](app/__init__.py) 注册并注入依赖。 |
-| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器；骨架接入修订候选中，确需匿名的业务入口通过 `public_routes` 登记 `(endpoint, route_rule, method)`。骨架默认只开放探针。 |
+| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器；确需匿名的业务入口通过 `public_routes` 登记 `(endpoint, route_rule, method)`。骨架默认只开放探针。 |
 | 连接 MySQL、Qdrant 等依赖 | 在 [`app/adapters/`](app/adapters/) 放外部访问代码，由装配层传给服务；骨架已有连通探测，分层检查仅允许适配器导入 SQLAlchemy；锁定依赖、业务仓储和迁移随认证与资料变更加入。 |
 | 新增检查 | [`tests/unit/`](tests/unit/) 放单元检查，[`tests/api/`](tests/api/) 放接口检查，[`tests/integration/`](tests/integration/) 放真实依赖集成。GitHub Actions 继续运行 `make check`；本地完整重跑按改动需要安排。 |
 

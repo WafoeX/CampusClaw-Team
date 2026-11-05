@@ -24,7 +24,10 @@ def material_metadata(row):
             "content_version",
             "revision",
         )
-    } | {"original_only": row["character_count"] > SEARCH_CHARACTER_LIMIT}
+    } | {
+        "chapter_id": row.get("chapter_id"),
+        "original_only": row["character_count"] > SEARCH_CHARACTER_LIMIT,
+    }
 
 
 def unavailable():

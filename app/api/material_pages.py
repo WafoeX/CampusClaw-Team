@@ -9,6 +9,7 @@ from app.services.materials import READ_MATERIALS, WRITE_MATERIALS
 PAGE_PERMISSIONS = {
     "materials_page": READ_MATERIALS,
     "material_page": READ_MATERIALS,
+    "chapters_page": READ_MATERIALS,
     "console_page": WRITE_MATERIALS,
 }
 PAGE_POLICIES = {
@@ -53,6 +54,10 @@ def install_material_pages(app):
     @app.get("/materials")
     def materials_page():
         return render("list")
+
+    @app.get("/chapters")
+    def chapters_page():
+        return render("chapters")
 
     @app.get("/materials/<material_id>")
     def material_page(material_id):

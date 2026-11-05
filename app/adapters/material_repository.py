@@ -2,7 +2,8 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.adapters.auth_schema_v1 import accounts, auth_sessions
-from app.adapters.material_schema_v2 import bodies, deletions, materials, uploads
+from app.adapters.chapter_schema_v4 import materials
+from app.adapters.material_schema_v2 import bodies, deletions, uploads
 
 
 class MaterialRepository:
@@ -36,7 +37,9 @@ class MaterialRepository:
             return (
                 connection.execute(
                     select(materials, bodies.c.content)
-                    .join(bodies)
+                    .select_from(
+                        materials.join(bodies, materials.c.id == bodies.c.material_id)
+                    )
                     .where(self._scope(class_id, material_id))
                 )
                 .mappings()

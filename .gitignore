@@ -17,6 +17,8 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+# pnpm cache
+.pnpm-store/
 
 # 本地运行数据、上传内容、向量数据和备份
 *.db

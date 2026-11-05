@@ -43,6 +43,7 @@ expected = {
     "material_bodies",
     "material_uploads",
     "material_deletions",
+    "request_limits",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

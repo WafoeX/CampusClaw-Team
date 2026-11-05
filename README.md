@@ -188,6 +188,12 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 3. 用只绑定回环地址的代理建立一个固定入口，转发当前侧的 `/health`，仅在该侧就绪时转发 `/live`。先指向 A 并确认版本，再指向已就绪的 B 并确认版本。执行 `docker compose -p campusclaw-drill-b --env-file .env.drill-b stop mysql`，检查固定入口返回 503，直连 B 的 `/live` 仍为 200。确认 A 就绪后将代理指回 A，从同一入口验证 200、A 版本和请求标识，并用 A 的应用日志匹配。记录故障检测、切换、复核及总耗时。
 4. 启动 B 的 MySQL，验证 B 可重新就绪。关闭临时代理，使用上面两个项目及各自配置运行 `down --volumes` 回收演练专用容器和卷，保留 A/B 镜像。
 
+## 第 10 课交付与最终人工评测
+
+先完成纳入交付范围的必做功能、场景追溯、双门禁、干净目录启动、CI 制品追溯、观测与通知、对照压测及至少三名真实使用者试用。齐备后冻结候选提交、镜像和配置，由验收人按四项技能、手机四步及跨功能业务场景执行评测，同伴从干净目录独立复现。第 9 课 SEC-08 继续按选做状态登记。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
+
+当前处于规约阶段。`make check` 是现有入口，独立 `make check-security`、同名 CI 双门禁和候选交付按任务实施后取证。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。差异未经课程方确认时按缺项记录。实际验收将结论与证据指针写入根目录 `report.md`，报告明细使用 `reports/` 固定路径。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
+
 ## 小组协作与增量流程
 
 各功能变更在实现过程中完成适用的测试、合并检查和评审，并记录结果。核心功能齐备后，由[项目最终验收变更](openspec/changes/2026-11-04-project-final-acceptance/proposal.md)在同一候选上验证跨功能流程。

@@ -11,6 +11,18 @@ ORIGIN = "https://campusclaw.test"
 WRITE_HEADERS = {"Origin": ORIGIN, "X-CampusClaw-Request": "same-origin"}
 
 
+def test_CK_F08_ready_probes_do_not_prove_business_assembly(make_app):
+    # 未设置 APP_PUBLIC_ORIGIN 的骨架可以就绪，但不能作为认证组交接。
+    client = make_app().test_client()
+    assert client.get("/live").status_code == 200
+    assert client.get("/health").json["status"] == "ready"
+    for path in ("/login", "/materials", "/api/v1/materials"):
+        response = client.get(path)
+        assert response.status_code == 404
+        assert response.json["code"] == 1300
+        assert response.json["data"] is None
+
+
 @pytest.fixture
 def candidate(settings):
     auth = Mock()

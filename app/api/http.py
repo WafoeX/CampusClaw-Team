@@ -70,9 +70,12 @@ def install_http(
             redirect_response = page_login()
             if redirect_response is not None:
                 return redirect_response
-        return jsonify(
+        response = jsonify(
             code=error.code, message=error.message, data=None, request_id=g.request_id
-        ), error.status
+        )
+        if error.retry_after is not None:
+            response.headers["Retry-After"] = str(error.retry_after)
+        return response, error.status
 
     @app.errorhandler(HTTPException)
     def http_error(error):

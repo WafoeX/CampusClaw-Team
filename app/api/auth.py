@@ -77,7 +77,7 @@ def _return_path(app, path):
     return "/materials" if "/materials" in registered else "/login"
 
 
-def install_auth(app, auth, origin):
+def install_auth(app, auth, origin, limiter):
     @app.before_request
     def verify_write_origin():
         if request.routing_exception is not None or request.method in {
@@ -91,6 +91,12 @@ def install_auth(app, auth, origin):
             or request.headers.get("X-CampusClaw-Request") != "same-origin"
         ):
             raise AccessDenied(403, 1200, "请从本系统页面重新操作")
+        if request.endpoint == "login":
+            limiter.check("login-source", request.remote_addr or "unknown")
+        elif g.get("identity") is not None:
+            limiter.check("write-subject", g.identity.subject_id)
+        else:
+            limiter.check("public-write-source", request.remote_addr or "unknown")
 
     @app.after_request
     def auth_response(response):

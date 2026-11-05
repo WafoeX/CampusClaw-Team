@@ -9,6 +9,7 @@ from app.adapters.auth_repository import AuthRepository
 from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.probes import check_mysql, check_qdrant
+from app.adapters.rate_limit_repository import RateLimitRepository
 from app.api.auth import (
     AUTH_POLICIES,
     AUTH_PUBLIC_ROUTES,
@@ -22,6 +23,7 @@ from app.config import Settings
 from app.services.auth import AuthService
 from app.services.health import HealthService
 from app.services.materials import MaterialService
+from app.services.rate_limits import RequestLimiter
 
 VERSION_FILE = Path(__file__).with_name("BUILD_VERSION")
 
@@ -42,6 +44,7 @@ def create_app(
     draining=None,
     auth=None,
     materials=None,
+    limiter=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -58,7 +61,7 @@ def create_app(
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     origin = settings.public_origin
     if origin is not None:
-        if auth is None or materials is None:
+        if auth is None or materials is None or limiter is None:
             engine = mysql_engine(
                 host=settings.mysql_host,
                 port=settings.mysql_port,
@@ -75,6 +78,8 @@ def create_app(
             )
         if materials is None:
             materials = MaterialService(MaterialRepository(engine), DatabaseError)
+        if limiter is None:
+            limiter = RequestLimiter(RateLimitRepository(engine), DatabaseError)
         resolve_identity = resolve_identity or (lambda: resolve_session(auth))
         policies = {
             **(policies or {}),
@@ -94,7 +99,7 @@ def create_app(
         page_login=login_redirect if origin is not None else None,
     )
     if origin is not None:
-        install_auth(app, auth, origin)
+        install_auth(app, auth, origin, limiter)
         install_materials(app, materials)
         install_material_pages(app)
     return app

@@ -480,7 +480,7 @@
     "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/class-auth-material-ingest/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/grounded-material-qa/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": "Task 2.1 的确定性切片与真实 MySQL 存储基础已有回归（tests/unit/test_chunking.py、tests/integration/index_foundation_runtime.py）；完整发布、权限入口及依赖失败仍待 tasks 2.2，能力场景尚未整体验收。",
     "2026-11-04-add-traceable-retrieval/specs/traceable-retrieval/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"

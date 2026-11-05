@@ -28,19 +28,19 @@ engine = mysql_engine(
 assert engine.url.database.startswith("campusclaw_test_")
 
 
-def one_step_down():
+def down_to_pre_chapters():
     config = Config()
     config.set_main_option(
         "script_location", str(Path("app/adapters/migrations").resolve())
     )
     with engine.connect() as connection:
         config.attributes["connection"] = connection
-        command.downgrade(config, "-1")
+        command.downgrade(config, "0003_request_limits")
         connection.commit()
 
 
 # 上一个集成脚本留下空的 head 库：先回退到 0003，制造真正的旧资料。
-one_step_down()
+down_to_pre_chapters()
 assert "chapters" not in inspect(engine).get_table_names()
 assert "chapter_id" not in {c["name"] for c in inspect(engine).get_columns("materials")}
 AuthRepository(engine).seed_demo_accounts(
@@ -139,8 +139,8 @@ with engine.connect() as connection:
         is None
     )
 
-# 单步回退会丢掉章节关系，保留既有资料及正文；重新升级后恢复未分类。
-one_step_down()
+# 明确回到章节前的 0003（含其后追加结构），保留原文；重升后恢复未分类。
+down_to_pre_chapters()
 assert "chapters" not in inspect(engine).get_table_names()
 assert "chapter_id" not in {c["name"] for c in inspect(engine).get_columns("materials")}
 with engine.connect() as connection:

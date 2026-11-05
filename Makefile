@@ -24,6 +24,7 @@ check-static: check-specs
 	$(RUN) ruff format --check app scripts tests
 	$(RUN) ruff check app scripts tests
 	$(RUN) python scripts/check_layout.py
+	$(RUN) python scripts/scenario_trace.py
 
 check-test:
 	$(RUN) python scripts/check_pytest.py -q --disable-socket tests/unit tests/api

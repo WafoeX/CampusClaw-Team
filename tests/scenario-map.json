@@ -1,0 +1,444 @@
+{
+  "version": 1,
+  "implemented": {
+    "2026-11-04-add-class-auth-material-ingest/specs/class-auth-material-ingest/spec.md": {
+      "AUTH-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert renewed.status_code == 200 and renewed.json['code'] == 0"
+      },
+      "AUTH-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert teacher.delete(current, base_url=origin, headers=headers).json['code'] == 0"
+      },
+      "AUTH-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert expired_api.status_code == 401 and expired_api.json['code'] == 1100"
+      },
+      "AUTH-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert rejected.status_code == 400 and rejected.json['code'] == 1000"
+      },
+      "AUTH-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert credential_errors[0] == credential_errors[1] == credential_errors[2]"
+      },
+      "AUTH-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert client.get(current, base_url=origin).json['code'] == 1100"
+      },
+      "AUTH-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert failure.status_code == 503 and failure.json['code'] == 1500"
+      },
+      "AUTH-F05": {
+        "test": "tests/api/test_class_auth_material.py",
+        "function": "test_AUTH_F05_rejects_before_body"
+      },
+      "AUTH-F06": {
+        "test": "tests/api/test_class_auth_material.py",
+        "function": "test_AUTH_F06_only_renders_allowlisted_destination"
+      },
+      "ACL-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert {item['id'] for item in result.json['data']['items']} == expected_ids"
+      },
+      "ACL-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert page_ids == sorted({retried.json['data']['id'], at_capacity.json['data']['id'], recovered.json['data']['id'], created.json['data']['id']})"
+      },
+      "ACL-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert rejected.status_code == 401 and rejected.json['code'] == 1101"
+      },
+      "ACL-F02": {
+        "test": "tests/api/test_class_auth_material.py",
+        "function": "test_ACL_F02_student_multipart_does_not_reach_body_or_repository"
+      },
+      "ACL-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert actual.json['code'] == absent.json['code'] == 1300"
+      },
+      "ACL-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert forged_rejection.status_code == 400 and forged_rejection.json['code'] == 1000"
+      },
+      "ACL-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert rejected.status_code == 503 and rejected.json['code'] == 1500"
+      },
+      "ING-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert attachment.data == raw and attachment.status_code == 200"
+      },
+      "ING-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert retried.json['data'] == repeated.json['data']"
+      },
+      "ING-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert file_rejection.status_code == 400 and file_rejection.json['code'] == 1000"
+      },
+      "ING-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert failed.status_code == 503 and failed.json['code'] == 1500"
+      },
+      "ING-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert storage_unavailable.status_code == 503 and storage_unavailable.json['code'] == 1500"
+      },
+      "ING-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert upload_text(teacher, 'parallel', 'changed').status_code == 409"
+      },
+      "IO-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert attachment.data == raw and attachment.status_code == 200"
+      },
+      "IO-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert peer.get(target, base_url=origin).json['data']['text'] == raw.decode('utf-8-sig')"
+      },
+      "IO-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert teacher.delete(target, base_url=origin, headers=headers).status_code == 200"
+      },
+      "IO-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert teacher.delete(target, base_url=origin, headers=headers).status_code == 503"
+      },
+      "IO-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert 'Content-Disposition' not in unavailable.headers"
+      },
+      "IO-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert invalid_download.status_code == 400 and invalid_download.json['code'] == 1000"
+      }
+    },
+    "2026-11-04-add-skeleton/specs/skeleton-access/spec.md": {
+      "AC-N01": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_N01_only_probes_are_public"
+      },
+      "AC-F01": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F01_unregistered_denied_even_with_valid_identity"
+      },
+      "AC-F02": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F02_missing_identity_and_forged_role"
+      },
+      "AC-F03": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F03_unknown_path_and_invalid_probe_methods"
+      },
+      "AC-N03": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_N03_public_entry_is_scoped_to_rule_and_method"
+      },
+      "AC-N02": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_N02_current_identity_can_read_and_write"
+      },
+      "AC-F04": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F04_revocation_uses_current_identity"
+      },
+      "AC-F05": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F05_out_of_scope_equals_missing"
+      },
+      "AC-F06": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_F06_identity_dependency_failure_closes_access"
+      },
+      "AC-B01": {
+        "test": "tests/api/test_access.py",
+        "function": "test_AC_B01_public_head_does_not_grant_protected_access"
+      }
+    },
+    "2026-11-04-add-skeleton/specs/skeleton-check/spec.md": {
+      "CK-N01": {
+        "test": "tests/unit/test_gate.py",
+        "function": "test_CK_N01_CK_F02_required_suite_exit_status"
+      },
+      "CK-F01": {
+        "pending": "3.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F02": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_CK_F02_record_does_not_overwrite_previous_evidence"
+      },
+      "CK-F03": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_CK_F03_failed_verification_does_not_write_success"
+      },
+      "CK-F04": {
+        "pending": "3.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F05": {
+        "pending": "3.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F06": {
+        "pending": "3.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-B02": {
+        "test": "tests/unit/test_layout.py",
+        "function": "test_CK_B02_sqlalchemy_is_allowed_only_in_adapters"
+      },
+      "CK-B01": {
+        "pending": "3.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-N02": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F07": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F08": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F09": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      },
+      "CK-F10": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-skeleton/tasks.md",
+        "reason": "工程流程及破坏演练的正式证据由未完成的骨架验收任务核对，当前不宣称该项已自动验证。"
+      }
+    },
+    "2026-11-04-add-skeleton/specs/skeleton-runtime/spec.md": {
+      "RT-N01": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_N01_RT_N02_RT_B03_record_checks_both_probes"
+      },
+      "RT-F01": {
+        "test": "tests/test_startup.py",
+        "function": "test_RT_F01_RT_F02_process_exits_before_binding"
+      },
+      "RT-F02": {
+        "test": "tests/test_startup.py",
+        "function": "test_RT_F01_RT_F02_process_exits_before_binding"
+      },
+      "RT-N02": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_N01_RT_N02_RT_B03_record_checks_both_probes"
+      },
+      "RT-F03": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_F03_RT_B01_record_requires_both_dependencies"
+      },
+      "RT-F04": {
+        "test": "tests/api/test_health.py",
+        "function": "test_RT_F04_slow_core_keeps_liveness_available"
+      },
+      "RT-B01": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_F03_RT_B01_record_requires_both_dependencies"
+      },
+      "RT-B02": {
+        "test": "tests/unit/test_config.py",
+        "function": "test_RT_B02_probe_deadline_is_exclusive"
+      },
+      "RT-B03": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_N01_RT_N02_RT_B03_record_checks_both_probes"
+      },
+      "RT-B04": {
+        "test": "tests/test_startup.py",
+        "function": "test_RT_B04_local_wsgi_process_reaches_probes_and_drains"
+      },
+      "RT-B05": {
+        "test": "tests/api/test_access.py",
+        "function": "test_RT_B05_business_requests_do_not_use_probe_slots"
+      },
+      "RT-N03": {
+        "test": "tests/api/test_health.py",
+        "function": "test_RT_N03_RT_F05_json_logs_use_server_request_ids_and_redact"
+      },
+      "RT-F05": {
+        "test": "tests/unit/test_runtime_record.py",
+        "function": "test_RT_F05_record_does_not_copy_untrusted_fields"
+      }
+    },
+    "2026-11-05-fix-rate-limits-traceability/specs/implemented-scenario-traceability/spec.md": {
+      "TR-N01": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_N01_TR_B01_real_entry_and_archive"
+      },
+      "TR-B01": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_N01_TR_B01_real_entry_and_archive"
+      },
+      "TR-F01": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_F01_new_business_scenario_without_test_fails"
+      },
+      "TR-F02": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_F02_missing_executable_evidence_fails"
+      },
+      "TR-F03": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_F03_invalid_or_duplicate_manifest_fails"
+      },
+      "TR-F04": {
+        "test": "tests/unit/test_scenario_trace.py",
+        "function": "test_TR_F04_outside_path_is_rejected"
+      }
+    },
+    "2026-11-05-fix-rate-limits-traceability/specs/shared-request-limits/spec.md": {
+      "RL-N01": {
+        "test": "tests/api/test_rate_limits.py",
+        "function": "test_RL_N01_login_and_write_use_separate_scopes"
+      },
+      "RL-B01": {
+        "test": "tests/api/test_rate_limits.py",
+        "function": "test_RL_B01_forwarded_header_does_not_change_source"
+      },
+      "RL-F01": {
+        "test": "tests/api/test_rate_limits.py",
+        "function": "test_RL_F01_denied_identity_or_origin_does_not_consume"
+      },
+      "RL-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/rate_limit_runtime.py",
+        "runner": "verify_rate_limits",
+        "assertion": "assert sorted(results) == [False, True]"
+      },
+      "RL-F03": {
+        "test": "tests/api/test_rate_limits.py",
+        "function": "test_RL_F03_dependency_failure_closes_before_auth"
+      },
+      "RL-F04": {
+        "test": "tests/api/test_rate_limits.py",
+        "function": "test_RL_F04_rejection_has_retry_and_no_business_calls"
+      },
+      "RL-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/rate_limit_runtime.py",
+        "runner": "verify_rate_limits",
+        "assertion": "assert connection.execute(select(accounts).order_by(accounts.c.id)).all() == before"
+      }
+    }
+  },
+  "planned": {
+    "2026-11-04-add-async-teaching-workflows/specs/async-quiz-submissions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/class-learning-insights/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/durable-teaching-jobs/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/published-class-quizzes/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/reviewed-question-bank/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-controlled-mcp-tools/specs/class-tool-connectors/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-controlled-mcp-tools/specs/guarded-tool-dialogue/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-controlled-mcp-tools/specs/mcp-teaching-service/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-controlled-mcp-tools/specs/tool-call-audit/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-streaming-ai-assistant/specs/bounded-ai-skills/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-streaming-ai-assistant/specs/class-ai-apps/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-streaming-ai-assistant/specs/private-streaming-sessions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/class-auth-material-ingest/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/class-chapters/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/grounded-material-qa/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-traceable-retrieval/specs/traceable-retrieval/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
+  }
+}

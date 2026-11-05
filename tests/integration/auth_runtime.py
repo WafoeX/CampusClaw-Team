@@ -341,24 +341,24 @@ for filename, media, raw in (
     ("a.txt", "text/html", b"text"),
     ("a.md", "text/markdown", b"\xff"),
 ):
-    response = teacher.post(
+    file_rejection = teacher.post(
         materials_url,
         base_url=origin,
         headers={**headers, "Idempotency-Key": "invalid-file"},
         data={"title": "资料", "file": (BytesIO(raw), filename, media)},
     )
-    assert response.status_code == 400 and response.json["code"] == 1000
+    assert file_rejection.status_code == 400 and file_rejection.json["code"] == 1000
 assert (
     teacher.get(materials_url + "?class_id=other", base_url=origin).status_code == 400
 )
 for field in ("class_id", "role"):
-    response = teacher.post(
+    forged_rejection = teacher.post(
         materials_url,
         base_url=origin,
         headers={**headers, "Idempotency-Key": "forged-identity"},
         json={"title": "资料", "text": "原文", field: "other"},
     )
-    assert response.status_code == 400 and response.json["code"] == 1000
+    assert forged_rejection.status_code == 400 and forged_rejection.json["code"] == 1000
 assert upload_file(teacher, "mixed", b"text", text="正文").status_code == 400
 assert snapshot() == before
 
@@ -429,9 +429,12 @@ def reject_material_store(_conn, _cursor, statement, _parameters, _context, _man
 before = snapshot()
 event.listen(engine, "before_cursor_execute", reject_material_store)
 try:
-    unavailable = upload_text(teacher, "storage-failure")
-    assert unavailable.status_code == 503 and unavailable.json["code"] == 1500
-    assert unavailable.json["data"] is None
+    storage_unavailable = upload_text(teacher, "storage-failure")
+    assert (
+        storage_unavailable.status_code == 503
+        and storage_unavailable.json["code"] == 1500
+    )
+    assert storage_unavailable.json["data"] is None
 finally:
     event.remove(engine, "before_cursor_execute", reject_material_store)
 assert snapshot() == before

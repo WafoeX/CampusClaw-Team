@@ -415,6 +415,51 @@
         "runner": "verify_rate_limits",
         "assertion": "assert connection.execute(select(accounts).order_by(accounts.c.id)).all() == before"
       }
+    },
+    "2026-11-04-add-traceable-retrieval/specs/class-chapters/spec.md": {
+      "CH-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/chapter_api_runtime.py",
+        "runner": "verify_chapter_api",
+        "assertion": "assert revised.status_code == 200 and revised.json[\"data\"][\"revision\"] == 2"
+      },
+      "CH-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/chapter_api_runtime.py",
+        "runner": "verify_chapter_api",
+        "assertion": "assert after[\"revision\"] == 5 and after[\"chapter_id\"] is None"
+      },
+      "CH-F01": {
+        "test": "tests/api/test_chapters.py",
+        "function": "test_CH_F01_invalid_creation_has_no_service_call"
+      },
+      "CH-F02": {
+        "test": "tests/api/test_chapters.py",
+        "function": "test_CH_F02_all_writes_reject_before_service"
+      },
+      "CH-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/chapter_api_runtime.py",
+        "runner": "verify_chapter_api",
+        "assertion": "assert denied[0] == denied[1]"
+      },
+      "CH-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/chapter_api_runtime.py",
+        "runner": "verify_chapter_api",
+        "assertion": "assert failed.status_code == 503 and failed.json[\"code\"] == 1500"
+      },
+      "CH-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/chapter_api_runtime.py",
+        "runner": "verify_chapter_api",
+        "assertion": "assert sorted(response.status_code for response in raced) == [200, 409]"
+      }
     }
   },
   "planned": {
@@ -434,7 +479,6 @@
     "2026-11-04-add-streaming-ai-assistant/specs/private-streaming-sessions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/class-auth-material-ingest/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-traceable-retrieval/specs/class-chapters/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/grounded-material-qa/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-traceable-retrieval/specs/traceable-retrieval/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",

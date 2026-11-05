@@ -1,12 +1,12 @@
 UV ?= uv
 OPENSPEC ?= openspec
-CHANGE := 2026-11-04-add-skeleton
+CHANGE ?=
 RUN := $(UV) run --locked
 TRIVY := ghcr.io/aquasecurity/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
 GITLEAKS := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 TRIVY_CACHE := $(CURDIR)/reports/trivy-cache
 
-.PHONY: check check-static check-test check-secrets check-dependencies check-integration
+.PHONY: check check-static check-specs check-test check-secrets check-dependencies check-integration
 check:
 	$(MAKE) check-static
 	$(MAKE) check-test
@@ -14,12 +14,13 @@ check:
 	$(MAKE) check-dependencies
 	$(MAKE) check-integration
 
-check-static:
-	@if test -d "openspec/changes/$(CHANGE)"; then \
-		$(OPENSPEC) validate "$(CHANGE)" --strict; \
-	else \
-		$(OPENSPEC) validate --specs --strict; \
-	fi
+check-specs:
+	$(OPENSPEC) validate --all --strict
+ifneq ($(strip $(CHANGE)),)
+	$(OPENSPEC) validate "$(CHANGE)" --strict
+endif
+
+check-static: check-specs
 	$(RUN) ruff format --check app scripts tests
 	$(RUN) ruff check app scripts tests
 	$(RUN) python scripts/check_layout.py

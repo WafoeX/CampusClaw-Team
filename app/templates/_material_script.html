@@ -1,0 +1,246 @@
+  const api = "/api/v1/materials";
+  const csrf = {"X-CampusClaw-Request": "same-origin"};
+  const get = (id) => document.getElementById(id);
+  const status = get("status");
+  let page = 1;
+  let loadVersion = 0;
+
+  function node(tag, text) {
+    const element = document.createElement(tag);
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+
+  function message(element, text, error = false) {
+    element.textContent = text;
+    element.classList.toggle("error", error);
+  }
+
+  async function request(path, options = {}) {
+    let response;
+    try {
+      response = await fetch(path, {...options, signal: AbortSignal.timeout(15000)});
+    } catch {
+      throw new Error("连接失败或超时，请重试。");
+    }
+    if (response.status === 401) {
+      location.replace("/login?next=" + encodeURIComponent(location.pathname));
+      throw new Error("会话已失效，正在返回登录页。");
+    }
+    if (response.ok && options.download) return response.blob();
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const id = payload.request_id || response.headers.get("X-Request-ID");
+      throw new Error((payload.message || "请求失败") + (id ? "。请求标识 " + id : ""));
+    }
+    return payload.data;
+  }
+
+  function button(text, action) {
+    const control = node("button", text);
+    control.type = "button";
+    control.addEventListener("click", () => perform(control, action, get("notice")));
+    return control;
+  }
+
+  async function perform(control, action, feedback) {
+    if (control.disabled) return;
+    control.disabled = true;
+    message(feedback, "正在处理…");
+    try {
+      message(feedback, await action() || "");
+    } catch (error) {
+      message(feedback, error.message, true);
+    } finally {
+      control.disabled = false;
+    }
+  }
+
+  function entry(item) {
+    const row = node("li");
+    const title = node("a", item.title);
+    const detail = "/materials/" + item.id;
+    const description = node("span", item.byte_size + " 字节 · 顺序 " + item.sort_order
+      + (item.original_only ? " · 仅保留原文" : ""));
+    title.href = detail;
+    description.className = "muted";
+    row.append(title, description);
+    if (view === "console") {
+      const titleInput = node("input");
+      titleInput.value = item.title;
+      titleInput.maxLength = 120;
+      titleInput.setAttribute("aria-label", "新标题");
+      const sortInput = node("input");
+      sortInput.type = "number";
+      sortInput.min = "0";
+      sortInput.max = "1000000";
+      sortInput.value = item.sort_order;
+      sortInput.setAttribute("aria-label", "展示顺序");
+      const actions = node("div");
+      actions.className = "row";
+      actions.append(titleInput, sortInput, button("保存调整", async () => {
+        if (!titleInput.value.trim() || !sortInput.value || !sortInput.checkValidity()) {
+          throw new Error("请填写标题和有效顺序。");
+        }
+        await request(api + "/" + item.id, {
+          method: "PATCH", headers: {...csrf, "Content-Type": "application/json"},
+          body: JSON.stringify({
+            title: titleInput.value, sort_order: Number(sortInput.value), revision: item.revision,
+          }),
+        });
+        await load();
+        return "资料已更新。";
+      }), button("删除资料", async () => {
+        if (!confirm("删除这份资料及其原文？")) return;
+        await request(api + "/" + item.id, {method: "DELETE", headers: csrf});
+        await load();
+        return "资料已删除。";
+      }));
+      row.append(actions);
+    }
+    return row;
+  }
+
+  async function load() {
+    const version = ++loadVersion;
+    get("retry").hidden = true;
+    message(status, "正在加载资料，请稍候。");
+    if (target) {
+      get("body").hidden = true;
+      get("download").hidden = true;
+      get("detail-title").textContent = "";
+    } else {
+      get("materials").replaceChildren();
+      get("pagination").hidden = true;
+    }
+    try {
+      if (target) {
+        const material = await request(api + "/" + target);
+        if (version !== loadVersion) return;
+        get("detail-title").textContent = material.title;
+        get("body").textContent = material.text;
+        get("body").hidden = false;
+        get("download").dataset.extension = material.source_format;
+        get("download").hidden = false;
+        message(status, material.original_only ? "仅保留原文。" : "已加载原文。");
+        return;
+      }
+      const result = await request(api + "?page=" + page);
+      if (version !== loadVersion) return;
+      const lastPage = Math.max(1, Math.ceil(result.total / result.page_size));
+      if (page > lastPage) {
+        page = lastPage;
+        return load();
+      }
+      get("materials").replaceChildren(...result.items.map(entry));
+      get("previous").disabled = page === 1;
+      get("next").disabled = page === lastPage;
+      get("page").textContent = "第 " + page + " 页，共 " + lastPage + " 页";
+      get("pagination").hidden = lastPage === 1;
+      message(status, result.total ? "共 " + result.total + " 份资料。" : "本班暂无资料。");
+    } catch (error) {
+      if (version !== loadVersion) return;
+      message(status, error.message, true);
+      get("retry").hidden = false;
+    }
+  }
+
+  get("retry").addEventListener("click", load);
+  get("logout").addEventListener("click", () => perform(get("logout"), async () => {
+    await request("/api/v1/auth/sessions/current", {method: "DELETE", headers: csrf});
+    location.replace("/login");
+  }, get("notice")));
+  if (target) {
+    get("download").addEventListener("click", () => perform(get("download"), async () => {
+      const blob = await request(api + "/" + target + "/download", {download: true});
+      const url = URL.createObjectURL(blob);
+      const link = node("a");
+      link.href = url;
+      link.download = target + (get("download").dataset.extension === "md" ? ".md" : ".txt");
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return "已发起下载。";
+    }, get("notice")));
+  } else {
+    get("previous").addEventListener("click", () => { page -= 1; load(); });
+    get("next").addEventListener("click", () => { page += 1; load(); });
+  }
+
+  const upload = get("upload");
+  if (upload) {
+    const fields = upload.elements;
+    const control = upload.querySelector("button[type=submit]");
+    const guidance = get("capacity");
+    let key;
+    let draftVersion = 0;
+    const defaultGuidance = "单份原文大小上限为 1 MiB。";
+    const oversized = "原文大小须在 1 MiB 以内。";
+    const searchLimit = "仅保留原文，要参与检索请按章节拆成每份不超过 32,000 字符后重新上传。";
+
+    function showSource() {
+      const file = fields.source.value === "file";
+      get("text-field").hidden = fields.text.disabled = file;
+      get("file-field").hidden = fields.file.disabled = !file;
+      fields.text.required = !file;
+      fields.file.required = file;
+    }
+
+    async function inspectDraft() {
+      const version = ++draftVersion;
+      const file = fields.file.files[0];
+      if (fields.source.value === "file" && !file) {
+        guidance.textContent = defaultGuidance;
+        return;
+      }
+      const content = fields.source.value === "file" ? file : fields.text.value;
+      const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
+      if ((bytes.size ?? bytes.length) > 1048576) {
+        guidance.textContent = oversized;
+        return;
+      }
+      try {
+        const buffer = bytes instanceof Uint8Array ? bytes : await bytes.arrayBuffer();
+        const text = new TextDecoder("utf-8", {fatal: true}).decode(buffer);
+        if (version === draftVersion) {
+          guidance.textContent = Array.from(text).length > 32000 ? searchLimit : defaultGuidance;
+        }
+      } catch {
+        if (version === draftVersion) guidance.textContent = "文件须采用 UTF-8 编码。";
+      }
+    }
+
+    upload.addEventListener("input", () => {
+      key = undefined;
+      showSource();
+      inspectDraft();
+    });
+    upload.addEventListener("submit", (event) => {
+      event.preventDefault();
+      perform(control, async () => {
+        const headers = {...csrf, "Idempotency-Key": key ??= crypto.randomUUID()};
+        let body;
+        if (fields.source.value === "file") {
+          body = new FormData();
+          body.append("title", fields.title.value);
+          body.append("file", fields.file.files[0]);
+        } else {
+          headers["Content-Type"] = "application/json";
+          body = JSON.stringify({title: fields.title.value, text: fields.text.value});
+        }
+        const version = draftVersion;
+        const result = await request(api, {method: "POST", headers, body});
+        if (version === draftVersion) {
+          key = undefined;
+          upload.reset();
+          showSource();
+          guidance.textContent = defaultGuidance;
+        }
+        page = 1;
+        await load();
+        return result.original_only ? "资料已保存。" + searchLimit : "资料已保存。";
+      }, get("upload-status"));
+    });
+  }
+  load();

@@ -17,6 +17,7 @@ class Settings:
     qdrant_url: str
     qdrant_api_key: str
     version: str
+    public_origin: str | None = None
 
     @classmethod
     def load(cls, env, version_file: Path):
@@ -57,6 +58,29 @@ class Settings:
         api_key = required("QDRANT_API_KEY")
         if any(not 32 < ord(char) < 127 for char in api_key):
             raise ConfigError("QDRANT_API_KEY")
+        origin = env.get("APP_PUBLIC_ORIGIN") or None
+        if origin is not None:
+            try:
+                public_address = urlsplit(origin)
+                host = public_address.hostname
+                if (
+                    not host
+                    or public_address.scheme != "https"
+                    or public_address.port in (0, 443)
+                    or public_address.path
+                    or public_address.query
+                    or public_address.fragment
+                    or public_address.username is not None
+                    or public_address.password is not None
+                    or f"https://{public_address.netloc.lower()}" != origin
+                    or any(
+                        char.isspace() or ord(char) >= 127 or ord(char) < 33
+                        for char in origin
+                    )
+                ):
+                    raise ValueError
+            except ValueError:
+                raise ConfigError("APP_PUBLIC_ORIGIN") from None
         return cls(
             mysql_host=required("MYSQL_HOST"),
             mysql_port=port,
@@ -66,4 +90,5 @@ class Settings:
             qdrant_url=url.rstrip("/"),
             qdrant_api_key=api_key,
             version=version,
+            public_origin=origin,
         )

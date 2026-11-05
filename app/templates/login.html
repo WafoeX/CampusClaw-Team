@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · CampusClaw</title>
+  <style nonce="{{ nonce }}">
+    :root {
+      color-scheme: light;
+      --accent: #861d15;
+      --accent-dark: #5d150e;
+      --text: #202733;
+      --muted: #505d6c;
+      --line: #ccd1d9;
+      --space: 16px;
+      font: 16px/1.6 system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--text); }
+    main { min-height: 100dvh; display: grid; grid-template-columns: 55fr 45fr; }
+    .brand, .entry { display: grid; align-content: center; padding: clamp(24px, 5vw, 64px); }
+    .brand {
+      color: #fff;
+      background: radial-gradient(ellipse at top right, #913e35, transparent 45%),
+                  linear-gradient(155deg, var(--accent), var(--accent-dark));
+    }
+    .badge {
+      justify-self: start;
+      margin: 0 0 24px;
+      padding: 4px 16px;
+      background: #ffffff24;
+      border: 1px solid #ffffff50;
+      border-radius: 32px;
+    }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(28px, 4vw, 56px); line-height: 1.2; }
+    h2 { font-size: 28px; line-height: 1.35; }
+    .intro { max-width: 32em; margin-top: 24px; color: #fff1ee; }
+    .entry { background: #fdfdfd; }
+    .hint { margin: 8px 0 24px; color: var(--muted); }
+    form, #session { display: grid; gap: var(--space); max-width: 34em; }
+    label { display: grid; gap: 4px; font-weight: 600; }
+    input, button {
+      font: inherit;
+      min-height: 48px;
+      padding: 8px 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    input { width: 100%; background: #fff; color: var(--text); }
+    button { background: var(--accent); color: #fff; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: 0.75; cursor: wait; }
+    :focus-visible { outline: 3px solid #3567aa; outline-offset: 3px; }
+    #feedback { min-height: 1.6em; max-width: 34em; margin-top: 16px; }
+    #feedback[data-error] { color: var(--accent); }
+    [hidden] { display: none !important; }
+    @media (max-width: 767px) {
+      main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .entry { align-content: start; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="brand" aria-labelledby="brand-title">
+      <p class="badge"><span aria-hidden="true">🎓</span> 班级智能助学</p>
+      <h1 id="brand-title">CampusClaw</h1>
+      <p class="intro">在同一个学习空间查阅本班资料，核对课堂原文。</p>
+    </section>
+    <section class="entry" aria-labelledby="entry-title">
+      <h2 id="entry-title">登录班级空间</h2>
+      <p class="hint" id="entry-hint">请使用教师分配的班级账号。账号和口令均为必填项。</p>
+      <form id="sign-in" autocomplete="on" method="post">
+        <label>账号 <input id="login-name" name="login_name" required maxlength="64"
+          autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+        <label>口令 <input id="password" name="password" type="password" required
+          maxlength="128" autocomplete="current-password"></label>
+        <button type="submit">登录</button>
+      </form>
+      <div id="session" hidden>
+        <p id="identity"></p>
+        <button id="logout" type="button">退出登录</button>
+      </div>
+      <p id="feedback" role="status" aria-live="polite"></p>
+      <noscript>请启用 JavaScript 后再登录。</noscript>
+    </section>
+  </main>
+  <script nonce="{{ nonce }}">
+    const destination = {{ destination | tojson }};
+    const base = "/api/v1/auth/sessions";
+    const form = document.getElementById("sign-in");
+    const session = document.getElementById("session");
+    const feedback = document.getElementById("feedback");
+    const writeHeaders = {"X-CampusClaw-Request": "same-origin"};
+
+    function showMessage(text, error = false) {
+      feedback.textContent = text;
+      feedback.toggleAttribute("data-error", error);
+    }
+
+    async function fetchSession() {
+      const response = await fetch(base + "/current");
+      if (response.status === 401) {
+        form.hidden = false;
+        session.hidden = true;
+        return;
+      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      if (destination !== "/login") {
+        location.replace(destination === "/console" && result.data.role !== "teacher"
+          ? "/materials"
+          : destination);
+        return;
+      }
+      const {class_name, login_name, role} = result.data;
+      document.getElementById("identity").textContent =
+        `${login_name} · ${class_name} · ${role === "teacher" ? "教师" : "学生"}`;
+      form.hidden = true;
+      session.hidden = false;
+      document.getElementById("entry-title").textContent = "已登录";
+      document.getElementById("entry-hint").hidden = true;
+    }
+
+    async function write(button, path, method, body) {
+      if (button.disabled) return;
+      button.disabled = true;
+      showMessage(method === "POST" ? "正在登录…" : "正在退出…");
+      try {
+        const response = await fetch(path, {
+          method, body,
+          headers: body ? {...writeHeaders, "Content-Type": "application/json"} : writeHeaders,
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          if (method === "DELETE" && response.status === 401) {
+            location.replace("/login");
+            return;
+          }
+          showMessage(`${result.message}。请重试；仍失败请提供请求标识 ${result.request_id}。`, true);
+          return;
+        }
+        showMessage("");
+        if (method === "DELETE") location.replace("/login");
+        else await fetchSession();
+      } catch {
+        showMessage("暂时无法连接服务，请检查网络后重试。", true);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const password = document.getElementById("password");
+      const body = JSON.stringify({
+        login_name: document.getElementById("login-name").value,
+        password: password.value,
+      });
+      password.value = "";
+      write(event.submitter || form.querySelector("button"), base, "POST", body);
+    });
+    document.getElementById("logout").addEventListener("click", (event) => {
+      write(event.currentTarget, base + "/current", "DELETE");
+    });
+    fetchSession().catch(() => showMessage("无法确认登录状态，请稍后重试。", true));
+  </script>
+</body>
+</html>

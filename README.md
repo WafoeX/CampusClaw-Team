@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段：开发骨架已合入 `main`。** 组员可以复用应用分层、配置和依赖环境，开始实现班级认证和资料入库。教学业务及正式页面尚未实现；课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
+**当前阶段：开发骨架已合入 `main`。** Cookie 登录、班级资料和教师工作台已在认证与资料开发候选接入，代码交付及合并状态以对应变更为准。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
 
 ## 开发者快速开始
 
@@ -37,6 +37,14 @@ docker compose logs --tail=50 app
 
 后续业务入口见[班级认证与资料入库任务](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md)。骨架的交付项见[开发骨架任务](openspec/changes/2026-11-04-add-skeleton/tasks.md)。
 
+### 本地验证班级登录
+
+以下命令适用于包含认证与资料候选代码的开发分支。认证候选使用同源 HTTPS。将 `APP_PUBLIC_ORIGIN` 设置为浏览器实际访问的 HTTPS 源，省略路径、尾随斜杠及默认端口。Compose 应用仍绑定本机回环，由本地 HTTPS 入口代理到应用端口。留空时可继续运行骨架探针。MySQL 就绪后使用应用镜像执行 `docker compose exec app python -m app.auth_admin upgrade`，再访问 HTTPS 入口的 `/login`。
+
+只有专用 `campusclaw_test_` 前缀的合成库可种入测试账号。通过私有环境设置 `CAMPUSCLAW_SEED_PASSWORD`，运行 `docker compose exec -e CAMPUSCLAW_ISOLATED_DATABASE=1 -e CAMPUSCLAW_SEED_PASSWORD app python -m app.auth_admin seed`。账号为 `demo_a_teacher`、`demo_a_student`、`demo_b_teacher`、`demo_b_student`，重跑保留既有角色和口令哈希。登录后进入本班资料列表，可浏览、预览和下载。教师可从工作台上传文字或 UTF-8 文件、修改标题和排序、删除资料。见[数据字典](docs/data-dictionary.md)及[真实验证记录](docs/changes/2026-11-04-add-class-auth-material-ingest.md)。
+
+使用 `make check CHANGE=2026-11-04-add-class-auth-material-ingest` 运行认证与资料的自动化门禁。命令启动并清理独立的 Compose 测试项目，使用合成 A/B 班数据。场景与断言的对应关系见[任务 4.3 复核记录](docs/changes/2026-11-04-add-class-auth-material-ingest.md#任务-43-自动化回归与评审交接)。
+
 ## 项目价值与用户场景
 
 | 价值问题 | 本项目的回答 |
@@ -54,14 +62,14 @@ docker compose logs --tail=50 app
 | 学生 | 反馈未解决问题、作答、查看开放后的答案与错题 | 会话、测验、错题 |
 | 教师 | 处理教学反馈、审核题目、发布测验、查看本班学习情况 | 问题反馈、题库、测验、学习看板 |
 
-具体规划路由、入口及术语以[产品设计规范](docs/standards/01-产品设计规范.md)为唯一基线；全部页面未实现。
+具体路由、入口、术语及实现状态以[产品设计规范](docs/standards/01-产品设计规范.md)为唯一基线。
 
 ## 建设范围与进度
 
 | 层次 | 范围 | 本仓库状态 |
 | --- | --- | --- |
-| 基础平台 | 教师/学生认证、服务端角色检查、班级数据隔离 | 待从零实现 |
-| 资料与知识库 | 文字、UTF-8 TXT/Markdown 上传，原文预览/下载/删除，自动/自定义/标题切片、索引重建 | 待从零实现 |
+| 基础平台 | 教师/学生认证、服务端角色检查、班级数据隔离 | Cookie 认证、资料角色权限与班级隔离已接入 |
+| 资料与知识库 | 文字、UTF-8 TXT/Markdown 上传，原文预览/下载/删除，自动/自定义/标题切片、索引重建 | 原文入库、组织、预览、下载和删除已接入，切片与索引由后续变更交付 |
 | 检索与问答 | 关键词/向量/RRF 混合检索，有限证据、编号出处和引用/数值校验 | 待从零实现 |
 | AI 平台 | 写作润色、学习规划、练习生成、资料问答，班级模板与变量预览 | 待从零实现 |
 | 技能与工具 | 内置技能、JSON 技能校验及顺序模型步骤、受控 HTTP/MCP 接入与结果回填 | 待从零实现；上传脚本不执行 |

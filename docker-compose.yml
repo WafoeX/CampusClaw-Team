@@ -13,6 +13,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请设置应用口令}
       QDRANT_URL: http://qdrant:6333
       QDRANT_API_KEY: ${QDRANT_API_KEY:?请设置 Qdrant 密钥}
+      APP_PUBLIC_ORIGIN: ${APP_PUBLIC_ORIGIN:-}
     ports:
       - "127.0.0.1:${APP_HOST_PORT:-8000}:8080"
     healthcheck:

@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
+from threading import Barrier
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -46,6 +47,32 @@ for database_engine in (engine, other_engine):
         database_engine, "before_cursor_execute", fixed_database_clock, retval=True
     )
 repositories = [RateLimitRepository(engine), RateLimitRepository(other_engine)]
+# RL-F02：两个新主体在清理之后同时插入，清理不能锁住其索引间隙。
+with engine.begin() as connection:
+    connection.execute(request_limits.delete())
+barrier = Barrier(2)
+
+
+def wait_after_cleanup(_connection, _cursor, statement, _parameters, _context, _many):
+    if statement.startswith("DELETE FROM request_limits"):
+        barrier.wait(timeout=3)
+
+
+for database_engine in (engine, other_engine):
+    event.listen(database_engine, "after_cursor_execute", wait_after_cleanup)
+try:
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        fresh_results = list(
+            pool.map(
+                lambda index: repositories[index].consume(bytes([index]) * 32, 60),
+                range(2),
+            )
+        )
+    assert fresh_results == [(True, 30), (True, 30)]
+finally:
+    for database_engine in (engine, other_engine):
+        event.remove(database_engine, "after_cursor_execute", wait_after_cleanup)
+
 digest = sha256(b"synthetic-source").digest()
 for _ in range(59):
     assert repositories[0].consume(digest, 60) == (True, 30)

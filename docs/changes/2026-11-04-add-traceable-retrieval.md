@@ -112,3 +112,65 @@
 | 4 | 本次文档提交 · 同步章节组任务状态与交接证据 | README、页面状态清单、任务勾选和本记录。 |
 
 分组前 `git fetch origin --prune` 退出 0，主干基线仍为 `b853e29`；推送目标为 `origin` 的 `change/2026-11-05-chapter-handoff`。不将中间提交的快照当作独立完成验收。上节完整门禁和浏览器结果对应完整候选；本次另执行 `UV_CACHE_DIR=/private/tmp/campusclaw-progress-uv-cache OPENSPEC_TELEMETRY=0 make check-static`、`node --check tests/browser/chapters.mjs` 和逐组 `git diff --cached --check`，均退出 0。提交尾注使用真实变更、命令与证据文件。没有改写历史或跳过钩子，主干合入与人工代码复核仍待后续办理。
+
+
+## 2026-11-05 Task 2.1：切片与索引存储基础
+
+### 变更说明
+
+用户继续授权推进任务。本轮从已合入 PR #19 的 `origin/main` 提交 `bc9aa217dbd983f3fff01d118f7c9597754c8912` 建立 `change/2026-11-05-indexing-foundation`，只实施第 2 组的 2.1，不夹带模型调用、构建发布或检索页面。编码前通过 GitHub `branches/main` 只读接口复核主干保护启用且 `make check` 为必需状态，并运行最新基线的隔离集成。1.1 的课程初次触发口径与 CA-04 主规格同步仍未完成，不将本次确定性基础验证替代这些确认。
+
+- `app/services/chunking.py` 实现自动、自定义窗口与 Markdown 标题切片，版本为 `slice-v1`/`headings-v1`。保留 Unicode 码点坐标、原始空白及 CRLF，忽略一个开头 BOM；配置指纹与固定 UUIDv5 标识可重放。覆盖 64 片、32,000 码点及自动模式回退，无超限截断发布。
+- `app/services/index_scope.py` 定义精确版本作用域和无正文的 Qdrant payload，仅生成确定性元数据，不连接 Qdrant。模型、维度、集合及发布检查由 2.2 实施时登记。
+- 追加 `0005_indexing` 与冻结结构 `index_schema_v5.py`，建立构建、切片、去内容清理表及资料可空发布指针；同班、原文/索引/配置版本组合外键及坐标检查生效。既有资料默认无索引，原文、章节及修订不变。
+- MySQL Compose 固定 ngram 2、关闭停用词，新切片表采用 `utf8mb4_0900_ai_ci` 和 FULLTEXT ngram。迁移在结构变更前核对有效配置，按已提交 DDL 步骤恢复。依据已核对的 [MySQL ngram 文档](https://dev.mysql.com/doc/refman/8.4/en/fulltext-search-ngram.html)与[全文索引重建文档](https://dev.mysql.com/doc/refman/8.4/en/fulltext-fine-tuning.html)，README 登记已有卷升级顺序。
+- 既有认证空库白名单准确增加三张表；章节迁移回归的回退目标从相对 `-1` 改为明确 `0003_request_limits`，继续验证真正的章节前旧库，新增 0005 的单步回退另由本轮脚本验证。没有删除原有断言或放宽门禁。
+
+### 验证记录
+
+环境：本机 Python 3.13 与锁定依赖、OpenSpec 1.13.0、本机 Docker 的独立 Compose 项目及仓库固定 MySQL/Qdrant 镜像。只使用随机 `campusclaw-check-*` 项目和 `campusclaw_test_*` 合成库；专用容器、卷和网络由原夹具回收并检查无残留。测试镜像含工作区源码，使用夹具临时版本，不冒充已提交制品。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 开发前上游基线 | `UV_CACHE_DIR=/private/tmp/campusclaw-progress-uv-cache make check-integration` 退出 0，1 项真实集成通过，22.19 秒。日志 `/private/tmp/campusclaw-indexing-baseline.log`。 |
+| 确定性切片专项 | `uv run --locked pytest -q --disable-socket tests/unit/test_chunking.py` 最终退出 0，21 项通过；涵盖三模式、BOM、CRLF、补充字符/组合字符、前言、围栏伪标题、无标题回退、稳定 ID/作用域、窗口与容量边界。首轮 1 项失败是测试误读 AccessDenied 的属性名，改用既有 `status` 契约后通过，没有改业务判据。 |
+| 首轮完整存储专项 | 退出 1；预期非法坐标由 MySQL 以 3819 CHECK 错误拒绝，驱动归类为 OperationalError 而非 IntegrityError。回归改为对两种驱动错误明确核对预期 3819 或外键 1452，其他错误仍失败；原本合法写入与查询已通过。失败日志 `/private/tmp/campusclaw-indexing-foundation-integration.log`。 |
+| 存储专项复测 | `uv run --locked pytest -q --tb=short tests/integration` 退出 0，1 项通过，20.58 秒。旧库升级、重复迁移、模拟 DDL 中断后继续、空库与旧库、单步回退/重升、旧原文/章节保真、中文全文命中/空命中/单字边界与稳定排序、跨班和错版本外键、第二笔切片写入失败整批回滚通过。清理凭证可在无对应资料行时持久化。日志 `/private/tmp/campusclaw-indexing-foundation-integration-2.log`。 |
+| 反例敏感性 | `uv run --locked python /private/tmp/campusclaw-chunk-mutation.py` 退出 0；仅在自动清理的临时应用副本把上限改为 32,001，原始 IX-B02 用例因未拒绝而退出 1，证明断言能发现放宽边界。工作区未保留坏实现。 |
+| 静态与断网回归 | 首轮 `make check-static check-test` 静态及 132 项断网单元/API 通过；启动测试因沙箱禁止绑定回环端口为 3 通过、1 环境错误。未记成完整通过，后续以实际授权环境完整重跑。 |
+| 最终完整门禁 | `UV_CACHE_DIR=/private/tmp/campusclaw-progress-uv-cache OPENSPEC_TELEMETRY=0 make check CHANGE=2026-11-04-add-traceable-retrieval` 退出 0；12 项 OpenSpec、66 个 Python 文件格式、Ruff、分层与场景追溯、132 项断网单元/API、4 项启动、1 项真实 Compose 集成通过（20.82 秒）；Gitleaks、锁依赖与应用镜像扫描通过。日志 `/private/tmp/campusclaw-indexing-foundation-final.log`。 |
+| 未执行/不适用 | 本轮没有模型/向量调用或发布 API，提示词前后评测及浏览器新增入口验证不适用；正式检索效果、网关、发布 CAS、恢复清理执行与专项吞吐仍待对应后续任务。未运行旧应用镜像回退，仅验证旧结构查询及既有应用在扩展库的行为。人工代码批准与发布未执行。 |
+
+真实入口为现有 `python -m app.auth_admin upgrade` 迁移命令及既有认证/章节接口；本组没有临时开放未完成的构建/检索 API。隔离集成确认 `/live`、`/health` 就绪，既有业务回归和数据库故障/恢复、Qdrant 降级及优雅停止保持通过。
+
+### Harness 七类自审与评审结论
+
+| 类别 | 手段、对象、判据、结果 |
+| --- | --- |
+| 接口入口 | 本轮无新增 HTTP 路由；核对原认证/章节/资料入口及升级命令，既有接口和真实 Compose 回归通过。构建入口按 2.2 待实现。 |
+| 业务逻辑 | 21 项切片及作用域回归、容量反例破坏验证；坐标逐字匹配、无截断、版本 ID 可重放、超限明确拒绝，通过。 |
+| 数据库 | 数据字典先行、0005 只增迁移；真实空库/旧库/中断恢复/回退、原文与章节保真、全文和约束通过。无共享或生产库操作。 |
+| 公共函数 | 确定性切片与精确作用域只依赖标准库，配置版本集中；分层、Ruff 与原单元/API 回归通过。未新增依赖。 |
+| 错误处理 | 参数与容量使用统一 AccessDenied 400/1000，错误配置迁移明确失败，写入第二步中断验证整批回滚；通过。 |
+| 安全 | 服务不执行 Markdown/资料指令，Qdrant payload 无正文/章节/令牌；真实同班外键与既有授权回归、秘密和制品扫描通过。 |
+| 性能 | 单份 32,000 码点、64 片和最大 1200 窗口均有界，默认自动回退为 62 片；参数绑定全文查询和稳定排序在真实 MySQL 验证通过。专项压测未执行，不作吞吐达标结论。 |
+
+技能执行：`openspec-apply-change` 读取 CLI 指定 proposal/design/五份 specs/tasks，初始 2/12，按 ready 指引实施 2.1；`project-data-change` 输入为新索引表/发布指针/派生副本，读取字典、既有迁移和后端/安全/数据/运维规范，登记副本与回退并在隔离库实测；`project-add-tests` 输入为 IX-N01/B01/B02/F01 的确定性部分，执行边界、真实存储和破坏反例；`project-review` 对照 AGENTS、README、后端、安全、测试、运维、AI、数据与评审规范完成上述七类自审及文档核对。读取 `project-prompt-eval` 以判断适用性，本次仅首次建立确定性切片与存储，无现存模型或检索参数调优，未调用模型评测流程。
+
+Task 2.1 可勾选，整体进度 3/12。完整 IX-01 仍缺 2.2 的发布、权限和故障契约，追溯清单继续把该完整能力标记为规划状态并注明已有基础回归；不将部分测试当完整能力验收。任务、Compose、设计和追溯说明等约束文件改动待人工复核。上述功能验证结束时尚未提交；分批提交整理见下节，人工批准与主干合入仍未完成。
+
+
+### Task 2.1 分批提交与远端交接
+
+用户随后明确要求细化提交并推送远程。本次用 `project-review` 核对当前差异、任务与规划、README、评审规则及上节完整门禁日志，按依赖分为四组：
+
+| 顺序 | 提交 | 范围 |
+| --- | --- | --- |
+| 1 | `3646e9a` · 三种确定性切片与版本作用域 | 三模式切片、精确版本元数据及 21 项单元回归。 |
+| 2 | `017ccb2` · 索引存储迁移与中文全文配置 | 0005 固定结构及迁移、Compose 全文参数、数据字典和既有迁移回归调整。 |
+| 3 | `8d0e7ff` · 索引全文查询与兼容迁移 | 新的真实 MySQL 脚本、Compose 入口及完整能力尚未验收的追溯说明。 |
+| 4 | 本次文档提交 · 索引基础任务与验证交接 | README、设计落点、Task 2.1 勾选及本记录。 |
+
+`git fetch origin --prune` 退出 0，基线仍为 `bc9aa21`。本次另执行 `UV_CACHE_DIR=/private/tmp/campusclaw-progress-uv-cache OPENSPEC_TELEMETRY=0 make check-static`，12 项 OpenSpec、66 个 Python 文件格式、Ruff、分层及场景追溯通过；`git diff --check` 和逐组 `git diff --cached --check` 均退出 0。完整运行结果沿用上节同一实现候选的真实记录，不把中间提交视为独立验收或声称本次重复运行完整门禁。
+
+推送目标为 `origin` 的同名 `change/2026-11-05-indexing-foundation` 分支。提交保留真实 Change/Verify/Evidence 尾注；本次未创建 PR、合并主干或发布。人工复核和后续 2.2–2.3 仍按任务清单办理。

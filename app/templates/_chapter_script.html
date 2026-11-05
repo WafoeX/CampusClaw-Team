@@ -60,6 +60,21 @@
     return control;
   }
 
+  function validateFields(name, order) {
+    for (const field of [name, order]) {
+      field.required = true;
+      const validate = () => {
+        if (field === name) {
+          field.setCustomValidity(!name.value.trim() || name.value.trim() === "未分类"
+            ? "请填写章节名称，且不能使用保留名称“未分类”。" : "");
+        }
+        field.setAttribute("aria-invalid", String(!field.validity.valid));
+      };
+      field.addEventListener("input", validate);
+      field.addEventListener("blur", () => { validate(); field.reportValidity(); });
+    }
+  }
+
   function editChapter(item, row) {
     if (!byId("chapter-create") || item.id === "uncategorized") return;
     const name = element("input");
@@ -72,6 +87,7 @@
     order.max = "1000000";
     order.value = item.sort_order;
     order.setAttribute("aria-label", item.name + "的展示顺序");
+    validateFields(name, order);
     const controls = element("div");
     controls.className = "row";
     controls.append(name, order, action("保存章节", async () => {
@@ -110,10 +126,16 @@
         const choose = action(item.name, async () => {
           scope = item.id;
           page = 1;
+          for (const control of chapterList.querySelectorAll("[data-chapter-id]")) {
+            control.setAttribute("aria-pressed", String(control.dataset.chapterId === scope));
+            control.classList.toggle("primary", control.dataset.chapterId === scope);
+          }
           await loadMaterials();
           return "正在查看" + item.name + "。";
         });
+        choose.dataset.chapterId = item.id;
         choose.setAttribute("aria-pressed", String(scope === item.id));
+        choose.classList.toggle("primary", scope === item.id);
         row.append(choose);
         editChapter(item, row);
         chapterList.append(row);
@@ -129,6 +151,8 @@
 
   async function loadMaterials() {
     const version = ++materialVersion;
+    const selected = knownChapters.find((item) => item.id === scope);
+    byId("chapter-materials-title").textContent = "章节资料 · " + (selected?.name || "未分类");
     byId("chapter-material-retry").hidden = true;
     byId("chapter-pagination").hidden = true;
     materialList.replaceChildren();
@@ -187,6 +211,7 @@
     location.replace("/login");
   }));
   const createForm = byId("chapter-create");
+  if (createForm) validateFields(createForm.elements.name, createForm.elements.sort_order);
   let createKey = crypto.randomUUID();
   if (createForm) createForm.addEventListener("input", () => { createKey = crypto.randomUUID(); });
   if (createForm) createForm.addEventListener("submit", (event) => {

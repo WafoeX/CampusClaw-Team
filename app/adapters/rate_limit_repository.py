@@ -11,7 +11,14 @@ class RateLimitRepository:
         self.engine = engine
 
     def consume(self, digest, limit):
-        with self.engine.begin() as connection:
+        # 过期范围清理不应锁住新主体插入的索引间隙。
+        # 配额仍由唯一键与原子 upsert 在同一短事务内串行计数。
+        with (
+            self.engine.connect().execution_options(
+                isolation_level="READ COMMITTED"
+            ) as connection,
+            connection.begin(),
+        ):
             now = connection.scalar(select(func.utc_timestamp(6)))
             window = now.replace(second=0, microsecond=0)
             connection.execute(

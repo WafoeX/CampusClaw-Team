@@ -222,6 +222,7 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     verify_auth_migration(compose)
     verify_chapter_migration(compose)
     verify_chapter_api(compose)
+    verify_index_foundation(compose)
     verify_rate_limits(compose)
 
     compose("stop", "mysql")
@@ -295,4 +296,15 @@ def verify_chapter_api(compose):
         "python",
         "-c",
         Path(__file__).with_name("chapter_api_runtime.py").read_text(),
+    )
+
+
+def verify_index_foundation(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("index_foundation_runtime.py").read_text(),
     )

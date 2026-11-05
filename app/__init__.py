@@ -6,6 +6,7 @@ from flask import Flask, Request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.adapters.auth_repository import AuthRepository
+from app.adapters.chapter_repository import ChapterRepository
 from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.probes import check_mysql, check_qdrant
@@ -16,11 +17,13 @@ from app.api.auth import (
     install_auth,
     resolve_session,
 )
+from app.api.chapters import CHAPTER_POLICIES, install_chapters
 from app.api.http import install_http
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
 from app.api.materials import MATERIAL_POLICIES, install_materials
 from app.config import Settings
 from app.services.auth import AuthService
+from app.services.chapters import ChapterService
 from app.services.health import HealthService
 from app.services.materials import MaterialService
 from app.services.rate_limits import RequestLimiter
@@ -45,6 +48,7 @@ def create_app(
     auth=None,
     materials=None,
     limiter=None,
+    chapters=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -61,7 +65,7 @@ def create_app(
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     origin = settings.public_origin
     if origin is not None:
-        if auth is None or materials is None or limiter is None:
+        if auth is None or materials is None or limiter is None or chapters is None:
             engine = mysql_engine(
                 host=settings.mysql_host,
                 port=settings.mysql_port,
@@ -80,11 +84,14 @@ def create_app(
             materials = MaterialService(MaterialRepository(engine), DatabaseError)
         if limiter is None:
             limiter = RequestLimiter(RateLimitRepository(engine), DatabaseError)
+        if chapters is None:
+            chapters = ChapterService(ChapterRepository(engine), DatabaseError)
         resolve_identity = resolve_identity or (lambda: resolve_session(auth))
         policies = {
             **(policies or {}),
             **AUTH_POLICIES,
             **MATERIAL_POLICIES,
+            **CHAPTER_POLICIES,
             **PAGE_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
@@ -101,5 +108,6 @@ def create_app(
     if origin is not None:
         install_auth(app, auth, origin, limiter)
         install_materials(app, materials)
+        install_chapters(app, chapters)
         install_material_pages(app)
     return app

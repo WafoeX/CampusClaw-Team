@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ '教师工作台' if view == 'console' else '班级资料' }} · CampusClaw</title>
+  <title>{{ {'console':'教师工作台','chapters':'班级章节'}.get(view, '班级资料') }} · CampusClaw</title>
   <style nonce="{{ nonce }}">
     :root {
       color-scheme: light;
@@ -60,7 +60,8 @@
   <aside>
     <div class="brand"><span class="mark" aria-hidden="true">🎓</span><strong>CampusClaw</strong></div>
     <nav aria-label="班级导航">
-      <a href="/materials"{% if view != 'console' %} aria-current="page"{% endif %}>班级资料</a>
+      <a href="/materials"{% if view in ('list', 'detail') %} aria-current="page"{% endif %}>班级资料</a>
+      <a href="/chapters"{% if view == 'chapters' %} aria-current="page"{% endif %}>班级章节</a>
       {% if actor.role == 'teacher' %}
       <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
       {% endif %}
@@ -75,7 +76,7 @@
       </div>
     </header>
     <main>
-      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台'}[view] }}</h1>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节'}[view] }}</h1>
       <p class="muted">资料仅向当前班级的已授权成员开放。</p>
       <p id="notice" class="status" role="status"></p>
       {% if view == 'console' %}
@@ -92,6 +93,32 @@
         <p id="upload-status" class="status" role="status"></p>
       </section>
       {% endif %}
+      {% if view == 'chapters' %}
+      <section class="card" aria-labelledby="chapters-title">
+        <h2 id="chapters-title">章节目录</h2>
+        {% if actor.role == 'teacher' %}
+        <form id="chapter-create">
+          <label>章节名称 <input name="name" maxlength="120" required></label>
+          <label>展示顺序 <input name="sort_order" type="number" min="0" max="1000000" value="0" required></label>
+          <button class="primary" type="submit">创建章节</button>
+        </form>
+        {% endif %}
+        <ul id="chapters"></ul>
+        <p id="chapter-status" class="status" role="status"></p>
+        <button id="chapter-retry" type="button" hidden>重试加载</button>
+      </section>
+      <section class="card" aria-labelledby="chapter-materials-title">
+        <h2 id="chapter-materials-title">章节资料</h2>
+        <ul id="chapter-materials"></ul>
+        <div id="chapter-pagination" class="pagination" hidden>
+          <button id="chapter-previous" type="button">上一页</button>
+          <span id="chapter-page"></span>
+          <button id="chapter-next" type="button">下一页</button>
+        </div>
+        <p id="chapter-material-status" class="status" role="status"></p>
+        <button id="chapter-material-retry" type="button" hidden>重试加载</button>
+      </section>
+      {% else %}
       <section class="card" aria-label="资料内容">
         {% if view == 'detail' %}
         <div class="row"><a href="/materials">返回资料列表</a><button id="download" type="button" hidden>下载原文</button></div>
@@ -109,13 +136,18 @@
         <p id="status" class="status" role="status"></p>
         <button id="retry" type="button" hidden>重试加载</button>
       </section>
+      {% endif %}
     </main>
   </div>
 </div>
 <script nonce="{{ nonce }}">
   const view = {{ view | tojson }};
   const target = {{ target | tojson }};
+  {% if view == 'chapters' %}
+  {% include "_chapter_script.html" %}
+  {% else %}
   {% include "_material_script.html" %}
+  {% endif %}
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 ## Context
 
-起草规约时核对的认证与资料候选中，Flask 授权层已按登记策略解析身份，资料仓储已有班级和资料标识组合条件，登录使用同源 HTTPS Cookie、`Origin`、`X-CampusClaw-Request` 及 `SameSite=Strict`。检索、AI、工具和异步任务还需按实际候选核对。Makefile 已在 `make check` 中分别调用 Gitleaks 和 Trivy，尚无 `make check-security`，pytest 目前按 `tests/` 组织，`apitest/cases/` 待建。第 8 课已形成自查规约，当前工作区尚无实际自查和异步风险报告。
+当前工作区的 Flask 授权层已按登记策略解析身份，资料仓储已有班级和资料标识组合条件，登录使用同源 HTTPS Cookie、`Origin`、`X-CampusClaw-Request` 及 `SameSite=Strict`。检索、AI、工具和异步任务还需按实际候选核对。Makefile 已在 `make check` 中分别调用 Gitleaks 和 Trivy，尚无 `make check-security`，pytest 目前按 `tests/` 组织，`apitest/cases/` 待建。第 8 课已形成自查规约，当前工作区尚无实际自查和异步风险报告。
 
 ## Goals / Non-Goals
 

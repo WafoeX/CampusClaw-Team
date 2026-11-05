@@ -19,7 +19,10 @@ def candidate(settings):
     )
     materials = Mock()
     client = create_app(
-        replace(settings, public_origin=ORIGIN), auth=auth, materials=materials
+        replace(settings, public_origin=ORIGIN),
+        auth=auth,
+        materials=materials,
+        limiter=Mock(),
     ).test_client()
     client.set_cookie(COOKIE, "fixture-session", domain="campusclaw.test")
     return client, auth, materials

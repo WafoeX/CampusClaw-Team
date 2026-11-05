@@ -45,6 +45,12 @@ docker compose logs --tail=50 app
 
 使用 `make check CHANGE=2026-11-04-add-class-auth-material-ingest` 运行认证与资料的自动化门禁。命令启动并清理独立的 Compose 测试项目，使用合成 A/B 班数据。场景与断言的对应关系见[任务 4.3 复核记录](docs/changes/2026-11-04-add-class-auth-material-ingest.md#任务-43-自动化回归与评审交接)。
 
+### 请求限流与场景追溯
+
+认证与资料服务升级时，沿用已配置的本地构建标识，在 MySQL 就绪后执行 `docker compose build app`，再使用新镜像运行 `docker compose run --rm --no-deps app python -m app.auth_admin upgrade` 应用 0003 追加迁移，随后用 `docker compose up -d --no-deps app` 切换应用。登录按 WSGI 直连来源、已认证写入按当前账号分别共享每 UTC 自然分钟 60 次配额。超额返回 `429/1600` 和 `Retry-After`，数据库不可用时写入失败关闭。来源忽略客户端 `X-Forwarded-For`，反向代理后的客户端默认共享代理来源额度，部署时须核对实际规模及可信转发策略。固定窗口边界允许相邻窗口各自的额度。
+
+`make check` 通过 `tests/scenario-map.json` 核对已实现场景的 pytest 函数及真实依赖脚本断言。新增或修改能力时同步清单，尚在规划的能力注明状态；工程专项待验证场景绑定真实未完成任务。此清单属于需复核的约束文件。人工评审和正式功能验收继续按对应任务执行。
+
 ## 项目价值与用户场景
 
 | 价值问题 | 本项目的回答 |

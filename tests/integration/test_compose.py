@@ -220,6 +220,8 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     observed = inspect_probes(port, version)
     assert set(observed) == {"/health", "/live"}
     verify_auth_migration(compose)
+    verify_chapter_migration(compose)
+    verify_chapter_api(compose)
     verify_rate_limits(compose)
 
     compose("stop", "mysql")
@@ -271,4 +273,26 @@ def verify_rate_limits(compose):
         "python",
         "-c",
         Path(__file__).with_name("rate_limit_runtime.py").read_text(),
+    )
+
+
+def verify_chapter_migration(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("chapter_migration_runtime.py").read_text(),
+    )
+
+
+def verify_chapter_api(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("chapter_api_runtime.py").read_text(),
     )

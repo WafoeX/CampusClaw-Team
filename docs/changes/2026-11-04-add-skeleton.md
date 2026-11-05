@@ -299,3 +299,43 @@ GitHub 报告 checkout、setup-node 和 setup-uv 仍声明 Node.js 20。将三�
 | 合并门禁 | `make check` 退出 0。OpenSpec 11 项通过，Ruff 和场景映射通过，断网单元/API 52 项、启动 4 项、真实 Compose 集成 1 项通过。Gitleaks 无发现，依赖及制品扫描通过。 |
 
 `project-review` 核对本次代码范围、三条回归与命令结果。任务 3.2 的人工复核待完成。
+
+## 2026-11-05 任务 3.2 与 4.2 收尾
+
+### 变更说明
+
+用户指定完成骨架 3.2、4.2 和认证资料 4.3，并明确全部功能完成后再集中人工测试，随后授权完善最终验收任务。本轮将这三项按实现与自动化验证交付收尾；人工代码复核、课程专项与功能测试分别交给项目最终验收 1.3、1.4、2.6–2.8。合并前实际代码评审要求保留，未自行批准、合并、发布或归档。
+
+基线为 `77a399012876f5f296feb9f00a1165c0943b90d5`，工作分支 `change/2026-11-05-close-foundation`，结果对应此基线加本轮未提交差异。仅新增 CK-F08 自动化用例及文档/追溯映射，业务行为、数据库结构、门禁命令和阈值未改。
+
+### 验证记录
+
+使用 `openspec-apply-change` 读取根规则、README、两变更全部 proposal/design/specs/tasks、最终验收规划，以及后端、安全、测试、运维和评审规范；用 `project-add-tests` 核对真实首批业务和补齐 CK-F08，用 `project-review` 完成自检。`openspec-update-change` 根据本轮授权同步人工工作的责任和时序，未修改 OpenSpec 技能。
+
+| 交接场景 | 手段、对象、判据及实际结果 |
+| --- | --- |
+| CK-N02 正常交接 | `tests/integration/test_compose.py` 从空卷启动真实 MySQL/Qdrant，核对双探针、版本，再运行 `auth_runtime.py` 的迁移、合成两班、登录、资料读写与字节断言。认证资料 1.2–4.2 已有逐组证据，本轮完整门禁再次通过；章节迁移/业务及索引基础也在同一集成中运行。仅交接已实现契约，检索构建与问答仍按其变更任务实施。 |
+| CK-F07 缺前提 | `tests/unit/test_config.py::test_RT_F01_missing_and_blank_config` 验证每项配置缺失/空白失败；进程测试核对监听前退出。集成实际停 MySQL 后就绪 503、存活 200，恢复后 ready。缺迁移的正式人工复验列入最终验收 2.8，不冒充本轮新增执行。 |
+| CK-F08 探针正常但业务不可用 | 新增 `test_CK_F08_ready_probes_do_not_prove_business_assembly`：未启用业务配置的隔离工厂双探针成功，登录、资料页面和资料 API 都为 404/1300、data=null。证明只看探针不能交接；启用业务的正常路径由真实集成覆盖。 |
+| CK-F09 授权/副作用回归 | `test_AC_F05_out_of_scope_equals_missing` 实测同班他人、跨班和不存在的读写均拒绝且 writes=0；真实 MySQL 的认证资料回归另核对学生写入拒绝、事务内故障后独立连接快照、并发同键重放、删除回滚。历史同源校验破坏样本与恢复结果保留在认证资料 4.3 记录，本轮未重复安全破坏演练。 |
+| CK-F10 收尾及合并准入 | 初次门禁因缓存、第二次因沙箱端口权限非零，未计通过；修正执行环境后完整通过。当前无本轮同伴人工批准，结论为可继续开发、待人工复核、不可据此合并。正式人工核对由最终验收 1.3 承接，追溯映射仍为 pending，未伪装为自动化批准。 |
+
+首轮 `make check CHANGE=2026-11-04-add-class-auth-material-ingest` 退出 2：uv 默认缓存不可写。改用 `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache` 后静态和单元通过，但进程测试回环绑定被沙箱阻止，3 passed、1 error，make 退出 2。获准访问本机测试环境后同命令退出 0；补充 CK-F08 及映射后最终再次退出 0。最终 OpenSpec 12 项通过，单元/API 133 项（1.87 秒）、进程 4 项（2.22 秒）、真实依赖集成 1 项（20.74 秒），Ruff、分层、机密、依赖和镜像扫描均通过。集成实际核对 SIGTERM 排空、30 秒内结束及项目资源回收。全部子项通过才计门禁成功。
+
+原始日志在忽略目录 `reports/2026-11-05-close-foundation/`：`make-check-initial.log`、`make-check-environment.log`、`make-check.log`、`make-check-final.log`。专项断网回归命令 `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked pytest -q --disable-socket tests/api/test_class_auth_material.py tests/api/test_access.py tests/unit/test_config.py` 退出 0，40 项通过；`uv run --locked python scripts/scenario_trace.py` 退出 0。
+
+### 七类自审与评审结论
+
+| 类别 | 手段/对象/判据与结论 |
+| --- | --- |
+| 接口入口 | 检查工厂配置与实际路由，CK-F08 和真实业务入口测试通过。 |
+| 业务逻辑 | 复用认证资料、章节真实断言；本次不改业务状态转换。人工教学意图待最终验收。 |
+| 数据库 | 真实 MySQL 执行现有迁移、并发、回滚与删除重放回归通过。本轮没有结构或生命周期变更，新增数据专项不适用。 |
+| 公共函数 | 运行既有工厂、授权、健康和检查脚本回归，133 项通过。 |
+| 错误处理 | 核对缺配置、业务未装配及依赖故障的明确失败结果；不把探针成功当业务成功。 |
+| 安全 | 现有授权与扫描门禁通过，未引入新的防御机制或弱化断言。独立人工复核待最终验收。 |
+| 性能 | 集成排空时限与探测并发隔离通过；本次无性能实现变化，正式压测仍归第 10 课 4.2，未执行。 |
+
+3.2、4.2 的实现与自动化交付完成，骨架任务 9/9。课程专项、同伴代码评审和最终人工验收尚未执行，不等于整课完成、批准或可合并。原有失败、课程时点偏差与成员缺证记录继续有效。约束文件变动原因是用户指定集中人工工作的时序，影响限上述任务调度及场景映射；实际人工复核由最终验收 1.3 留证。
+
+最终文档自检：`UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache make check-static`、`git diff --check` 和本轮 Markdown 相对文件链接核验均退出 0；全部活动变更 12 项严格校验通过。两上游 apply 状态分别为 9/9、10/10、`all_done`，这是实现任务状态；人工复核及归档仍未发生。

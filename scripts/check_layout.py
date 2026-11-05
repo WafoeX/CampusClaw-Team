@@ -14,6 +14,7 @@ LAYERS = {
     "adapters": {"adapters", "config"},
 }
 API_DEPENDENCIES = {"flask", "werkzeug"}
+ADAPTER_DEPENDENCIES = {"pymysql", "sqlalchemy"}
 
 
 def check_layers():
@@ -42,7 +43,7 @@ def check_layers():
                         permitted = (
                             root in sys.stdlib_module_names
                             or (layer == "api" and root in API_DEPENDENCIES)
-                            or (layer == "adapters" and root == "pymysql")
+                            or (layer == "adapters" and root in ADAPTER_DEPENDENCIES)
                         )
                     if not permitted:
                         errors.append(f"{path}:{node.lineno} {layer} 导入了 {module}")

@@ -28,7 +28,7 @@
 
 ### Requirement: RT-02 独立存活和就绪契约
 
-公开探针 SHALL 允许匿名 GET 和 HEAD，HEAD 保留对应状态与响应头且无正文。两者均返回 `X-Request-ID`、`Cache-Control: no-store`。GET `/live` 仅确认进程可响应，返回 HTTP 200 与 `{"status":"alive","request_id":"…"}`。GET `/health` 返回 JSON 顶层 `status`、`version`、`time`、`dependencies`、`request_id`，`time` 为 UTC RFC 3339（`Z`）。`dependencies` 固定为 `mysql` 和 `qdrant` 两项，各项只有 `ready` 或 `unavailable`。MySQL 为核心，Qdrant 为可降级依赖。探针每项截止 1 秒，无重试，达到截止即视为超时。就绪为 HTTP 200、`status=ready`，核心失败或进入排空为 HTTP 503、`status=not_ready`，仅 Qdrant 失败仍为 200、`status=degraded`。探针使用固定字段与安全枚举，响应不含连接细节、凭据、业务数据、堆栈。未就绪实例不接新业务流量；收到停止信号先撤就绪，再有界排空，最多 30 秒。
+公开探针 SHALL 允许匿名 GET 和 HEAD，HEAD 保留对应状态与响应头且无正文。两者均返回 `X-Request-ID`、`Cache-Control: no-store`。GET `/live` 仅确认进程可响应，返回 HTTP 200 与 `{"status":"alive","request_id":"…"}`。GET `/health` 返回 JSON 顶层 `status`、`version`、`time`、`dependencies`、`request_id`，`time` 为 UTC RFC 3339（`Z`）。`dependencies` 固定为 `mysql` 和 `qdrant` 两项，各项只有 `ready` 或 `unavailable`。MySQL 为核心，Qdrant 为可降级依赖。探针每项截止 1 秒，无重试，达到截止即视为超时。就绪为 HTTP 200、`status=ready`，核心失败或进入排空为 HTTP 503、`status=not_ready`，仅 Qdrant 失败仍为 200、`status=degraded`。探针使用固定字段与安全枚举，响应不含连接细节、凭据、业务数据、堆栈。部署入口按就绪结果决定是否接入流量。业务请求不主动采样全局探针，各业务使用的依赖故障按对应契约处理。应用进入排空后，已登记的公开业务入口和通过授权的受保护入口拒绝新业务请求；收到停止信号先撤就绪，再有界排空，最多 30 秒。
 
 #### Scenario: RT-N02 两个探针正常
 
@@ -71,6 +71,11 @@
 - **GIVEN** 实例就绪且隔离环境中有在途请求
 - **WHEN** 发送正常停止信号
 - **THEN** 可观察的排空阶段先将 `/health` 撤为 503，切换入口不再导入新流量，在途请求在最多 30 秒内完成或因到期结束，保留脱敏退出记录
+
+#### Scenario: RT-B05 业务与探测并发隔离
+- **GIVEN** 隔离装配中探测槽已被两次就绪探测占用，而测试业务依赖可用
+- **WHEN** 并发发送十个已授权业务请求，随后设置排空标志并重试一次
+- **THEN** 排空前十个请求成功且没有增加探测次数；排空后返回 503/1500，未执行业务处理器，存活仍返回 200
 
 ### Requirement: RT-03 单行请求关联日志
 

@@ -14,7 +14,7 @@ docker compose up --build -d
 curl -fsS http://127.0.0.1:8000/health
 ```
 
-初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
+初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。部署入口按就绪撤流；业务请求各自处理实际依赖故障，应用进入排空后拒绝新的已登记业务请求。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
 
 日常修改代码后，只重建应用，继续使用正在运行的 MySQL 和 Qdrant：
 
@@ -31,8 +31,8 @@ docker compose logs --tail=50 app
 | 要做的事 | 现有入口 |
 | --- | --- |
 | 注册路由、装配依赖 | 在 [`app/api/`](app/api/) 放 HTTP 处理器，由 [Flask 应用工厂](app/__init__.py) 注册并注入依赖。 |
-| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器。 |
-| 连接 MySQL、Qdrant 等依赖 | 在 [`app/adapters/`](app/adapters/) 放外部访问代码，由装配层传给服务；骨架已有连通探测，业务表和迁移随业务变更加入。 |
+| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器；确需匿名的业务入口通过 `public_routes` 登记 `(endpoint, route_rule, method)`。骨架默认只开放探针。 |
+| 连接 MySQL、Qdrant 等依赖 | 在 [`app/adapters/`](app/adapters/) 放外部访问代码，由装配层传给服务；骨架已有连通探测，分层检查仅允许适配器导入 SQLAlchemy；锁定依赖、业务仓储和迁移随认证与资料变更加入。 |
 | 新增检查 | [`tests/unit/`](tests/unit/) 放单元检查，[`tests/api/`](tests/api/) 放接口检查，[`tests/integration/`](tests/integration/) 放真实依赖集成。GitHub Actions 继续运行 `make check`；本地完整重跑按改动需要安排。 |
 
 后续业务入口见[班级认证与资料入库任务](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md)。骨架的交付项见[开发骨架任务](openspec/changes/2026-11-04-add-skeleton/tasks.md)。
@@ -73,6 +73,8 @@ docker compose logs --tail=50 app
 | 效果评价 | 不少于 30 题的检索对照、依据充分率、无答案处理和耗时 | 待开展；实验页面可选，评价工作仍需完成 |
 
 首版不引入跨班选课、多角色切换、主观题自动评分、自适应组卷或监考。功能详细设计和骨架分别通过后续 OpenSpec 变更推进。
+
+选题原计划直接复用另一仓库的认证、资料与 AI 平台。上表将这些能力列为本仓库需重建的基础；选题新增的教学交付是章节组织、答疑与反馈、结构化题库与审核、测验与错题、学习看板。后台索引在核心教学闭环验收后实施。首版计划支持 1 MiB 原文保存与下载，每份最多 32,000 个 Unicode 码点参与检索，超出时上传界面提示按章节拆分。
 
 ## 技术方向
 
@@ -192,7 +194,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 - 每次先明确边界，建立 proposal、design、specs、tasks；场景采用“前置条件→操作→可观测结果”。本次纯文档的 `skip_specs: true` 不适用于业务行为变更。
 - 在同一仓库提变更→校验→实施→自检→人工评审→归档→按需打标签，不在每课另建一套实现。骨架建成后主干必须持续可启动。
 - 后续新变更采用课程约定 `YYYY-MM-DD-短横小写英文名`，例如 `2026-10-28-add-skeleton`；当前 `establish-project-standards` 是已指定且已执行的首个变更，保留原名便于追溯，不追溯重命名。
-- 提交说明写清行为与对应规约，不能只有 `update` 或 `fix`。归档时将已验收业务增量合入主规格，下一轮先读既有约定；纯文档跳过业务规格的原因仍须可查。
+- 提交说明写清行为与对应规约，不能只有 `update` 或 `fix`。归档时将已验收业务增量合入主规格，下一轮先读既有约定。涉及 `MODIFIED` 的资料与索引条款按「认证与资料 → 检索与索引 → 异步索引」顺序归档，每次以上游已发布条款复验完整增量；纯文档跳过业务规格的原因仍须可查。
 - 三名成员分别使用有写权限的账号在短分支提交并发起 PR。每个 PR 由另一名成员评审，提交和 PR 直接用作协作证据，运维动作记录实际执行者。评审一个工作日内响应，超期交组内协调。
 - 每次修改不超过任务清单一组；规约、测试、README、页面清单及必要数据字典随改动同步。变更证据见 `docs/changes/<变更名>.md`，本课交付汇总到 [docs/lesson-07/](docs/lesson-07/README.md)；批准和发布是独立事实。
 - 编码前确认主干保护已启用。首份代码合并前复核真实直推拒绝并将 CI 的 `make check` 设为必需。课程任课教师直接查看公开仓库内容，无需邀请或单独访问确认；三名成员按 README 独立冷启动的记录在课程交付前补齐。

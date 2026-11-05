@@ -60,3 +60,15 @@ def test_CK_F02_archived_missing_spec_is_rejected(trace_root):
 
 def test_CK_F02_missing_change_is_rejected(trace_root):
     assert check_layout.check_scenarios() == ["找不到唯一骨架规约"]
+
+
+def test_CK_B02_sqlalchemy_is_allowed_only_in_adapters(trace_root):
+    for layer in ("adapters", "api", "services"):
+        package = trace_root / "app" / layer
+        package.mkdir(parents=True)
+        (package / "example.py").write_text("from sqlalchemy import select\n")
+
+    assert check_layout.check_layers() == [
+        f"{trace_root}/app/api/example.py:1 api 导入了 sqlalchemy",
+        f"{trace_root}/app/services/example.py:1 services 导入了 sqlalchemy",
+    ]

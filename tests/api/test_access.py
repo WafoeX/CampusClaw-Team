@@ -1,3 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Lock
+
 import pytest
 from flask import g
 
@@ -146,3 +149,83 @@ def test_AC_B01_public_head_does_not_grant_protected_access(protected):
     for path in ("/health", "/live"):
         assert client.head(path).status_code == 200
         assert_refused(client.get("/api/v1/samples/owned"), 401, 1100)
+
+
+def test_RT_B05_business_requests_do_not_use_probe_slots(make_app, monkeypatch):
+    monkeypatch.setattr("app.services.health.PROBE_SECONDS", 5)
+    entered = Event()
+    release = Event()
+    lock = Lock()
+    probe_calls = 0
+    draining = False
+
+    def mysql():
+        nonlocal probe_calls
+        with lock:
+            probe_calls += 1
+            if probe_calls == 2:
+                entered.set()
+        return release.wait(5)
+
+    app = make_app(
+        mysql=mysql,
+        draining=lambda: draining,
+        resolve_identity=lambda: Identity("a", "class-a", frozenset({"sample"})),
+        policies={("sample", "GET"): "sample"},
+    )
+
+    @app.get("/sample")
+    def sample():
+        return success({"id": "owned"})
+
+    def get(path):
+        with app.test_client() as client:
+            return client.get(path)
+
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        probes = [executor.submit(get, "/health") for _ in range(2)]
+        try:
+            assert entered.wait(2)
+            requests = [executor.submit(get, "/sample") for _ in range(10)]
+            for future in requests:
+                response = future.result(timeout=2)
+                assert response.status_code == 200
+                assert response.json["data"] == {"id": "owned"}
+            assert probe_calls == 2
+            draining = True
+            assert_refused(get("/sample"), 503, 1500)
+            assert get("/live").status_code == 200
+        finally:
+            release.set()
+        assert all(probe.result(timeout=2).status_code == 503 for probe in probes)
+
+
+def test_AC_N03_public_entry_is_scoped_to_rule_and_method(make_app):
+    draining = False
+
+    def resolve_identity():
+        pytest.fail("公开入口不应解析身份")
+
+    app = make_app(
+        resolve_identity=resolve_identity,
+        public_routes={("login", "/login", "GET")},
+        draining=lambda: draining,
+    )
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        return success({"page": "login"})
+
+    app.add_url_rule("/alias", endpoint="login")
+    client = app.test_client()
+    assert client.get("/login").json["data"] == {"page": "login"}
+    for method in ("HEAD", "POST"):
+        response = client.open("/login", method=method)
+        assert response.status_code == 403
+        if method == "POST":
+            assert_refused(response, 403, 1200)
+    assert_refused(client.get("/alias"), 403, 1200)
+
+    draining = True
+    assert_refused(client.get("/login"), 503, 1500)
+    assert client.get("/live").status_code == 200

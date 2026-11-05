@@ -6,7 +6,7 @@
 
 ### Requirement: AC-01 显式登记与默认拒绝
 
-匹配到的入口 MUST 按路由及 HTTP 方法显式登记，匿名例外仅为两个探针的 GET/HEAD。已匹配但未登记的入口返回 HTTP 403、业务码 1200；已登记受保护入口缺少有效服务端身份返回 HTTP 401、1100。不存在的路径返回 HTTP 404、1300；存在路径的不支持方法返回 HTTP 405 和 HTTP 协议所需的 `Allow`。业务拒绝按 BE-03 返回 `code`、`message`、`data=null`、`request_id`；405 使用协议错误体 `{"status":"method_not_allowed","request_id":"…"}`。应用生成的响应均带 `X-Request-ID`。拒绝不执行处理器或产生写入。
+匹配到的入口 MUST 按路由及 HTTP 方法显式登记，默认装配只公开两个探针的 GET/HEAD。扩展装配 SHALL 以端点名、精确路由规则及 HTTP 方法共同登记公开入口；同端点其他路径、未登记方法及其他入口均不得继承公开权限。已匹配但未登记的入口返回 HTTP 403、业务码 1200；已登记受保护入口缺少有效服务端身份返回 HTTP 401、1100。不存在的路径返回 HTTP 404、1300；存在路径的不支持方法返回 HTTP 405 和 HTTP 协议所需的 `Allow`。业务拒绝按 BE-03 返回 `code`、`message`、`data=null`、`request_id`；405 使用协议错误体 `{"status":"method_not_allowed","request_id":"…"}`。应用生成的响应均带 `X-Request-ID`。拒绝不执行处理器或产生写入。
 
 #### Scenario: AC-N01 仅登记探针公开
 
@@ -31,6 +31,11 @@
 - **GIVEN** 仅骨架公开探针已登记
 - **WHEN** 请求不存在的路径，再分别以 POST 和 OPTIONS 请求 `/health`
 - **THEN** 未知路径为 404/1300，两种方法均为 405，`Allow` 不宣告 POST 或 OPTIONS，未执行探测或业务处理器
+
+#### Scenario: AC-N03 公开业务入口显式装配
+- **GIVEN** 隔离装配登记登录样本的一个精确路径和方法，同时注册同端点别名及另一方法
+- **WHEN** 匿名访问上述路径和方法
+- **THEN** 只有已声明组合成功且不解析身份，其余为 403/1200，不执行处理器
 
 ### Requirement: AC-02 服务端身份和资源策略
 

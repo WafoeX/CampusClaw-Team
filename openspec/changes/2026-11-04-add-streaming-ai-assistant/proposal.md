@@ -6,7 +6,7 @@
 
 - 增加写作润色、学习规划、练习生成和资料问答入口，提供班级模板及变量预览、助手提示词和版本、同班材料与技能绑定。
 - 增加教师技能管理、内置解题引导与学习计划拆解技能、受限 JSON 清单和确定性路由。解题引导只提供步骤提示。
-- 增加本人会话、消息、执行记录和 Bearer POST SSE，保持第 4 课 `POST /api/v1/material-answers` 的请求、结果、权限、无证据及无持久副作用契约。资料问答页面可显式进入持久会话。
+- 增加本人会话、消息、执行记录和 同源 Cookie POST SSE，保持第 4 课 `POST /api/v1/material-answers` 的请求、结果、权限、无证据及无持久副作用契约。资料问答页面可显式进入持久会话。
 - 增加历史出处快照、学生评价和教师本班未解决反馈处理；按授权和资料版本展示出处。
 - 补齐 Swagger、课件接口验证入口和四项同伴复核。演示从教师配置助手、学生提问和看出处开始，到本人回顾及教师处理本班未解决反馈为止。
 
@@ -27,6 +27,6 @@
 
 ## Impact
 
-- 上游为 [第 3 课认证与资料](../2026-11-04-add-class-auth-material-ingest/proposal.md)和[第 4 课授权检索](../2026-11-04-add-traceable-retrieval/proposal.md)。当前仓库有运行骨架和门禁，业务主规格为空，两项上游仍在规划。实施前须复核上游验收及其最终主规格。
+- 上游为 [第 3 课认证与资料](../2026-11-04-add-class-auth-material-ingest/proposal.md)和[第 4 课授权检索](../2026-11-04-add-traceable-retrieval/proposal.md)。实施前复核实际可运行的上游候选及适用自动化回归。上游已有主规格时同时核对主规格。
 - 影响 Flask 业务接口、MySQL 版本与私有记录、模型编排、原生 JavaScript 流处理、代理与部署容量、API 文档及测试。复用 Qdrant 检索和证据版本契约。
-- [课程任务清单](https://devops.hello1023.com/课程任务清单-第5课.html)要求解题助手、流式出处、Bearer Swagger 和接口测试。[实践页](https://devops.hello1023.com/课件/第5课-课件-提示词AI技能与流式会话/pages/apply.html)另给出存储顺序、停用和交叉验证。JSON 技能、有界分段校验、四类应用及反馈为本组实现取舍与选题扩展。
+- [课程任务清单](https://devops.hello1023.com/课程任务清单-第5课.html)要求解题助手、流式出处、Bearer Swagger 和接口测试。项目试调用同源 Cookie 及写入防护，Bearer 课件差异由 5.1 记录，等价待课程方确认。[实践页](https://devops.hello1023.com/课件/第5课-课件-提示词AI技能与流式会话/pages/apply.html)另给出存储顺序、停用和交叉验证。JSON 技能、有界分段校验、四类应用及反馈为本组实现取舍与选题扩展。

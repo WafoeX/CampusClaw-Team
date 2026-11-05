@@ -21,4 +21,4 @@
 
 ## Impact
 
-依赖第 8 课安全自查变更 `2026-11-04-add-post-async-security-precheck`和可运行的认证、检索、技能、工具及异步任务候选。目前尚无第 8 课实际红项报告，具体修复清单以重放为准。拟涉及应用授权、MySQL 查询与审计、Qdrant 过滤、配置写客户端、现有扫描门禁及证据入口。课堂链路沿用可返回 202 的任务，继承上游课程等价确认状态。 [第 8 课安全自查提案](https://github.com/WafoeX/CampusClaw-Team/blob/4bb89437f488c0c0b9c884f70c9be9c525c103aa/openspec/changes/2026-11-04-add-post-async-security-precheck/proposal.md)
+依赖[第 8 课安全自查](../2026-11-04-add-post-async-security-precheck/proposal.md)和可运行的认证、检索、技能、工具及异步任务候选。目前尚无第 8 课实际红项报告，具体修复清单以重放为准。拟涉及应用授权、MySQL 查询与审计、Qdrant 过滤、配置写客户端、现有扫描门禁及证据入口。课堂链路沿用可返回 202 的任务，继承上游课程等价确认状态。

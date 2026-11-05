@@ -14,7 +14,7 @@ docker compose up --build -d
 curl -fsS http://127.0.0.1:8000/health
 ```
 
-初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。部署入口按就绪撤流；业务请求各自处理实际依赖故障，应用进入排空后拒绝新的已登记业务请求。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
+初始化期间先等 MySQL 和 Qdrant 就绪，再查看 `/health`，两项依赖均为 `ready` 后即可使用完整开发环境。骨架接入修订的候选契约由部署入口按就绪撤流，业务请求各自处理实际依赖故障，应用进入排空后拒绝新的已登记业务请求。启动失败可用 `docker compose ps` 和 `docker compose logs app mysql qdrant` 定位；`/live` 可单独查看应用进程是否还在响应。
 
 日常修改代码后，只重建应用，继续使用正在运行的 MySQL 和 Qdrant：
 
@@ -31,7 +31,7 @@ docker compose logs --tail=50 app
 | 要做的事 | 现有入口 |
 | --- | --- |
 | 注册路由、装配依赖 | 在 [`app/api/`](app/api/) 放 HTTP 处理器，由 [Flask 应用工厂](app/__init__.py) 注册并注入依赖。 |
-| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器；确需匿名的业务入口通过 `public_routes` 登记 `(endpoint, route_rule, method)`。骨架默认只开放探针。 |
+| 编写业务逻辑 | 在 [`app/services/`](app/services/) 组织业务规则；[通用授权模块](app/services/access.py) 提供身份、功能权限及资源归属检查。新增受保护入口时，在应用工厂传入按端点和 HTTP 方法登记的策略及服务端身份解析器；骨架接入修订候选中，确需匿名的业务入口通过 `public_routes` 登记 `(endpoint, route_rule, method)`。骨架默认只开放探针。 |
 | 连接 MySQL、Qdrant 等依赖 | 在 [`app/adapters/`](app/adapters/) 放外部访问代码，由装配层传给服务；骨架已有连通探测，分层检查仅允许适配器导入 SQLAlchemy；锁定依赖、业务仓储和迁移随认证与资料变更加入。 |
 | 新增检查 | [`tests/unit/`](tests/unit/) 放单元检查，[`tests/api/`](tests/api/) 放接口检查，[`tests/integration/`](tests/integration/) 放真实依赖集成。GitHub Actions 继续运行 `make check`；本地完整重跑按改动需要安排。 |
 
@@ -192,19 +192,37 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 先完成纳入交付范围的必做功能、场景追溯、双门禁、干净目录启动、CI 制品追溯、观测与通知、对照压测及至少三名真实使用者试用。齐备后冻结候选提交、镜像和配置，由验收人按四项技能、手机四步及跨功能业务场景执行评测，同伴从干净目录独立复现。第 9 课 SEC-08 继续按选做状态登记。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
 
-当前处于规约阶段。`make check` 是现有入口，独立 `make check-security`、同名 CI 双门禁和候选交付按任务实施后取证。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。差异未经课程方确认时按缺项记录。实际验收将结论与证据指针写入根目录 `report.md`，报告明细使用 `reports/` 固定路径。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
+当前处于规约阶段。`make check` 是现有入口，独立 `make check-security` 由课末安全预检建立，第 10 课接入同名 CI 双门禁并对候选交付取证。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。差异未经课程方确认时按缺项记录。实际验收将结论与证据指针写入根目录 `report.md`，报告明细使用 `reports/` 固定路径。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
 ## 小组协作与增量流程
 
-各功能变更在实现过程中完成适用的测试、合并检查和评审，并记录结果。核心功能齐备后，由[项目最终验收变更](openspec/changes/2026-11-04-project-final-acceptance/proposal.md)在同一候选上验证跨功能流程。
+每组实现以[可运行交接](docs/standards/08-评审与完成定义规范.md#分阶段完成定义)为退出条件。实现人在隔离环境验证启动、就绪和本组关键路径，通过后可继续依赖该能力的开发。完整自动化回归、适用专项验证与代码评审在对应变更的收尾组完成。课程专项复验在各自任务执行，整体验收由第 10 课第 5 组统一调度。
 
-- 使用 `main` 为主干、`change/<变更名>` 为后续短分支。首次建仓按用户明确指令初始化和推送 `main`；常规后续变更禁止直接推送主干，先自检和评审再合并。本次用户明确授权的文档直推按[单次例外](docs/standards/08-评审与完成定义规范.md)执行，不推广到后续变更。GitHub 已确认远程 `main` 启用保护，复测见[骨架证据](docs/changes/2026-11-04-add-skeleton.md)。
+### 规约依赖与验收交接
+
+下表的「实施输入」指实际可启动、契约已明确且对应自动化回归通过的基线，可以是记录了版本的开发候选。合并到受保护主干仍须通过必需门禁并获同伴代码评审。涉及 OpenSpec `MODIFIED` 增量时，归档前还须把上游完整条款同步到主规格并复验，不能用独立开发候选代替归档前置。
+
+| 变更 | 实施输入或验收前置 | 验证与评审归属 |
+| --- | --- | --- |
+| [工程规范](openspec/changes/establish-project-standards/tasks.md)与[开发骨架](openspec/changes/2026-11-04-add-skeleton/tasks.md) | 工程规则提供约束，骨架提供应用工厂、默认拒绝、就绪与门禁 | 骨架 3.2、4 组及[第 7 课收尾](docs/lesson-07/acceptance.md)承担相应复验、回滚和课程交付 |
+| [认证与资料](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md) | 骨架运行基线 | 4.3 完整回归及代码评审。下游复用 Cookie 会话、同源写入防护、当前班级身份、资料版本和撤销 |
+| [检索与问答](openspec/changes/2026-11-04-add-traceable-retrieval/tasks.md) | 可运行的认证与资料，重点是原文读取、撤销和班级隔离 | 第 5 组承担冻结题集评测、真实依赖回归及代码评审。归档前要求主规格有 CA-04 |
+| [流式助手](openspec/changes/2026-11-04-add-streaming-ai-assistant/tasks.md) | 认证、资料和检索的可运行契约，含有限证据、出处与 QA-01 | 第 5 组完成门禁、AI 评测和四项同伴复验。反馈契约交异步教学看板 |
+| [受控 MCP](openspec/changes/2026-11-04-add-controlled-mcp-tools/tasks.md) | 独立服务可先实现，宿主接入依赖助手的技能、SSE 和私有记录 | 第 4 组完成真实 Compose 互操作及同伴复验。人工教学闭环、AI 候选题与安全预检可独立于 MCP |
+| [异步教学](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md) | 人工建题、测验、规则评分依赖骨架与认证。候选题另需 Kafka、检索证据与固定提示配置。看板未解决数接流式助手反馈。后台索引选做，要求核心闭环自动化验证通过及已同步的 IX-01 | 第 5 组验证闭环和异步三判据，7.4 完成实现交付。课末专项复验由安全预检执行 |
+| [课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) | 异步教学 7.4 的可运行候选、5.2 并发与事务证据，以及认证、检索、配置和技能调用 | 本变更执行课程 SEC-01–07 及独立复验，建立 `make check-security`。异步 7.1–7.3 引用同一证据 |
+| [安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) | 安全预检的版本、报告和实际复现结果 | 修复并复测实际发现，复用预检安全入口。选做 SEC-08 单列 |
+| [第 10 课交付](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)与[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) | 第 10 课 1–4 组完成交付验证，且纳入交付的必做能力和证据齐备后，由 5.1 冻结候选 | 项目最终验收用同一候选执行跨功能卡，结果回到第 10 课 5.2–5.4。正式人工走查只安排一轮，换候选后复验受影响场景 |
+
+课程等价由对应任务记录。第 5 课 Bearer Swagger、第 8 课作业提交 `202` 与评分写入路径、第 10 课教师改分等差异在确认前保留为验收缺项。只暂停依赖未决契约的任务，已明确契约的独立组可以继续。
+
+- 使用 `main` 为主干、`change/<变更名>` 为后续短分支。首次建仓按用户明确指令初始化和推送 `main`；常规后续变更禁止直接推送主干，先自检和评审再合并。历史文档直推按当时的[单次例外](docs/standards/08-评审与完成定义规范.md)执行，不推广到后续变更。GitHub 已确认远程 `main` 启用保护，复测见[骨架证据](docs/changes/2026-11-04-add-skeleton.md)。
 - 每次先明确边界，建立 proposal、design、specs、tasks；场景采用“前置条件→操作→可观测结果”。本次纯文档的 `skip_specs: true` 不适用于业务行为变更。
 - 在同一仓库提变更→校验→实施→自检→人工评审→归档→按需打标签，不在每课另建一套实现。骨架建成后主干必须持续可启动。
 - 后续新变更采用课程约定 `YYYY-MM-DD-短横小写英文名`，例如 `2026-10-28-add-skeleton`；当前 `establish-project-standards` 是已指定且已执行的首个变更，保留原名便于追溯，不追溯重命名。
 - 提交说明写清行为与对应规约，不能只有 `update` 或 `fix`。归档时将已验收业务增量合入主规格，下一轮先读既有约定。涉及 `MODIFIED` 的资料与索引条款按「认证与资料 → 检索与索引 → 异步索引」顺序归档，每次以上游已发布条款复验完整增量；纯文档跳过业务规格的原因仍须可查。
 - 三名成员分别使用有写权限的账号在短分支提交并发起 PR。每个 PR 由另一名成员评审，提交和 PR 直接用作协作证据，运维动作记录实际执行者。评审一个工作日内响应，超期交组内协调。
-- 每次修改不超过任务清单一组；规约、测试、README、页面清单及必要数据字典随改动同步。变更证据见 `docs/changes/<变更名>.md`，本课交付汇总到 [docs/lesson-07/](docs/lesson-07/README.md)；批准和发布是独立事实。
+- 业务实现按任务清单逐组交付。跨变更整理规约时说明涉及范围；规约、测试、README、页面清单及必要数据字典随改动同步。变更证据见 `docs/changes/<变更名>.md`，本课交付汇总到 [docs/lesson-07/](docs/lesson-07/README.md)；批准和发布是独立事实。
 - 编码前确认主干保护已启用。首份代码合并前复核真实直推拒绝并将 CI 的 `make check` 设为必需。课程任课教师直接查看公开仓库内容，无需邀请或单独访问确认；三名成员按 README 独立冷启动的记录在课程交付前补齐。
 
 ## 许可状态

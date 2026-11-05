@@ -35,3 +35,21 @@
 追加迁移 0003 建立 `request_limits`。字段为 `scope_digest`（类型与来源或账号的 SHA-256 摘要，BINARY(32)）、`window_start`（数据库 UTC 自然分钟）及 `request_count`（非空，封顶 61）。前两字段联合主键，窗口时间有索引。摘要不含 Cookie，不存原始 IP 或账号名，无业务外键。
 
 计数由 MySQL 的 `READ COMMITTED` 短事务原子更新，各 worker 共享。该事务避免过期范围清理持有新计数插入的间隙锁，配额仍由联合唯一键和原子 upsert 保证，不改变配额或窗口。每次计数至多删除 100 条早于当前窗口两分钟前的行，停流时残余由后续请求或运维按同一截止有界清理。数据库备份轮转沿用 14 天，恢复后按数据库当前 UTC 窗口校验，过期记录不参与配额。旧应用兼容新增表，回退应用保留表；隔离演练用 Alembic 单步降级 0002 后重升，核对既有账号、会话与资料不变。
+
+## 索引基础（0005，Task 2.1）
+
+本组只建立确定性切片与索引存储基础，发布、嵌入和 Qdrant 写入由 2.2 接入；删除撤权及补偿执行由 2.3 接入。旧资料默认没有活动/期望索引版本且 `vector_ready=false`，原文、章节和修订不变。
+
+| 表/位置 | 字段与用途 | 约束及副本 |
+| --- | --- | --- |
+| `materials` 追加字段 | `active_index_version`、`desired_index_version` 可空，`vector_ready` 默认 false | 发布事实源；增加 `(class_id,id)` 唯一键供同班索引外键引用。 |
+| `material_index_builds` | `id`、`class_id`、`material_id`、`creator_id`、`source_version`、`index_version`、`index_config_version`、`mode`、`window_size`、`overlap`、`status`、`stage`、`lease_expires_at`、`created_at`、`updated_at` | 同班资料组合外键；资料版本唯一，配置指纹 SHA-256；状态为 pending/building/published/keyword_only/failed/superseded。不存令牌或错误原文。 |
+| `material_chunks` | `id`、`class_id`、`material_id`、`source_version`、`index_version`、`index_config_version`、`ordinal`、`start_offset`、`end_offset`、`content` | 指向同班资料构建版本；版本内 ordinal 唯一；0 基 Unicode 码点半开区间，正文逐字等于原文区间；utf8mb4、`utf8mb4_0900_ai_ci`，ngram FULLTEXT。 |
+| `material_index_cleanups` | `id`、`class_id`、`material_id`、`source_version`、`index_version`、`index_config_version`、`scope_key`、`status`、`attempts`、`next_attempt_at`、`created_at`、`updated_at` | 无被删除资料外键；精确版本作用域键唯一；不含正文。用于跨存储补偿，具体执行及恢复防复活由 2.3 完成。 |
+| Qdrant payload 契约 | `chunk_id`、`class_id`、`material_id`、`source_version`、`index_version`、`index_config_version`、`scope_key` | 点 ID 等于 chunk UUID；scope_key 由班级、资料、原文/索引版本及配置指纹确定。无正文、章节或令牌；本组未写 Qdrant。集合/模型/维度配置由 2.2 实施时登记。 |
+
+切片参数固定版本 `slice-v1`、标题解析 `headings-v1`，自动窗口 600、重叠 80，自定义窗口 100–1200、重叠 0–min(200,window-1)，上限 64 片、原文 32,000 码点。原文 UTF-8 严格解码并忽略一个开头 BOM，保留 CRLF 和组合字符。版本 ID 使用固定命名空间的 UUIDv5，输入为资料 ID、索引版本与 ordinal。
+
+MySQL 启动固定 `ngram_token_size=2` 与 `innodb_ft_enable_stopword=OFF`，不使用停用词表；迁移核对会话有效配置后建索引。已有部署先按 Compose 配置重建 MySQL 进程（保留卷），再执行升级。调整这些全文配置需要重建索引；本次仅新建空索引，不重写既有全文数据。依据：[MySQL ngram](https://dev.mysql.com/doc/refman/8.4/en/fulltext-search-ngram.html)、[全文配置与重建](https://dev.mysql.com/doc/refman/8.4/en/fulltext-fine-tuning.html)。
+
+切片与向量随资料/学期生命周期清理，学期结束后 30 天内清理；本轮沿用用户已确认的功能优先安排，具体日期/责任人上线前登记。去内容清理凭证至少覆盖 14 天备份与在途写入窗口，迟到写入收敛前保留；备份隔离轮转。应用回退保留扩展结构；0005 单步降级仅在隔离副本执行，会丢失索引及构建信息，但保留原文和章节，重升后需重建索引。本组无发布指针写入，无新增文件、缓存或问答快照副本。

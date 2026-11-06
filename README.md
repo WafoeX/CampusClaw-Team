@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段：开发骨架、Cookie 登录、班级资料、教师工作台与章节管理已合入 `main`。** 章节功能已补齐回归；切片与索引存储基础已在开发候选实现，构建发布、检索和问答仍待接入。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
+**当前阶段：开发骨架、Cookie 登录、班级资料、教师工作台与章节管理已合入 `main`。** 切片与索引存储基础也已合入主干；本地开发候选已接入有界构建、删除补偿、三模式检索、码点出处与单次资料问答，并通过自动化及真实课程网关烟测；代码已按依赖拆分提交至变更分支，尚未合并。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库；其 226 项测试、浏览器验收、部署和模型调用证据不代表本仓库成果。
 
 ## 开发者快速开始
 
@@ -67,7 +67,28 @@ uv run --locked pytest -q tests/browser
 
 0005 迁移增加索引构建、切片、去内容清理凭证及可空发布指针，保留原文、章节和修订。已有 MySQL 卷升级前，先用 `docker compose up -d mysql` 应用本仓库的全文启动参数（保留卷），等待 MySQL 就绪，再用新应用镜像执行 `python -m app.auth_admin upgrade`。全文配置为 ngram 2 码点、停用词关闭；不符合配置时迁移明确失败。
 
-三种切片的确定性回归可运行 `uv run --locked pytest -q --disable-socket tests/unit/test_chunking.py`，真实中文全文、空库/旧库、迁移中断重跑与回退纳入 `make check-integration`。本组提供 Task 2.1 的可运行基础，教师构建入口、向量写入和发布状态由 Task 2.2 接入，检索页面由第 3 组接入。
+三种切片的确定性回归可运行 `uv run --locked pytest -q --disable-socket tests/unit/test_chunking.py`，真实中文全文、空库/旧库、迁移中断重跑与回退纳入 `make check-integration`。主干提供 Task 2.1 的可运行基础；本地候选已接入教师构建入口、向量写入、发布状态、清理补偿及师生检索问答页面。
+
+### 本机 Docker HTTPS 展示
+
+运行 `uv run --locked python scripts/start_demo.py`。脚本使用固定项目 `campusclaw-demo`、[演示覆盖](docker-compose.demo.yml)和非 root NGINX 网关，启动 MySQL/Qdrant，构建应用、升级数据库并在专用合成库种入演示账号。已有 `.env` 值保留，缺少的数据库/Qdrant/种子口令随机生成，文件权限为 600；模型密钥始终由课程平台取得。不要对已初始化的数据卷自行更换数据库口令。
+
+- 入口：[本机登录](https://localhost:8443/login)，账号 `demo_a_teacher`、`demo_a_student`、`demo_b_teacher`、`demo_b_student`。共用演示口令只保存在 `.env` 的 `CAMPUSCLAW_SEED_PASSWORD`，聊天及文档不输出值。
+- `DEMO_UID`、`DEMO_GID` 自动取本机身份，用于非 root 网关读取本机证书。私钥保存在忽略目录 `runtime/tls/` 且权限 600；自签证书有效 30 天，浏览器首次会提示本机证书未受信任，脚本不会修改系统信任库。证书到期后停止网关并移走这两份演示证书，再运行脚本生成。
+- 真实校验：`curl --cacert runtime/tls/localhost.crt https://localhost:8443/health`。只映射应用及 HTTPS 的回环端口；MySQL/Qdrant 不向宿主机映射端口。该覆盖仅用于本机展示，公网发布另走发布流程。
+- 停止并保留数据：`docker compose -p campusclaw-demo -f docker-compose.yml -f docker-compose.demo.yml down`。继续启动仍使用同一脚本；不要加 `-v` 删除展示数据。
+
+`RETRIEVAL_MIN_SCORE=0.449357` 来自[独立小型真实网关调参](docs/eval/2026-11-06-retrieval-calibration.md)，每路召回20、输出最多8、RRF k=60。问答只发送当前问题和最多12000码点证据，空命中零对话调用，不保存会话。依赖失败与合法空结果分别显示；数值/单位或引用校验失败拒绝输出，来源在生成期间变化返回409。请求模型为课程指定标识；嵌入响应未提供模型版本，提供方不可变版本及实际教学语义质量仍待上线/最终验收核对。[工程评测](docs/eval/2026-11-07-retrieval-engineering.md)与[本次交付证据](docs/changes/2026-11-04-add-traceable-retrieval.md)区分替身、真实网关和人工未执行项。
+
+### 有界索引构建（本地开发候选）
+
+将 `.env` 中 `EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`、`EMBEDDING_DIM` 分别设为课程网关 `https://ai-gateway.devops.hello1023.com/v1`、`course-embedding`、`2048`，`EMBEDDING_API_KEY` 从课程平台私下取得。`CHAT_BASE_URL` 使用同一网关、`CHAT_MODEL=course-chat`，`CHAT_API_KEY` 从课程平台私下取得；若平台共用密钥，两项 API_KEY 可填同一平台密钥。两类调用均经服务端适配器完成。MySQL/Qdrant 继续全部由 Docker 提供，只有应用绑定本机回环端口；不要把内部服务地址改成容器内的 `localhost`。
+
+先用新镜像执行 `docker compose run --rm --no-deps app python -m app.auth_admin upgrade` 应用只增的 0006 幂等及 0007 清理迁移。教师登录 `/console` 后可选择自动、自定义窗口或 Markdown 标题切片，构建及查询最近状态。每班同时最多一个构建，35 秒租约，单次最多 64 片；同键重放不重复执行，失败后显式重试使用新键。首次向量失败时保留关键词版本，已有完整旧版则保留旧版。师生登录后可进入 `/search`、`/ask`，选择全部、本班章节或未分类及检索模式，回答与结果卡都可打开授权出处。
+
+进程中断后执行 `docker compose exec app python -m app.index_admin recover`，每批处理最多 100 条过期构建、登记精确清理凭证，可重复运行。本地 Task 2.3 候选已接入退役切片去内容映射及 `docker compose exec app python -m app.index_admin cleanup` 精确补偿，每批最多 100 条，失败或待人工项非零退出，完成凭证仍重查迟到写入；三种检索模式删除不可见性已通过真实双库回归。模型 key 缺失会明确失败，不生成替代向量；确定性工程回归与已通过的真实课程网关烟测分别留证。
+
+本机私有 `.env` 已登记合成演示库 `campusclaw_test_demo` 和 HTTPS 源 `https://localhost:8443`。演示覆盖已提供到应用的容器内 HTTPS 代理，并实际验证登录及检索问答。本机密码只留在被忽略的 `.env` 中，不属于提交内容；本机展示不等于正式公开部署。
 
 ## 项目价值与用户场景
 
@@ -93,8 +114,8 @@ uv run --locked pytest -q tests/browser
 | 层次 | 范围 | 本仓库状态 |
 | --- | --- | --- |
 | 基础平台 | 教师/学生认证、服务端角色检查、班级数据隔离 | Cookie 认证、资料角色权限与班级隔离已接入 |
-| 资料与知识库 | 文字、UTF-8 TXT/Markdown 上传，原文预览/下载/删除，自动/自定义/标题切片、索引重建 | 原文管理已接入；开发候选已有三种切片与索引结构，构建发布与向量写入待 2.2 接入 |
-| 检索与问答 | 关键词/向量/RRF 混合检索，有限证据、编号出处和引用/数值校验 | 待从零实现 |
+| 资料与知识库 | 文字、UTF-8 TXT/Markdown 上传，原文预览/下载/删除，自动/自定义/标题切片、索引重建 | 原文管理已接入；已有三种切片与索引结构；本地候选已接入有界构建、发布与向量核验，精确删除补偿已接入 |
+| 检索与问答 | 关键词/向量/RRF 混合检索，有限证据、编号出处和引用/数值校验 | 本地候选已实现，自动化和真实网关烟测通过；语义支持与课程效果待最终人工裁决 |
 | AI 平台 | 写作润色、学习规划、练习生成、资料问答，班级模板与变量预览 | 待从零实现 |
 | 技能与工具 | 内置技能、JSON 技能校验及顺序模型步骤、受控 HTTP/MCP 接入与结果回填 | 待从零实现；上传脚本不执行 |
 | 私有记录 | 模型参数与响应、技能步骤及工具结果，仅执行者可读 | 待从零实现 |
@@ -102,7 +123,7 @@ uv run --locked pytest -q tests/browser
 | 教学业务 | 单选/判断题库、人工编辑、AI 候选题与教师审核、测验发布及不可变快照 | 待从零实现 |
 | 教学业务 | 作答草稿、一次正式提交、客观评分、截止后答案开放、错题与学习看板 | 待从零实现 |
 | 可选提高 | 文本 PDF 导入、后台索引、检索效果实验页面 | 核心验收后择项，均未实现 |
-| 效果评价 | 不少于 30 题的检索对照、依据充分率、无答案处理和耗时 | 待开展；实验页面可选，评价工作仍需完成 |
+| 效果评价 | 不少于 30 题的检索对照、依据充分率、无答案处理和耗时 | 34题确定性工程评测已运行；真实模型全量效果与人工标注留最终验收 |
 
 首版不引入跨班选课、多角色切换、主观题自动评分、自适应组卷或监考。功能详细设计和骨架分别通过后续 OpenSpec 变更推进。
 

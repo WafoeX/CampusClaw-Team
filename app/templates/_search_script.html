@@ -1,0 +1,119 @@
+  const get = id => document.getElementById(id);
+  const csrf = {"X-CampusClaw-Request": "same-origin", "Content-Type": "application/json"};
+  const form = get("search-form");
+  const submit = form.querySelector("button[type=submit]");
+  let searchVersion = 0;
+  let citationVersion = 0;
+  function node(tag, text) {
+    const element = document.createElement(tag);
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+  function message(element, text, error = false) {
+    element.textContent = text;
+    element.classList.toggle("error", error);
+  }
+  async function request(path, options = {}) {
+    const response = await fetch(path, {...options, signal: AbortSignal.timeout(40000)});
+    if (response.status === 401) {
+      location.replace("/login?next=" + encodeURIComponent(location.pathname));
+      throw new Error("会话已失效，正在返回登录页。");
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.code !== 0) {
+      throw new Error((payload.message || "请求失败") + "。请求标识 " + (payload.request_id || response.headers.get("X-Request-ID") || "未知"));
+    }
+    return payload.data;
+  }
+  async function openCitation(item) {
+    const version = ++citationVersion;
+    get("citation-panel").hidden = false;
+    get("citation-source").replaceChildren();
+    message(get("citation-status"), "正在加载原文出处…");
+    try {
+      const path = "/api/v1/materials/" + encodeURIComponent(item.material_id) + "/citations/" + encodeURIComponent(item.chunk_id)
+        + "?source_version=" + item.source_version + "&index_version=" + item.index_version;
+      const source = await request(path);
+      if (version !== citationVersion) return;
+      const points = Array.from(source.source_text);
+      const before = points.slice(0, source.start).join("");
+      const marked = node("mark", points.slice(source.start, source.end).join(""));
+      const after = points.slice(source.end).join("");
+      get("citation-source").append(document.createTextNode(before), marked, document.createTextNode(after));
+      message(get("citation-status"), source.title + " · 原文版本 " + source.source_version + " · 索引版本 " + source.index_version);
+      get("citation-panel").scrollIntoView({block:"nearest"});
+    } catch (error) {
+      if (version === citationVersion) message(get("citation-status"), error.message || "出处加载失败，请重试。", true);
+    }
+  }
+  function card(item, ordinal) {
+    const row = node("li");
+    row.append(node("h3", (item.number ?? ordinal + 1) + ". " + item.title), node("pre", item.text));
+    const control = node("button", "核对原文出处");
+    control.type = "button";
+    control.addEventListener("click", () => openCitation(item));
+    row.append(control);
+    return row;
+  }
+  async function search() {
+    if (submit.disabled) return;
+    const query = get("search-query").value.trim();
+    if (!query || Array.from(query).length > 4000) {
+      message(get("search-status"), "请输入 1 至 4000 个字符。", true);
+      get("search-query").focus();
+      return;
+    }
+    const version = ++searchVersion;
+    citationVersion += 1;
+    get("citation-panel").hidden = true;
+    get("search-results").replaceChildren();
+    if (get("answer-text")) {get("answer-text").textContent = "";get("answer-text").hidden = true;}
+    get("search-retry").hidden = true;
+    submit.disabled = true;
+    message(get("search-status"), view === "ask" ? "正在依据本班资料生成回答…" : "正在检索资料…");
+    const fields = {[view === "ask" ? "question" : "query"]:query, mode:get("search-mode").value};
+    if (get("search-scope").value) fields.chapter_scope = get("search-scope").value;
+    try {
+      const result = await request(view === "ask" ? "/api/v1/material-answers" : "/api/v1/searches", {method:"POST",headers:csrf,body:JSON.stringify(fields)});
+      if (version !== searchVersion) return;
+      const items = view === "ask" ? result.citations : result.items;
+      get("search-results").append(...items.map(card));
+      if (view === "ask") {
+        get("answer-text").textContent = result.answer;
+        get("answer-text").hidden = false;
+        message(get("search-status"), items.length ? "回答已生成，请核对原文出处。" : "资料中未找到相关内容。请调整问题或联系教师补充资料。");
+      } else message(get("search-status"), items.length ? "已显示 " + items.length + " 条结果。" : "资料中未找到相关内容。请更换关键词，或联系本班教师补充资料。");
+    } catch (error) {
+      if (version === searchVersion) {
+        message(get("search-status"), error.message || "检索失败，请重试。", true);
+        get("search-retry").hidden = false;
+      }
+    } finally {
+      submit.disabled = false;
+    }
+  }
+  form.addEventListener("submit", event => {event.preventDefault(); search();});
+  get("search-retry").addEventListener("click", search);
+  get("logout").addEventListener("click", async () => {
+    try {
+      await request("/api/v1/auth/sessions/current", {method:"DELETE",headers:csrf});
+      location.replace("/login");
+    } catch (error) {message(get("notice"), error.message, true);}
+  });
+  (async () => {
+    try {
+      const result = await request("/api/v1/chapters");
+      const items = result.items;
+      if (!Array.isArray(items)) throw new Error("章节响应格式无效。");
+      const uncategorized = node("option", "未分类");
+      uncategorized.value = "uncategorized";
+      get("search-scope").append(uncategorized);
+      for (const chapter of items) {
+        if (chapter.id === "uncategorized") continue;
+        const option = node("option", chapter.name);
+        option.value = chapter.id;
+        get("search-scope").append(option);
+      }
+      get("search-scope").disabled = false;
+    } catch (error) {message(get("notice"), "章节范围加载失败。" + error.message, true);}
+  })();

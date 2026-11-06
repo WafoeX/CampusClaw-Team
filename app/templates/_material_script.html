@@ -19,7 +19,7 @@
   async function request(path, options = {}) {
     let response;
     try {
-      response = await fetch(path, {...options, signal: AbortSignal.timeout(15000)});
+      response = await fetch(path, {...options, signal: AbortSignal.timeout(options.indexBuild ? 40000 : 15000)});
     } catch {
       throw new Error("连接失败或超时，请重试。");
     }
@@ -97,6 +97,62 @@
         return "资料已删除。";
       }));
       row.append(actions);
+      if (indexingEnabled) {
+        const indexStatus = node("p", "待查询索引状态。");
+        indexStatus.className = "status";
+        indexStatus.setAttribute("role", "status");
+        const mode = node("select");
+        mode.setAttribute("aria-label", "切片方式");
+        for (const [value, text] of [["auto", "自动切片"], ["custom", "自定义窗口"], ["title", "Markdown 标题"]]) {
+          const option = node("option", text);
+          option.value = value;
+          mode.append(option);
+        }
+        const windowInput = node("input");
+        Object.assign(windowInput, {type: "number", min: "100", max: "1200", value: "600"});
+        windowInput.setAttribute("aria-label", "切片窗口（码点）");
+        const overlapInput = node("input");
+        Object.assign(overlapInput, {type: "number", min: "0", max: "200", value: "80"});
+        overlapInput.setAttribute("aria-label", "重叠（码点）");
+        const windowLabel = node("label", "窗口（码点）");
+        windowLabel.append(windowInput);
+        const overlapLabel = node("label", "重叠（码点）");
+        overlapLabel.append(overlapInput);
+        const states = {building: "构建中", pending: "待处理", published: "完全就绪", keyword_only: "关键词就绪，向量失败，可重新构建", failed: "构建失败，可重新构建", superseded: "已被新版本替代"};
+        const stages = {chunks_ready: "切片已就绪", vector_collection: "准备向量存储", embedding: "生成向量", vector_write: "写入向量", vector_verify: "核对向量", complete: "完成", lease_expired: "执行超时", authorization_or_version: "权限或版本已变化"};
+        const indexPath = api + "/" + item.id + "/index-builds";
+        async function refreshIndex() {
+          const result = await request(indexPath);
+          const latest = result.items[0];
+          if (latest && !["pending", "building"].includes(latest.status)) buildKey = undefined;
+          message(indexStatus, latest ? (states[latest.status] || "状态待核对") + " · " + (stages[latest.stage] || "请查询构建状态") : "尚未构建索引。");
+        }
+        let buildKey;
+        const buildButton = button("构建或重试索引", async () => {
+          const fields = {mode: mode.value};
+          if (mode.value === "custom") {
+            if (!windowInput.checkValidity() || !overlapInput.checkValidity()
+              || !windowInput.value || !overlapInput.value
+              || Number(overlapInput.value) >= Number(windowInput.value)) {
+              throw new Error("请填写有效窗口和重叠。");
+            }
+            Object.assign(fields, {window: Number(windowInput.value), overlap: Number(overlapInput.value)});
+          }
+          try {
+            const result = await request(indexPath, {method: "POST", indexBuild: true,
+              headers: {...csrf, "Content-Type": "application/json", "Idempotency-Key": buildKey ??= crypto.randomUUID()},
+              body: JSON.stringify(fields)});
+            if (!["pending", "building"].includes(result.status)) buildKey = undefined;
+            return states[result.status] || result.status;
+          } finally {
+            await refreshIndex();
+          }
+        });
+        for (const input of [mode, windowInput, overlapInput]) input.addEventListener("input", () => { buildKey = undefined; });
+        const statusButton = button("查询索引状态", refreshIndex);
+        actions.append(mode, windowLabel, overlapLabel, buildButton, statusButton);
+        row.append(indexStatus);
+      }
     }
     return row;
   }

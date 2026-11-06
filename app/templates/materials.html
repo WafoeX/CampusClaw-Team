@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ {'console':'教师工作台','chapters':'班级章节'}.get(view, '班级资料') }} · CampusClaw</title>
+  <title>{{ {'console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答'}.get(view, '班级资料') }} · CampusClaw</title>
   <style nonce="{{ nonce }}">
     :root {
       color-scheme: light;
@@ -62,6 +62,8 @@
     <nav aria-label="班级导航">
       <a href="/materials"{% if view in ('list', 'detail') %} aria-current="page"{% endif %}>班级资料</a>
       <a href="/chapters"{% if view == 'chapters' %} aria-current="page"{% endif %}>班级章节</a>
+      <a href="/search"{% if view == 'search' %} aria-current="page"{% endif %}>检索</a>
+      <a href="/ask"{% if view == 'ask' %} aria-current="page"{% endif %}>资料问答</a>
       {% if actor.role == 'teacher' %}
       <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
       {% endif %}
@@ -76,7 +78,7 @@
       </div>
     </header>
     <main>
-      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节'}[view] }}</h1>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答'}[view] }}</h1>
       <p class="muted">资料仅向当前班级的已授权成员开放。</p>
       <p id="notice" class="status" role="status"></p>
       {% if view == 'console' %}
@@ -93,7 +95,27 @@
         <p id="upload-status" class="status" role="status"></p>
       </section>
       {% endif %}
-      {% if view == 'chapters' %}
+      {% if view in ('search','ask') %}
+      <section class="card" aria-labelledby="search-title">
+        <h2 id="search-title">{{ '向本班资料提问' if view == 'ask' else '检索本班资料' }}</h2>
+        <form id="search-form">
+          <label>{{ '当前问题' if view == 'ask' else '关键词或问题' }} <textarea id="search-query" required aria-describedby="query-help"></textarea></label>
+          <p id="query-help" class="muted">请输入 1 至 4000 个字符，只在当前班级资料中查找。</p>
+          <label>章节范围 <select id="search-scope" disabled><option value="">全部章节</option></select></label>
+          <label>检索方式 <select id="search-mode"><option value="keyword">关键词</option><option value="vector">向量</option><option value="hybrid"{% if view == 'ask' %} selected{% endif %}>混合</option></select></label>
+          <button class="primary" type="submit">{{ '提交问题' if view == 'ask' else '检索资料' }}</button>
+        </form>
+        <p id="search-status" class="status" role="status">{{ '请输入当前问题，回答仅依据本班资料。' if view == 'ask' else '请输入关键词开始检索。' }}</p>
+        <button id="search-retry" type="button" hidden>重试</button>
+        {% if view == 'ask' %}<pre id="answer-text" hidden></pre>{% endif %}
+        <ul id="search-results"></ul>
+      </section>
+      <section class="card" aria-labelledby="citation-title" hidden id="citation-panel">
+        <h2 id="citation-title">原文出处</h2>
+        <p id="citation-status" class="status" role="status"></p>
+        <pre id="citation-source"></pre>
+      </section>
+      {% elif view == 'chapters' %}
       <section class="card" aria-labelledby="chapters-title">
         <h2 id="chapters-title">章节目录</h2>
         {% if actor.role == 'teacher' %}
@@ -143,7 +165,10 @@
 <script nonce="{{ nonce }}">
   const view = {{ view | tojson }};
   const target = {{ target | tojson }};
-  {% if view == 'chapters' %}
+  const indexingEnabled = {{ indexing_enabled | tojson }};
+  {% if view in ('search','ask') %}
+  {% include "_search_script.html" %}
+  {% elif view == 'chapters' %}
   {% include "_chapter_script.html" %}
   {% else %}
   {% include "_material_script.html" %}

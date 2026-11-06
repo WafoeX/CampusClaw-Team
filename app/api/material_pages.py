@@ -11,6 +11,8 @@ PAGE_PERMISSIONS = {
     "material_page": READ_MATERIALS,
     "chapters_page": READ_MATERIALS,
     "console_page": WRITE_MATERIALS,
+    "search_page": READ_MATERIALS,
+    "ask_page": READ_MATERIALS,
 }
 PAGE_POLICIES = {
     (endpoint, method): permission
@@ -42,6 +44,7 @@ def install_material_pages(app):
                 view=view,
                 target=target,
                 actor=g.actor,
+                indexing_enabled="create_index_build" in app.view_functions,
             )
         )
         response.headers["Cache-Control"] = "no-store"
@@ -66,3 +69,11 @@ def install_material_pages(app):
     @app.get("/console")
     def console_page():
         return render("console")
+
+    @app.get("/search")
+    def search_page():
+        return render("search")
+
+    @app.get("/ask")
+    def ask_page():
+        return render("ask")

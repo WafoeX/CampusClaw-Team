@@ -70,7 +70,7 @@ def _return_path(app, path):
     registered = {
         rule.rule for rule in app.url_map.iter_rules() if "GET" in rule.methods
     }
-    if path in {"/console", "/chapters"} and path in registered:
+    if path in {"/console", "/chapters", "/search", "/ask"} and path in registered:
         return path
     if DETAIL_PATH.fullmatch(path) and "/materials/<material_id>" in registered:
         return path

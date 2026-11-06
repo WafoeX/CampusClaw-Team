@@ -2,15 +2,25 @@ import os
 from io import BytesIO
 from pathlib import Path
 
-from flask import Flask, Request
+from flask import Flask, Request, g, has_request_context
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.chapter_repository import ChapterRepository
+from app.adapters.chat_client import ChatClient, ChatProtocolError
 from app.adapters.database import DatabaseError, mysql_engine
+from app.adapters.index_clients import (
+    EmbeddingClient,
+    IndexDependencyError,
+    QdrantIndexClient,
+)
+from app.adapters.index_repository import IndexRepository
 from app.adapters.material_repository import MaterialRepository
+from app.adapters.model_lease_repository import ModelLeaseRepository
 from app.adapters.probes import check_mysql, check_qdrant
 from app.adapters.rate_limit_repository import RateLimitRepository
+from app.adapters.retrieval_repository import RetrievalRepository
+from app.api.answers import ANSWER_POLICIES, install_answers
 from app.api.auth import (
     AUTH_POLICIES,
     AUTH_PUBLIC_ROUTES,
@@ -19,14 +29,21 @@ from app.api.auth import (
 )
 from app.api.chapters import CHAPTER_POLICIES, install_chapters
 from app.api.http import install_http
+from app.api.index_builds import INDEX_POLICIES, install_index_builds
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
 from app.api.materials import MATERIAL_POLICIES, install_materials
+from app.api.retrieval import RETRIEVAL_POLICIES, install_retrieval
 from app.config import Settings
+from app.observability import log_event
+from app.services.answers import AnswerService
 from app.services.auth import AuthService
 from app.services.chapters import ChapterService
 from app.services.health import HealthService
+from app.services.indexing import IndexService
 from app.services.materials import MaterialService
+from app.services.model_gate import ModelGate
 from app.services.rate_limits import RequestLimiter
+from app.services.retrieval import RetrievalService
 
 VERSION_FILE = Path(__file__).with_name("BUILD_VERSION")
 
@@ -49,6 +66,9 @@ def create_app(
     materials=None,
     limiter=None,
     chapters=None,
+    indexing=None,
+    retrieval=None,
+    answers=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -65,7 +85,15 @@ def create_app(
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     origin = settings.public_origin
     if origin is not None:
-        if auth is None or materials is None or limiter is None or chapters is None:
+        if (
+            auth is None
+            or materials is None
+            or limiter is None
+            or chapters is None
+            or (settings.embedding is not None and indexing is None)
+            or retrieval is None
+            or answers is None
+        ):
             engine = mysql_engine(
                 host=settings.mysql_host,
                 port=settings.mysql_port,
@@ -86,6 +114,63 @@ def create_app(
             limiter = RequestLimiter(RateLimitRepository(engine), DatabaseError)
         if chapters is None:
             chapters = ChapterService(ChapterRepository(engine), DatabaseError)
+
+        def model_event(**details):
+            log_event(
+                "model",
+                settings.version,
+                request_id=g.request_id if has_request_context() else None,
+                **details,
+            )
+
+        if indexing is None and settings.embedding is not None:
+            indexing = IndexService(
+                IndexRepository(engine),
+                DatabaseError,
+                EmbeddingClient(settings.embedding, on_result=model_event),
+                QdrantIndexClient(
+                    settings.qdrant_url, settings.qdrant_api_key, settings.embedding
+                ),
+                IndexDependencyError,
+                settings.embedding.version,
+                quota=lambda identity: limiter.check(
+                    "model-call", identity.subject_id, limit=6
+                ),
+                model_guard=ModelGate(ModelLeaseRepository(engine), DatabaseError).hold,
+            )
+        if retrieval is None:
+            config = settings.embedding
+            retrieval = RetrievalService(
+                RetrievalRepository(engine),
+                DatabaseError,
+                EmbeddingClient(config, on_result=model_event)
+                if config is not None
+                else None,
+                QdrantIndexClient(settings.qdrant_url, settings.qdrant_api_key, config)
+                if config is not None
+                else None,
+                IndexDependencyError,
+                auth.current,
+                settings.retrieval_min_score,
+                quota=lambda identity: limiter.check(
+                    "model-call", identity.subject_id, limit=6
+                ),
+                model_guard=ModelGate(ModelLeaseRepository(engine), DatabaseError).hold,
+            )
+        if answers is None:
+            answers = AnswerService(
+                retrieval,
+                ChatClient(settings.chat, on_result=model_event)
+                if settings.chat
+                else None,
+                IndexDependencyError,
+                ChatProtocolError,
+                quota=lambda identity: limiter.check(
+                    "model-call", identity.subject_id, limit=6
+                ),
+                model_guard=ModelGate(ModelLeaseRepository(engine), DatabaseError).hold,
+                on_result=model_event,
+            )
         resolve_identity = resolve_identity or (lambda: resolve_session(auth))
         policies = {
             **(policies or {}),
@@ -93,6 +178,9 @@ def create_app(
             **MATERIAL_POLICIES,
             **CHAPTER_POLICIES,
             **PAGE_POLICIES,
+            **(INDEX_POLICIES if indexing is not None else {}),
+            **RETRIEVAL_POLICIES,
+            **ANSWER_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
     install_http(
@@ -108,6 +196,10 @@ def create_app(
     if origin is not None:
         install_auth(app, auth, origin, limiter)
         install_materials(app, materials)
+        if indexing is not None:
+            install_index_builds(app, indexing)
         install_chapters(app, chapters)
+        install_retrieval(app, retrieval)
+        install_answers(app, answers)
         install_material_pages(app)
     return app

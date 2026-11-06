@@ -214,13 +214,13 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 ## 第 10 课交付与最终人工评测
 
-先完成纳入交付范围的必做功能、场景追溯、双门禁、干净目录启动、CI 制品追溯、观测与通知、对照压测及至少三名真实使用者试用。齐备后冻结候选提交、镜像和配置，由验收人按四项技能、手机四步及跨功能业务场景执行评测，同伴从干净目录独立复现。第 9 课 SEC-08 继续按选做状态登记。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
+先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
 
 当前处于规约阶段。`make check` 是现有入口，独立 `make check-security` 由课末安全预检建立，第 10 课接入同名 CI 双门禁并对候选交付取证。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。差异未经课程方确认时按缺项记录。实际验收将结论与证据指针写入根目录 `report.md`，报告明细使用 `reports/` 固定路径。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
 ## 小组协作与增量流程
 
-每组实现以[可运行交接](docs/standards/08-评审与完成定义规范.md#分阶段完成定义)为退出条件。实现人在隔离环境验证启动、就绪和本组关键路径，通过后可继续依赖该能力的开发。完整自动化回归、适用专项验证与代码评审在对应变更的收尾组完成。课程专项复验在各自任务执行，整体验收由第 10 课第 5 组统一调度。
+每组实现以[可运行交接](docs/standards/08-评审与完成定义规范.md#分阶段完成定义)为退出条件。实现人在隔离环境验证启动、就绪和本组关键路径，通过后可继续依赖该能力的开发。实现变更收尾完成自动化运行与错误回归。独立安全测试/审计归安全预检和修复，全部真人测试统一由项目最终验收执行；合并前代码评审独立保留。
 
 ### 规约依赖与验收交接
 
@@ -228,14 +228,14 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 | 变更 | 实施输入或验收前置 | 验证与评审归属 |
 | --- | --- | --- |
-| [工程规范](openspec/changes/establish-project-standards/tasks.md)与[开发骨架](openspec/changes/2026-11-04-add-skeleton/tasks.md) | 工程规则提供约束，骨架提供应用工厂、默认拒绝、就绪与门禁 | 骨架 3.2、4 组及[第 7 课收尾](docs/lesson-07/acceptance.md)承担相应复验、回滚和课程交付 |
-| [认证与资料](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md) | 骨架运行基线 | 4.3 完整回归及代码评审。下游复用 Cookie 会话、同源写入防护、当前班级身份、资料版本和撤销 |
-| [检索与问答](openspec/changes/2026-11-04-add-traceable-retrieval/tasks.md) | 可运行的认证与资料，重点是原文读取、撤销和班级隔离 | 第 5 组承担冻结题集评测、真实依赖回归及代码评审。归档前要求主规格有 CA-04 |
-| [流式助手](openspec/changes/2026-11-04-add-streaming-ai-assistant/tasks.md) | 认证、资料和检索的可运行契约，含有限证据、出处与 QA-01 | 第 5 组完成门禁、AI 评测和四项同伴复验。反馈契约交异步教学看板 |
-| [受控 MCP](openspec/changes/2026-11-04-add-controlled-mcp-tools/tasks.md) | 独立服务可先实现，宿主接入依赖助手的技能、SSE 和私有记录 | 第 4 组完成真实 Compose 互操作及同伴复验。人工教学闭环、AI 候选题与安全预检可独立于 MCP |
+| [工程规范](openspec/changes/establish-project-standards/tasks.md)与[开发骨架](openspec/changes/2026-11-04-add-skeleton/tasks.md) | 工程规则提供约束，骨架提供应用工厂、默认拒绝、就绪与门禁 | 骨架 3.2、4 组实现与自动化验证已完成，人工复核交最终验收 1.3；[第 7 课收尾](docs/lesson-07/acceptance.md)承担相应复验、回滚和课程交付 |
+| [认证与资料](openspec/changes/2026-11-04-add-class-auth-material-ingest/tasks.md) | 骨架运行基线 | 4.3 实现与完整自动化回归已完成；人工代码复核交项目最终验收 1.3，功能走查交 2.6–2.8，合并前仍须评审。下游复用 Cookie 会话、同源写入防护、当前班级身份、资料版本和撤销 |
+| [检索与问答](openspec/changes/2026-11-04-add-traceable-retrieval/tasks.md) | 可运行的认证与资料，重点是原文读取、撤销和班级隔离 | 第 5 组承担自动化效果与真实依赖回归，人工标注及效果裁决交最终验收 2.4。归档前要求主规格有 CA-04 |
+| [流式助手](openspec/changes/2026-11-04-add-streaming-ai-assistant/tasks.md) | 认证、资料和检索的可运行契约，含有限证据、出处与 QA-01 | 第 5 组完成自动化门禁及 AI 回归，四项真人复验交最终验收 2.9。反馈契约交异步教学看板 |
+| [受控 MCP](openspec/changes/2026-11-04-add-controlled-mcp-tools/tasks.md) | 独立服务可先实现，宿主接入依赖助手的技能、SSE 和私有记录 | 第 4 组完成真实 Compose 自动化互操作，真人复验交最终验收 2.10。人工教学闭环、AI 候选题与安全预检可独立于 MCP |
 | [异步教学](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md) | 人工建题、测验、规则评分依赖骨架与认证。候选题另需 Kafka、检索证据与固定提示配置。看板未解决数接流式助手反馈。后台索引选做，要求核心闭环自动化验证通过及已同步的 IX-01 | 第 5 组验证闭环和异步三判据，7.4 完成实现交付。课末专项复验由安全预检执行 |
-| [课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) | 异步教学 7.4 的可运行候选、5.2 并发与事务证据，以及认证、检索、配置和技能调用 | 本变更执行课程 SEC-01–07 及独立复验，建立 `make check-security`。异步 7.1–7.3 引用同一证据 |
-| [安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) | 安全预检的版本、报告和实际复现结果 | 修复并复测实际发现，复用预检安全入口。选做 SEC-08 单列 |
+| [课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) | 异步教学 7.4 的可运行候选、5.2 并发与事务证据，以及认证、检索、配置和技能调用 | 本变更执行课程 SEC-01–07 自动化技术自查并建立 `make check-security`；真人独立复验交最终验收 4.1。异步原 7.1–7.3 已移交，不回流阻断实现 |
+| [安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) | 安全预检的版本、报告和实际复现结果 | 修复并复测实际发现，复用预检安全入口。SEC-08 按第 9 课必做四步，真人观察交最终验收 4.3 |
 | [第 10 课交付](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)与[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) | 第 10 课 1–4 组完成交付验证，且纳入交付的必做能力和证据齐备后，由 5.1 冻结候选 | 项目最终验收用同一候选执行跨功能卡，结果回到第 10 课 5.2–5.4。正式人工走查只安排一轮，换候选后复验受影响场景 |
 
 课程等价由对应任务记录。第 5 课 Bearer Swagger、第 8 课作业提交 `202` 与评分写入路径、第 10 课教师改分等差异在确认前保留为验收缺项。只暂停依赖未决契约的任务，已明确契约的独立组可以继续。
@@ -266,3 +266,9 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 5. 将脱敏后的原因、处置人、验证和防再发措施归档到变更记录，提交人工复核。
 
 目前运行记录来自本机及 CI 隔离验证，发布环境按实际授权建立。
+
+### 2026-11-05 功能推进与测试分工
+
+功能实现 change 的退出条件是功能正常运行、自动化错误/边界回归及实际交接。独立攻击测试、资产扫描取证、安全审计及修复由两安全 change 负责，所有真人测试、课程确认和用户试用统一在最终验收。已有门禁、业务授权与错误断言保留，合并前代码评审独立执行。各功能任务末尾「推进依赖」列出直接输入、输出、并行关系和阻塞边界；归档或最终人工结果不作为下游开发前置。
+
+本轮跨变更核对见[OpenSpec 推进与课程对照审计](docs/changes/2026-11-05-audit-openspec-workflow.md)。

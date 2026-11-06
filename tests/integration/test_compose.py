@@ -223,7 +223,10 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     verify_chapter_migration(compose)
     verify_chapter_api(compose)
     verify_index_foundation(compose)
+    verify_index_builds(compose)
     verify_rate_limits(compose)
+    verify_retrieval(compose, "setup")
+    verify_evaluation(compose)
 
     compose("stop", "mysql")
     code, unready, _ = status("not_ready")
@@ -236,8 +239,11 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     code, degraded, _ = status("degraded")
     assert code == 200
     assert degraded["dependencies"] == {"mysql": "ready", "qdrant": "unavailable"}
+    verify_retrieval(compose, "down")
     compose("start", "qdrant")
     assert status("ready")[0] == 200
+
+    verify_retrieval(compose, "delete")
 
     started = time.monotonic()
     compose("kill", "-s", "SIGTERM", "app")
@@ -307,4 +313,59 @@ def verify_index_foundation(compose):
         "python",
         "-c",
         Path(__file__).with_name("index_foundation_runtime.py").read_text(),
+    )
+
+
+def verify_index_builds(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("index_build_runtime.py").read_text(),
+    )
+
+
+def verify_retrieval(compose, phase):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("retrieval_runtime.py").read_text(),
+        phase,
+    )
+
+
+def verify_evaluation(compose):
+    fixture = ROOT / "tests/eval/retrieval-evaluation.json"
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/campusclaw-retrieval-evaluation.json').write_text(sys.argv[1])",
+        fixture.read_text(),
+    )
+    output = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("evaluation_runtime.py").read_text(),
+    )
+    reports = [
+        json.loads(line.removeprefix("EVAL_RESULT:"))
+        for line in output.splitlines()
+        if line.startswith("EVAL_RESULT:")
+    ]
+    assert len(reports) == 1 and reports[0]["questions"] >= 30
+    folder = ROOT / "reports/2026-11-06-index-builds"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "evaluation.json").write_text(
+        json.dumps(reports[0], ensure_ascii=False, indent=2) + "\n"
     )

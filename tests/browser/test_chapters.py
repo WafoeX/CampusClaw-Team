@@ -37,7 +37,7 @@ def test_CH_N01_CH_B01_browser_keyboard_and_two_widths(stack, tmp_path):
     class Proxy(BaseHTTPRequestHandler):
         def forward(self):
             body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-            upstream = http.client.HTTPConnection("127.0.0.1", backend[0], timeout=20)
+            upstream = http.client.HTTPConnection("127.0.0.1", backend[0], timeout=40)
             try:
                 upstream.request(
                     self.command,
@@ -104,6 +104,14 @@ def test_CH_N01_CH_B01_browser_keyboard_and_two_widths(stack, tmp_path):
             "127.0.0.1::8080",
             "-e",
             f"APP_PUBLIC_ORIGIN={origin}",
+            "-e",
+            "EMBEDDING_BASE_URL=https://ai-gateway.devops.hello1023.com/v1",
+            "-e",
+            "EMBEDDING_MODEL=course-embedding",
+            "-e",
+            "EMBEDDING_DIM=2048",
+            "-e",
+            "RETRIEVAL_MIN_SCORE=0.449357",
             "app",
         ).splitlines()[-1]
         backend[0] = int(

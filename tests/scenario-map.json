@@ -459,6 +459,205 @@
         "runner": "verify_chapter_api",
         "assertion": "assert sorted(response.status_code for response in raced) == [200, 409]"
       }
+    },
+    "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": {
+      "IX-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert first['status'] == 'published'"
+      },
+      "IX-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert active_boundary['vector_ready'] == (expected_version == 2)"
+      },
+      "IX-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert len(capacity_chunks) == 62 and max((row['end_offset'] for row in capacity_chunks)) == 32000"
+      },
+      "IX-F01": {
+        "test": "tests/unit/test_chunking.py",
+        "function": "test_IX_F01_65_chunks_rejected_with_auto_hint"
+      },
+      "IX-F02": {
+        "test": "tests/api/test_index_builds.py",
+        "function": "test_IX_F02_role_denied_before_index_service"
+      },
+      "IX-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert embedding.calls == 0"
+      },
+      "IX-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert build('after-vector-faults').status_code == 201"
+      },
+      "IX-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert late.status_code == 409"
+      }
+    },
+    "2026-11-04-add-traceable-retrieval/specs/traceable-retrieval/spec.md": {
+      "RT-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert source['source_text'][item['start']:item['end']] == item['text']"
+      },
+      "RT-B01": {
+        "test": "tests/unit/test_retrieval.py",
+        "function": "test_RT_B01_empty_scope_still_checks_vector_health_without_unfiltered_query"
+      },
+      "RT-F01": {
+        "test": "tests/api/test_retrieval.py",
+        "function": "test_RT_F01_search_invalid_input_before_service"
+      },
+      "RT-F02": {
+        "test": "tests/api/test_retrieval.py",
+        "function": "test_RT_F02_anonymous_search_does_not_recall"
+      },
+      "RT-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert rejected.status_code == 404 and rejected.json['code'] == 1300"
+      },
+      "RT-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert failed.status_code == 503 and failed.json['code'] == 1500"
+      },
+      "RT-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert changed.status_code == 409"
+      },
+      "RT-F06": {
+        "test": "tests/unit/test_retrieval.py",
+        "function": "test_RT_F06_database_or_embedding_failure_suppresses_partial_output"
+      }
+    },
+    "2026-11-04-add-traceable-retrieval/specs/grounded-material-qa/spec.md": {
+      "QA-N01": {
+        "test": "tests/unit/test_answer_service.py",
+        "function": "test_QA_N01_two_sources_keep_exact_number_mapping"
+      },
+      "QA-B01": {
+        "test": "tests/unit/test_answers.py",
+        "function": "test_QA_B01_evidence_budget_uses_complete_prefix_and_contiguous_mapping"
+      },
+      "QA-F01": {
+        "test": "tests/api/test_answers.py",
+        "function": "test_QA_F01_invalid_question_never_enters_service"
+      },
+      "QA-F02": {
+        "test": "tests/api/test_answers.py",
+        "function": "test_QA_F02_anonymous_answer_never_calls_service"
+      },
+      "QA-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert chat.calls == before_empty_calls"
+      },
+      "QA-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert unavailable_answer.status_code == 503 and unavailable_answer.json['data'] is None"
+      },
+      "QA-F05": {
+        "test": "tests/unit/test_answers.py",
+        "function": "test_QA_F05_fixed_ten_invalid_outputs_are_rejected"
+      },
+      "QA-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert revoked.status_code == 409 and revoked.json['data'] is None"
+      }
+    },
+    "2026-11-04-add-traceable-retrieval/specs/class-auth-material-ingest/spec.md": {
+      "IO-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert attachment.data == raw and attachment.status_code == 200"
+      },
+      "IO-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert peer.get(target, base_url=origin).json['data']['text'] == raw.decode('utf-8-sig')"
+      },
+      "IO-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert teacher.delete(target, base_url=origin, headers=headers).status_code == 200"
+      },
+      "IO-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert refused.status_code == 503, (refused.status_code, refused.json)"
+      },
+      "IO-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert 'Content-Disposition' not in unavailable.headers"
+      },
+      "IO-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/auth_runtime.py",
+        "runner": "verify_auth_migration",
+        "assertion": "assert invalid_download.status_code == 400 and invalid_download.json['code'] == 1000"
+      },
+      "IO-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert student.get(citation_url(item), base_url=origin).status_code == 404"
+      },
+      "IO-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/index_build_runtime.py",
+        "runner": "verify_index_builds",
+        "assertion": "assert vectors.count(deleted_scope, time.monotonic() + 15) == 0 and vectors.count(other_scope, time.monotonic() + 15) > 0"
+      }
     }
   },
   "planned": {
@@ -477,10 +676,6 @@
     "2026-11-04-add-streaming-ai-assistant/specs/class-ai-apps/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-streaming-ai-assistant/specs/private-streaming-sessions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-traceable-retrieval/specs/class-auth-material-ingest/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-traceable-retrieval/specs/grounded-material-qa/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-traceable-retrieval/specs/material-indexing/spec.md": "Task 2.1 的确定性切片与真实 MySQL 存储基础已有回归（tests/unit/test_chunking.py、tests/integration/index_foundation_runtime.py）；完整发布、权限入口及依赖失败仍待 tasks 2.2，能力场景尚未整体验收。",
-    "2026-11-04-add-traceable-retrieval/specs/traceable-retrieval/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
   }

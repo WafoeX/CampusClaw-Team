@@ -17,11 +17,11 @@ await new Promise((resolve, reject) => {
   socket.addEventListener("open", resolve, {once:true});
   socket.addEventListener("error", reject, {once:true});
 });
-let sequence = 0, paused;
+let sequence = 0, paused, pausedPayload;
 const pending = new Map();
 socket.addEventListener("message", ({data}) => {
   const result = JSON.parse(data);
-  if (result.method === "Fetch.requestPaused") paused = result.params.requestId;
+  if (result.method === "Fetch.requestPaused") {paused = result.params.requestId; pausedPayload = result.params.request.postData;}
   if (result.method === "Page.javascriptDialogOpening") send("Page.handleJavaScriptDialog", {accept:true});
   const handler = pending.get(result.id);
   if (handler) { pending.delete(result.id); handler(result); }
@@ -138,7 +138,87 @@ try {
   await eventually(() => js('document.getElementById("notice").textContent.includes("章节已删除")'));
   assert.equal(await js('document.querySelector("#chapters button").textContent'), "未分类");
   assert.equal(await js('document.querySelector("#chapter-materials a").textContent'), "章节原文");
-  await writeFile(output + "/result.json", JSON.stringify({passed:true,widths:[1440,390],checks:["登录返回","四态与故障重试","键盘创建与浏览","选中状态","真实资料归类","学生只读与原文","教师改名与删章归回未分类"]},null,2));
+  // 空模型 key 是明确的依赖失败，不调用外部网关；验证关键词就绪及新键重试。
+  await navigate("/console");
+  await eventually(() => js('[...document.querySelectorAll("#materials button")].some(b => b.textContent === "构建或重试索引")'));
+  await js('[...document.querySelectorAll("#materials button")].find(b => b.textContent === "查询索引状态").click()');
+  await eventually(() => js('document.querySelector("#materials .status").textContent === "尚未构建索引。"'));
+  await js('[...document.querySelectorAll("#materials button")].find(b => b.textContent === "构建或重试索引").focus()');
+  await key("Enter");
+  await eventually(() => js('document.querySelector("#materials .status").textContent.includes("关键词就绪")'));
+  await js('[...document.querySelectorAll("#materials button")].find(b => b.textContent === "构建或重试索引").click()');
+  await eventually(() => js(`(async () => {
+    const id = document.querySelector('#materials a').getAttribute('href').split('/').at(-1);
+    const result = await fetch('/api/v1/materials/'+id+'/index-builds').then(r => r.json());
+    return result.data.items.length === 2 && result.data.items[0].status === 'keyword_only';
+  })()`));
+  assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+  await screenshot("index-build-mobile.png");
+  await send("Emulation.setDeviceMetricsOverride", {width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await screenshot("index-build-desktop.png");
+  const browserSource = "😀" + "填充文字。".repeat(130) + "\n\n星河礼堂每周二开放。";
+  await js(`(async () => {
+    const created = await fetch('/api/v1/materials',{method:'POST',headers:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin','Idempotency-Key':'browser-codepoints'},body:JSON.stringify({title:'码点验证原文',text:${JSON.stringify(browserSource)}})}).then(r=>r.json());
+    const result = await fetch('/api/v1/materials/'+created.data.id+'/index-builds',{method:'POST',headers:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin','Idempotency-Key':'browser-codepoint-index'},body:'{}'});
+    if (result.status !== 503) throw Error('空 key 应明确报依赖失败');
+  })()`);
+  await navigate("/search");
+  await eventually(() => js('!!document.getElementById("search-form") && !document.getElementById("search-scope").disabled'));
+  await send("Fetch.enable", {patterns:[{urlPattern:origin+"/api/v1/searches",requestStage:"Request"}]});
+  paused = undefined;
+  await js('document.getElementById("search-query").value="星河礼堂";document.querySelector("#search-form button").focus()');
+  await key("Enter");
+  await eventually(async () => paused);
+  assert.equal(await js('document.getElementById("search-status").textContent'), "正在检索资料…");
+  await send("Fetch.fulfillRequest",{requestId:paused,responseCode:503,responseHeaders:[{name:"Content-Type",value:"application/json"}],body:Buffer.from(JSON.stringify({code:1500,message:"合成依赖失败",data:null,request_id:"browser-synthetic"})).toString("base64")});
+  await eventually(() => js('!document.getElementById("search-retry").hidden'));
+  await send("Fetch.disable");
+  await js('document.getElementById("search-retry").click()');
+  await eventually(() => js('document.querySelectorAll("#search-results li").length === 1'));
+  await js('document.querySelector("#search-results button").focus()');
+  await key("Enter");
+  await eventually(() => js('!!document.querySelector("#citation-source mark")'));
+  assert.equal(await js('document.querySelector("#citation-source mark").textContent === document.querySelector("#search-results pre").textContent'), true);
+  assert.equal(await js('document.getElementById("citation-source").textContent'), browserSource);
+  await screenshot("search-citation-desktop.png");
+  await send("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:false});
+  assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+  await screenshot("search-citation-mobile.png");
+  await js('document.getElementById("search-mode").value="vector";document.querySelector("#search-form button").click()');
+  await eventually(() => js('document.getElementById("search-status").textContent.includes("关键词") && !document.getElementById("search-retry").hidden'));
+  await js('document.getElementById("search-mode").value="keyword";document.getElementById("search-query").value="珊瑚天文台不存在编号";document.querySelector("#search-form button").click()');
+  await eventually(() => js('document.getElementById("search-status").textContent.includes("资料中未找到相关内容")'));
+  const citationFixture = await js(`(async () => {
+    const result = await fetch('/api/v1/searches',{method:'POST',headers:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin'},body:JSON.stringify({query:'星河礼堂',mode:'keyword'})}).then(r=>r.json());
+    return result.data.items[0];
+  })()`);
+  await navigate("/ask");
+  await eventually(() => js('!!document.getElementById("answer-text") && !document.getElementById("search-scope").disabled'));
+  assert.equal(await js('document.getElementById("search-mode").value'), "hybrid");
+  await send("Fetch.enable",{patterns:[{urlPattern:origin+"/api/v1/material-answers",requestStage:"Request"}]});
+  paused = undefined;
+  await js('document.getElementById("search-mode").value="keyword";document.getElementById("search-query").value="星河礼堂何时开放？";document.querySelector("#search-form button").focus()');
+  await key("Enter");
+  await eventually(async () => paused);
+  assert.deepEqual(JSON.parse(pausedPayload), {question:"星河礼堂何时开放？",mode:"keyword"});
+  await send("Fetch.fulfillRequest",{requestId:paused,responseCode:200,responseHeaders:[{name:"Content-Type",value:"application/json"}],body:Buffer.from(JSON.stringify({code:0,message:"成功",data:{answer:"星河礼堂每周二开放。",citations:[{...citationFixture,number:1}]},request_id:"browser-answer-fixture"})).toString("base64")});
+  await eventually(() => js('document.getElementById("answer-text").textContent === "星河礼堂每周二开放。"'));
+  await send("Fetch.disable");
+  await js('document.querySelector("#search-results button").focus()');
+  await key("Enter");
+  await eventually(() => js('!!document.querySelector("#citation-source mark")'));
+  await send("Emulation.setDeviceMetricsOverride",{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await screenshot("answer-citation-desktop.png");
+  await send("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:false});
+  assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+  await screenshot("answer-citation-mobile.png");
+  await js('document.getElementById("search-query").value="珊瑚天文台不存在编号";document.querySelector("#search-form button").click()');
+  await eventually(() => js('document.getElementById("answer-text").textContent === "资料中未找到相关内容"'));
+  assert.equal(await js('document.querySelectorAll("#search-results li").length'),0);
+  await js('document.getElementById("search-query").value="星河礼堂何时开放？";document.querySelector("#search-form button").click()');
+  await eventually(() => js('document.getElementById("search-status").textContent.includes("模型") && !document.getElementById("search-retry").hidden'));
+  assert.equal(await js('document.getElementById("answer-text").hidden'),true);
+  await writeFile(output + "/result.json", JSON.stringify({passed:true,widths:[1440,390],checks:["登录返回","四态与故障重试","键盘创建与浏览","选中状态","真实资料归类","学生只读与原文","教师改名与删章归回未分类","索引空状态与键盘构建","缺模型密钥保留关键词","失败后新键重试","检索四态与503重试","码点出处高亮","问答默认混合与当前问题","显式HTTP回答夹具及授权出处","真实后端无证据拒答","模型故障不显示旧回答"]},null,2));
   console.log("章节浏览器主路径通过：键盘、四态、归类、学生原文和两档宽度");
 } finally {
   socket.close();

@@ -52,3 +52,25 @@
 本地完整门禁结果对应上述完整候选，分组提交用于审阅依赖，不把中间快照记成独立验收通过。远端推送及 CI 结果按实际命令和运行记录另行核对，人工代码评审 3.2 继续开放。
 
 首次暂存差异检查发现两份新增规格末尾有多余空行，清理后复测。此修正只涉及 Markdown 行尾。
+
+## 2026-11-06 任务 3.2 实现交接收尾
+
+### 变更说明与交接输入
+
+用户明确要求人工验收在全部功能完成后进行，并授权勾选本项。按当前 tasks 的 3.2 定义，本轮整理实现交接输入并勾选完成，进度为 6/6；不改变业务行为、测试断言、门禁或人工验收判据。上文“3.2 人工代码评审保持开放”是调度修订前的历史状态，当前任务状态以本节及 tasks 为准，历史验证与未执行事实保留。
+
+| 交接项 | 当前输入及证据 |
+| --- | --- |
+| 候选版本 | 已同步的主干 `e18c1930bca42cf2dff51ea2871d9837bba75989`，工作区在整理前干净；本轮仅在 `change/2026-11-06-close-rate-limits-handoff` 修改任务状态和本文。 |
+| 限流策略 | 登录按 WSGI 直连来源、已认证写入按当前数据库账号，各 UTC 分钟 60 次；超额 429/1600，数据库故障 503/1500，拒绝后业务零调用。固定窗口突发、代理共用来源额度及有界清理约束继续有效；详见本变更 design、shared-request-limits 规格和 README“请求限流与场景追溯”。 |
+| 场景清单 | `tests/scenario-map.json` 登记实现状态与实际入口，由 `scripts/scenario_trace.py` 随 `make check-static` 核验。规划和工程待验证场景保留实际任务及理由；结构检查通过不替代行为验证。 |
+| 历史完整回归 | 本文原有 `OPENSPEC_TELEMETRY=0 make check` 退出 0，91 项单元/API、4 项启动、1 项真实 Compose 集成及扫描通过；真实 MySQL 并发、迁移回退和反例敏感性结果见上表。章节后续修正限流并发死锁，复测及完整门禁记录见[检索变更证据](2026-11-04-add-traceable-retrieval.md)。不将历史结果写成本轮新运行。 |
+| 当前候选回归 | 本会话同步代码后执行 `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache make check-static check-test`：静态检查及 133 项断网单元/API 通过，启动测试因沙箱禁止绑定回环端口出现 3 通过、1 错误，命令退出 2。随后在允许监听端口的环境执行 `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q tests/test_startup.py`，退出 0，4 项通过。首次默认 uv 缓存路径也受沙箱限制，改用临时缓存后静态和单元/API 成功。未将两次分项通过描述为本轮完整 `make check` 通过。 |
+
+### 验证与评审结论
+
+使用 `openspec-apply-change`，输入为本变更 3.2，实际读取 CLI status、apply 上下文指定的 proposal、design、两份 specs 和 tasks；使用 `project-review`，读取 AGENTS、README、评审规范、本变更工件及既有证据，核对四项交接输入和最终验收任务 1.3。技能动作仅为交接整理、证据核对和任务勾选。
+
+人工测试、意图确认、配额与代理来源体验及约束内容复核继续交[项目最终验收 1.3](../../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)，在全部功能及技术交付齐备后统一进行，该任务保持未勾选。合并前实际同伴代码评审独立登记；本节不补填任何历史批准。课程验收、归档和发布未执行。本轮没有修改应用、API、页面或字典，未新增运行契约，未重跑 Compose、扫描或浏览器检查。
+
+勾选后执行 `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache make check-static`，退出 0：12 项 OpenSpec 严格校验、格式、Ruff、分层和场景映射通过；`git diff --check` 退出 0。`openspec instructions apply --change 2026-11-05-fix-rate-limits-traceability --json` 退出 0，返回 6/6、`all_done`。这是实现交付状态，人工验收仍为未执行，约束文件改动待实际人工复核。

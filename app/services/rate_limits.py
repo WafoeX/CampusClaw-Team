@@ -8,10 +8,10 @@ class RequestLimiter:
         self.repository = repository
         self.database_error = database_error
 
-    def check(self, scope, principal):
+    def check(self, scope, principal, *, limit=60):
         digest = sha256(f"{scope}\0{principal}".encode()).digest()
         try:
-            allowed, retry_after = self.repository.consume(digest, 60)
+            allowed, retry_after = self.repository.consume(digest, limit)
         except self.database_error:
             raise AccessDenied(503, 1500, "依赖服务暂不可用，请稍后重试") from None
         if not allowed:

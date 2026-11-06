@@ -49,6 +49,8 @@ expected = {
     "material_index_builds",
     "material_chunks",
     "material_index_cleanups",
+    "material_index_operations",
+    "material_chunk_tombstones",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

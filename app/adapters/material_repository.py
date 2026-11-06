@@ -3,6 +3,10 @@ from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.adapters.auth_schema_v1 import accounts, auth_sessions
 from app.adapters.chapter_schema_v4 import materials
+from app.adapters.index_receipts import record_cleanup
+from app.adapters.index_schema_v5 import chunks
+from app.adapters.index_schema_v6 import operations
+from app.adapters.index_schema_v7 import builds, tombstones
 from app.adapters.material_schema_v2 import bodies, deletions, uploads
 
 
@@ -123,6 +127,23 @@ class MaterialRepository:
         )
 
     def remove(self, connection, material_id, deleted_at):
+        indexed = (
+            connection.execute(
+                select(builds).where(builds.c.material_id == material_id)
+            )
+            .mappings()
+            .all()
+        )
+        for row in indexed:
+            record_cleanup(connection, row, deleted_at)
+        connection.execute(delete(chunks).where(chunks.c.material_id == material_id))
+        connection.execute(
+            delete(tombstones).where(tombstones.c.material_id == material_id)
+        )
+        connection.execute(delete(builds).where(builds.c.material_id == material_id))
+        connection.execute(
+            delete(operations).where(operations.c.material_id == material_id)
+        )
         receipt = mysql_insert(deletions).values(
             material_id=material_id, deleted_at=deleted_at
         )

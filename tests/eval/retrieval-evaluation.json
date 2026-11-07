@@ -1,0 +1,633 @@
+{
+  "version": "retrieval-evaluation-v1",
+  "annotation_state": "合成确定性标注，人工复核及最终冻结待项目最终验收",
+  "purpose": "工程自动化效果回归；不能替代真实模型效果或课程最终人工评价",
+  "materials": [
+    {
+      "key": "T01",
+      "title": "合成知识单元（T01）",
+      "text": "知识单元（T01）：力是物体间相互作用。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T02",
+      "title": "合成知识单元（T02）",
+      "text": "知识单元（T02）：惯性是物体保持原有运动状态的性质。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        27
+      ]
+    },
+    {
+      "key": "T03",
+      "title": "合成知识单元（T03）",
+      "text": "知识单元（T03）：欧姆定律的公式为U=IR。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        23
+      ]
+    },
+    {
+      "key": "T04",
+      "title": "合成知识单元（T04）",
+      "text": "知识单元（T04）：CPU是中央处理器的英文缩写。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        25
+      ]
+    },
+    {
+      "key": "T05",
+      "title": "合成知识单元（T05）",
+      "text": "知识单元（T05）：额定电压为105伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T06",
+      "title": "合成知识单元（T06）",
+      "text": "知识单元（T06）：额定电压为106伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T07",
+      "title": "合成知识单元（T07）",
+      "text": "知识单元（T07）：额定电压为107伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T08",
+      "title": "合成知识单元（T08）",
+      "text": "知识单元（T08）：额定电压为108伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T09",
+      "title": "合成知识单元（T09）",
+      "text": "知识单元（T09）：额定电压为109伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T10",
+      "title": "合成知识单元（T10）",
+      "text": "知识单元（T10）：额定电压为110伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T11",
+      "title": "合成知识单元（T11）",
+      "text": "知识单元（T11）：额定电压为111伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T12",
+      "title": "合成知识单元（T12）",
+      "text": "知识单元（T12）：额定电压为112伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T13",
+      "title": "合成知识单元（T13）",
+      "text": "知识单元（T13）：额定电压为113伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T14",
+      "title": "合成知识单元（T14）",
+      "text": "知识单元（T14）：额定电压为114伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T15",
+      "title": "合成知识单元（T15）",
+      "text": "知识单元（T15）：额定电压为115伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T16",
+      "title": "合成知识单元（T16）",
+      "text": "知识单元（T16）：额定电压为116伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T17",
+      "title": "合成知识单元（T17）",
+      "text": "知识单元（T17）：额定电压为117伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T18",
+      "title": "合成知识单元（T18）",
+      "text": "知识单元（T18）：额定电压为118伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T19",
+      "title": "合成知识单元（T19）",
+      "text": "知识单元（T19）：额定电压为119伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T20",
+      "title": "合成知识单元（T20）",
+      "text": "知识单元（T20）：额定电压为120伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T21",
+      "title": "合成知识单元（T21）",
+      "text": "知识单元（T21）：额定电压为121伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T22",
+      "title": "合成知识单元（T22）",
+      "text": "知识单元（T22）：额定电压为122伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T23",
+      "title": "合成知识单元（T23）",
+      "text": "知识单元（T23）：额定电压为123伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T24",
+      "title": "合成知识单元（T24）",
+      "text": "知识单元（T24）：额定电压为124伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T25",
+      "title": "合成知识单元（T25）",
+      "text": "知识单元（T25）：额定电压为125伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T26",
+      "title": "合成知识单元（T26）",
+      "text": "知识单元（T26）：额定电压为126伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T27",
+      "title": "合成知识单元（T27）",
+      "text": "知识单元（T27）：额定电压为127伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T28",
+      "title": "合成知识单元（T28）",
+      "text": "知识单元（T28）：额定电压为128伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T29",
+      "title": "合成知识单元（T29）",
+      "text": "知识单元（T29）：额定电压为129伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T30",
+      "title": "合成知识单元（T30）",
+      "text": "知识单元（T30）：额定电压为130伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T31",
+      "title": "合成知识单元（T31）",
+      "text": "知识单元（T31）：额定电压为131伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    },
+    {
+      "key": "T32",
+      "title": "合成知识单元（T32）",
+      "text": "知识单元（T32）：额定电压为132伏。",
+      "source_version": 1,
+      "annotation_interval": [
+        0,
+        20
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "direct-01",
+      "question": "力",
+      "kind": "single_character",
+      "expected_material_keys": [
+        "T01"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-02",
+      "question": "什么叫惯性？",
+      "kind": "short_term",
+      "expected_material_keys": [
+        "T02"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-03",
+      "question": "U=IR表示什么公式？",
+      "kind": "formula",
+      "expected_material_keys": [
+        "T03"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-04",
+      "question": "CPU代表什么？",
+      "kind": "abbreviation",
+      "expected_material_keys": [
+        "T04"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-05",
+      "question": "知识单元（T05）的额定电压是多少？",
+      "kind": "direct",
+      "expected_material_keys": [
+        "T05"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-06",
+      "question": "知识单元（T06）的额定电压是多少？",
+      "kind": "direct",
+      "expected_material_keys": [
+        "T06"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-07",
+      "question": "知识单元（T07）的额定电压是多少？",
+      "kind": "direct",
+      "expected_material_keys": [
+        "T07"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "direct-08",
+      "question": "知识单元（T08）的额定电压是多少？",
+      "kind": "direct",
+      "expected_material_keys": [
+        "T08"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-09",
+      "question": "请说明知识单元（T09）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T09"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-10",
+      "question": "请说明知识单元（T10）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T10"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-11",
+      "question": "请说明知识单元（T11）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T11"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-12",
+      "question": "请说明知识单元（T12）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T12"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-13",
+      "question": "请说明知识单元（T13）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T13"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-14",
+      "question": "请说明知识单元（T14）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T14"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-15",
+      "question": "请说明知识单元（T15）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T15"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "synonym-16",
+      "question": "请说明知识单元（T16）中标注的电压数值。",
+      "kind": "synonym",
+      "expected_material_keys": [
+        "T16"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-17",
+      "question": "知识单元（T17）和（T25）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T17",
+        "T25"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-18",
+      "question": "知识单元（T18）和（T26）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T18",
+        "T26"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-19",
+      "question": "知识单元（T19）和（T27）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T19",
+        "T27"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-20",
+      "question": "知识单元（T20）和（T28）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T20",
+        "T28"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-21",
+      "question": "知识单元（T21）和（T29）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T21",
+        "T29"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-22",
+      "question": "知识单元（T22）和（T30）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T22",
+        "T30"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-23",
+      "question": "知识单元（T23）和（T31）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T23",
+        "T31"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "combined-24",
+      "question": "知识单元（T24）和（T32）各自的额定电压是多少？",
+      "kind": "combined",
+      "expected_material_keys": [
+        "T24",
+        "T32"
+      ],
+      "has_answer": true
+    },
+    {
+      "id": "unanswerable-90",
+      "question": "知识单元（T90）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-91",
+      "question": "知识单元（T91）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-92",
+      "question": "知识单元（T92）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-93",
+      "question": "知识单元（T93）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-94",
+      "question": "知识单元（T94）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-95",
+      "question": "知识单元（T95）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-96",
+      "question": "知识单元（T96）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-97",
+      "question": "知识单元（T97）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-98",
+      "question": "知识单元（T98）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    },
+    {
+      "id": "unanswerable-99",
+      "question": "知识单元（T99）的备用容量是多少？",
+      "kind": "unanswerable",
+      "expected_material_keys": [],
+      "has_answer": false,
+      "no_answer_reason": "该知识单元不存在，且语料未给出备用容量。"
+    }
+  ]
+}

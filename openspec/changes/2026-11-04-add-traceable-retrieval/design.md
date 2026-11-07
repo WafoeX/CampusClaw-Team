@@ -79,3 +79,13 @@
 ### 2026-11-05 验证职责与依赖修订
 
 实现任务以自动化功能回归及可运行交接为退出条件，专项安全验证交安全预检/修复，人工测试统一交项目最终验收。本文涉及的同伴测试、人工评测和课程确认按该调度执行，不另作实现交付前置；基本业务权限与错误处理契约不变。合并前代码评审独立保留，不能把开发候选当作已批准主干。直接依赖与组内顺序以 tasks 的「推进依赖」为准，主规格归档顺序不阻断使用已验证的开发契约。
+
+
+### 2026-11-07 索引、检索与单次问答实施落点
+
+- `indexing.IndexService` 提供 prepare/run/publish/cancel/recover，0006保存24小时幂等受理；0007保存精确集合与90天去内容旧出处映射。模型/Qdrant均在短事务外，数据库当前身份、租约和发布指针CAS仍为可见性事实源。补偿CLI每批100、总35秒、最多3次，完成凭证复查迟到点；回退应用保留扩展库，破坏性数据库降级仅在隔离库验证。
+- 构建请求为 `{mode?,window?,overlap?}`，默认auto/600/80，必须带Idempotency-Key。data为 `{id,material_id,source_version,index_version,index_config_version,status,stage}`；重放200，新建201；状态列表为 `{items:[...]}`。拒绝客户端权限/版本字段。
+- 搜索请求 `{query,mode?,chapter_scope?}`，默认keyword；问答请求 `{question,mode?,chapter_scope?}`，默认hybrid。空白或超过4000码点、未知字段、空范围和非法模式均400。搜索data为 `{mode,items:[出处]}`，最多8条；问答data为 `{answer,citations:[出处+number]}`。出处含material_id、chunk_id、source_version、index_version、index_config_version、title、start、end、text。定位data追加source_text；坐标均是0基码点半开区间。HEAD只对读入口授权，不登记POST的HEAD例外。
+- 固定模型为用户指定course-embedding/2048/Cosine及course-chat；响应若提供model则校验一致，嵌入网关实际未返回提供方版本，登记为上线前缺项，未编造。模型每次尝试共享每账号6/min，跨worker并发1用连接命名锁，无行事务跨网络；问答无合法命中不调用对话。
+- 提示词grounded-qa-v1只发送固定system及当前问题/有限证据的user JSON，不持久化会话。按claim映射引用、验证可确定数值/单位并重验证据全集；不可机器裁决的语义支持留最终验收。依赖失败503，结构/引用/数值失败502，来源变化409，无部分回答。
+- 初始真实调参阈值0.449357，每路20、最终8、RRF60；独立34题固定工程夹具及真实网关最小调用分开留证。`docker-compose.demo.yml` 用固定digest NGINX提供本机HTTPS，MySQL/Qdrant无宿主映射，密钥/证书不入镜像。没有公开发布、归档或代填人工批准。

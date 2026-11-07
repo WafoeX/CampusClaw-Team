@@ -1,10 +1,78 @@
+import math
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urlsplit
 
 
 class ConfigError(ValueError):
     pass
+
+
+@dataclass(frozen=True, repr=False)
+class EmbeddingSettings:
+    base_url: str
+    api_key: str
+    model: str
+    dimension: int
+
+    @classmethod
+    def load(cls, env):
+        base = env.get("EMBEDDING_BASE_URL", "")
+        model = env.get("EMBEDDING_MODEL", "")
+        dimension = env.get("EMBEDDING_DIM", "")
+        key = env.get("EMBEDDING_API_KEY", "")
+        if not any((base, model, dimension, key)):
+            return None
+        if base != "https://ai-gateway.devops.hello1023.com/v1":
+            raise ConfigError("EMBEDDING_BASE_URL")
+        if model != "course-embedding":
+            raise ConfigError("EMBEDDING_MODEL")
+        if dimension != "2048":
+            raise ConfigError("EMBEDDING_DIM")
+        if any(not 32 < ord(char) < 127 for char in key):
+            raise ConfigError("EMBEDDING_API_KEY")
+        return cls(base, key, model, int(dimension))
+
+    @property
+    def version(self):
+        value = f"embed-v1:{self.base_url}:{self.model}:{self.dimension}:Cosine"
+        return sha256(value.encode()).hexdigest()
+
+    @property
+    def collection(self):
+        return "campusclaw_" + self.version
+
+
+@dataclass(frozen=True, repr=False)
+class ChatSettings:
+    base_url: str
+    api_key: str
+    model: str
+    temperature: float = 0.2
+    max_output_tokens: int = 2048
+
+    @classmethod
+    def load(cls, env):
+        base, key, model = (
+            env.get(name, "")
+            for name in ("CHAT_BASE_URL", "CHAT_API_KEY", "CHAT_MODEL")
+        )
+        if not any((base, key, model)):
+            return None
+        if base != "https://ai-gateway.devops.hello1023.com/v1":
+            raise ConfigError("CHAT_BASE_URL")
+        if model != "course-chat":
+            raise ConfigError("CHAT_MODEL")
+        if any(not 32 < ord(char) < 127 for char in key):
+            raise ConfigError("CHAT_API_KEY")
+        return cls(base, key, model)
+
+    @property
+    def version(self):
+        return sha256(
+            f"chat-v1:{self.base_url}:{self.model}:{self.temperature}:{self.max_output_tokens}".encode()
+        ).hexdigest()
 
 
 @dataclass(frozen=True, repr=False)
@@ -18,6 +86,9 @@ class Settings:
     qdrant_api_key: str
     version: str
     public_origin: str | None = None
+    embedding: EmbeddingSettings | None = None
+    retrieval_min_score: float | None = None
+    chat: ChatSettings | None = None
 
     @classmethod
     def load(cls, env, version_file: Path):
@@ -81,6 +152,13 @@ class Settings:
                     raise ValueError
             except ValueError:
                 raise ConfigError("APP_PUBLIC_ORIGIN") from None
+        threshold = env.get("RETRIEVAL_MIN_SCORE", "")
+        try:
+            score = float(threshold) if threshold else None
+            if score is not None and (not math.isfinite(score) or not 0 <= score <= 1):
+                raise ValueError
+        except ValueError:
+            raise ConfigError("RETRIEVAL_MIN_SCORE") from None
         return cls(
             mysql_host=required("MYSQL_HOST"),
             mysql_port=port,
@@ -91,4 +169,7 @@ class Settings:
             qdrant_api_key=api_key,
             version=version,
             public_origin=origin,
+            embedding=EmbeddingSettings.load(env),
+            retrieval_min_score=score,
+            chat=ChatSettings.load(env),
         )

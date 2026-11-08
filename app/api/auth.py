@@ -7,11 +7,15 @@ from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 
 from app.api.http import success
 from app.services.access import AccessDenied, Identity
+from app.services.ai_contracts import AI_CONFIGURE, AI_USE
 from app.services.materials import READ_MATERIALS, WRITE_MATERIALS
 
 COOKIE = "__Host-campusclaw_session"
 COOKIE_OPTIONS = {"secure": True, "httponly": True, "samesite": "Strict", "path": "/"}
 LOGIN_NAME = re.compile(r"[a-zA-Z0-9_-]{1,64}")
+RUN_PATH = re.compile(
+    r"/runs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
 DETAIL_PATH = re.compile(
     r"/materials/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 )
@@ -34,9 +38,9 @@ def resolve_session(auth):
     g.actor = actor
     permissions = {"session"}
     if actor.role in {"teacher", "student"}:
-        permissions.add(READ_MATERIALS)
+        permissions.update((READ_MATERIALS, AI_USE))
     if actor.role == "teacher":
-        permissions.add(WRITE_MATERIALS)
+        permissions.update((WRITE_MATERIALS, AI_CONFIGURE))
     return Identity(actor.id, actor.class_id, frozenset(permissions))
 
 
@@ -70,9 +74,25 @@ def _return_path(app, path):
     registered = {
         rule.rule for rule in app.url_map.iter_rules() if "GET" in rule.methods
     }
-    if path in {"/console", "/chapters", "/search", "/ask"} and path in registered:
+    if (
+        path
+        in {
+            "/console",
+            "/chapters",
+            "/search",
+            "/ask",
+            "/apps",
+            "/runs",
+            "/console/templates",
+            "/sessions",
+            "/console/feedback",
+        }
+        and path in registered
+    ):
         return path
     if DETAIL_PATH.fullmatch(path) and "/materials/<material_id>" in registered:
+        return path
+    if RUN_PATH.fullmatch(path) and "/runs/<run_id>" in registered:
         return path
     return "/materials" if "/materials" in registered else "/login"
 

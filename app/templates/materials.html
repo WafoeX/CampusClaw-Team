@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ {'console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答'}.get(view, '班级资料') }} · CampusClaw</title>
+  <title>{{ {'console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈'}.get(view, '班级资料') }} · CampusClaw</title>
   <style nonce="{{ nonce }}">
     :root {
       color-scheme: light;
@@ -64,8 +64,14 @@
       <a href="/chapters"{% if view == 'chapters' %} aria-current="page"{% endif %}>班级章节</a>
       <a href="/search"{% if view == 'search' %} aria-current="page"{% endif %}>检索</a>
       <a href="/ask"{% if view == 'ask' %} aria-current="page"{% endif %}>资料问答</a>
+      <a href="/apps"{% if view == 'apps' %} aria-current="page"{% endif %}>AI 应用</a>
+      <a href="/sessions"{% if view == 'sessions' %} aria-current="page"{% endif %}>本人会话</a>
+      <a href="/runs"{% if view == 'runs' %} aria-current="page"{% endif %}>执行记录</a>
       {% if actor.role == 'teacher' %}
       <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
+      <a href="/console/skills"{% if view == 'skills' %} aria-current="page"{% endif %}>班级技能</a>
+      <a href="/console/feedback"{% if view == 'feedback' %} aria-current="page"{% endif %}>问题反馈</a>
+      <a href="/console/templates"{% if view == 'templates' %} aria-current="page"{% endif %}>班级模板</a>
       {% endif %}
     </nav>
   </aside>
@@ -78,10 +84,18 @@
       </div>
     </header>
     <main>
-      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答'}[view] }}</h1>
-      <p class="muted">资料仅向当前班级的已授权成员开放。</p>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈'}[view] }}</h1>
+      <p class="muted">{% if view == 'feedback' %}查看本班学生主动分享的学习卡点，并记录处理状态。{% elif view == 'runs' %}执行记录仅本人可见，教师无法查看他人的私人记录。{% elif view in ('apps','templates') %}选择本班模板，预览内容后再执行学习应用。{% else %}资料仅向当前班级的已授权成员开放。{% endif %}</p>
       <p id="notice" class="status" role="status"></p>
-      {% if view == 'console' %}
+      {% if view == 'feedback' %}
+      {% include "_feedback_panel.html" %}
+      {% elif view == 'sessions' %}
+      {% include "_sessions_panel.html" %}
+      {% elif view == 'skills' %}
+      {% include "_skills_panel.html" %}
+      {% elif view in ('apps','templates','runs') %}
+      {% include "_ai_panels.html" %}
+      {% elif view == 'console' %}
       <section class="card" aria-labelledby="upload-title">
         <h2 id="upload-title">上传资料</h2>
         <form id="upload" method="post">
@@ -95,7 +109,8 @@
         <p id="upload-status" class="status" role="status"></p>
       </section>
       {% endif %}
-      {% if view in ('search','ask') %}
+      {% if view in ('sessions','skills','apps','templates','runs','feedback') %}
+      {% elif view in ('search','ask') %}
       <section class="card" aria-labelledby="search-title">
         <h2 id="search-title">{{ '向本班资料提问' if view == 'ask' else '检索本班资料' }}</h2>
         <form id="search-form">
@@ -159,6 +174,7 @@
         <button id="retry" type="button" hidden>重试加载</button>
       </section>
       {% endif %}
+      {% if view == 'console' %}{% include "_assistant_panel.html" %}{% endif %}
     </main>
   </div>
 </div>
@@ -166,13 +182,22 @@
   const view = {{ view | tojson }};
   const target = {{ target | tojson }};
   const indexingEnabled = {{ indexing_enabled | tojson }};
-  {% if view in ('search','ask') %}
+  {% if view == 'feedback' %}
+  {% include "_feedback_script.html" %}
+  {% elif view == 'sessions' %}
+  {% include "_sessions_script.html" %}
+  {% elif view == 'skills' %}
+  {% include "_skills_script.html" %}
+  {% elif view in ('apps','templates','runs') %}
+  {% include "_ai_script.html" %}
+  {% elif view in ('search','ask') %}
   {% include "_search_script.html" %}
   {% elif view == 'chapters' %}
   {% include "_chapter_script.html" %}
   {% else %}
   {% include "_material_script.html" %}
   {% endif %}
+  {% if view == 'console' %}{% include "_ai_script.html" %}{% endif %}
 </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ from flask import g, make_response, redirect, render_template, request, url_for
 
 from app.api.materials import MATERIAL_ID
 from app.api.materials import material_id as validate_id
+from app.services.ai_contracts import AI_CONFIGURE, AI_USE
 from app.services.materials import READ_MATERIALS, WRITE_MATERIALS
 
 PAGE_PERMISSIONS = {
@@ -13,6 +14,14 @@ PAGE_PERMISSIONS = {
     "console_page": WRITE_MATERIALS,
     "search_page": READ_MATERIALS,
     "ask_page": READ_MATERIALS,
+    "apps_page": AI_USE,
+    "runs_page": AI_USE,
+    "sessions_page": AI_USE,
+    "session_page": AI_USE,
+    "run_page": AI_USE,
+    "templates_page": AI_CONFIGURE,
+    "skills_page": AI_CONFIGURE,
+    "feedback_page": AI_CONFIGURE,
 }
 PAGE_POLICIES = {
     (endpoint, method): permission
@@ -53,6 +62,38 @@ def install_material_pages(app):
             "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
         )
         return response
+
+    @app.get("/console/feedback")
+    def feedback_page():
+        return render("feedback")
+
+    @app.get("/console/skills")
+    def skills_page():
+        return render("skills")
+
+    @app.get("/apps")
+    def apps_page():
+        return render("apps")
+
+    @app.get("/sessions")
+    def sessions_page():
+        return render("sessions")
+
+    @app.get("/sessions/<session_id>")
+    def session_page(session_id):
+        return render("sessions", target=validate_id(session_id))
+
+    @app.get("/runs")
+    def runs_page():
+        return render("runs")
+
+    @app.get("/runs/<run_id>")
+    def run_page(run_id):
+        return render("runs", target=validate_id(run_id))
+
+    @app.get("/console/templates")
+    def templates_page():
+        return render("templates")
 
     @app.get("/materials")
     def materials_page():

@@ -1,0 +1,13 @@
+<section class="card" aria-labelledby="skill-title">
+<h2 id="skill-title">管理本班技能</h2>
+<p id="skill-status" role="status">正在加载…</p><button id="skill-retry" type="button" hidden>重试加载</button>
+<p class="muted">内置定义只读，可按班启停；上传技能只接受 UTF-8 JSON，最大 8 KiB。保存后在教师工作台绑定助手。</p>
+<div id="skill-builtins" class="row"></div>
+<form id="skill-form">
+<label>技能 JSON 文件 <input id="skill-file" type="file" accept=".json,application/json"></label>
+<label>技能清单 <textarea id="skill-json" required spellcheck="false" rows="12"></textarea></label>
+<button type="submit">保存技能</button><button id="skill-new" type="button">新建技能</button>
+</form>
+<ul id="skill-list"></ul>
+<div class="pagination"><button id="skill-prev" type="button">上一页</button><span id="skill-page"></span><button id="skill-next" type="button">下一页</button></div>
+</section>

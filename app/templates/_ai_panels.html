@@ -1,0 +1,33 @@
+<section class="card" aria-labelledby="ai-title">
+<h2 id="ai-title">{{ {'apps':'选择学习应用','templates':'管理本班模板','runs':'本人执行记录'}[view] }}</h2>
+<p id="ai-status" role="status" class="status">正在加载…</p>
+<button id="ai-retry" type="button" hidden>重试加载</button>
+{% if view == 'apps' %}
+<label>应用 <select id="ai-app"><option value="polish">写作润色</option><option value="learning_plan">学习规划</option><option value="practice">练习生成</option><option value="material_qa">资料问答</option></select></label>
+<p id="ai-ask-link" hidden><a href="/ask">进入资料问答，核对本班资料出处</a></p>
+<form id="ai-run-form">
+<label>班级模板 <select id="ai-template" required></select></label>
+<div class="pagination"><button id="ai-template-previous" type="button">上一页模板</button><span id="ai-template-page"></span><button id="ai-template-next" type="button">下一页模板</button></div>
+<label>学习内容 <textarea id="ai-input" required></textarea></label>
+<label>面向谁 <input id="ai-audience" maxlength="120"></label>
+<div class="row"><button id="ai-preview" type="button">预览模板</button><button class="primary" type="submit">执行应用</button></div>
+</form>
+<h3>模板预览</h3><pre id="ai-preview-text" hidden></pre>
+<h3>执行结果</h3><pre id="ai-result" hidden></pre>
+<p class="muted">执行记录仅本人可读。练习生成只供学习，不会发布测验。</p>
+{% elif view == 'templates' %}
+<form id="ai-template-form">
+<label>模板名称 <input name="name" maxlength="64" required></label>
+<label>应用 <select name="app_key"><option value="polish">写作润色</option><option value="learning_plan">学习规划</option><option value="practice">练习生成</option><option value="material_qa">资料问答</option></select></label>
+<label>提示模板 <textarea name="prompt" maxlength="2000"></textarea></label>
+<p class="muted">可使用 <code>{% raw %}{{input}}{% endraw %}</code> 和 <code>{% raw %}{{audience}}{% endraw %}</code>；不支持表达式。</p>
+<label><span><input name="enabled" type="checkbox" checked> 启用模板</span></label>
+<div class="row"><button class="primary" type="submit">保存模板</button><button id="ai-template-new" type="button">新建模板</button></div>
+</form>
+<ul id="ai-template-list"></ul>
+{% else %}
+<p class="muted">只显示本人未到期记录，失败记录不包含生成正文。</p>
+<ul id="ai-run-list"></ul><pre id="ai-run-detail" hidden></pre>
+{% endif %}
+<div id="ai-pagination" class="pagination" hidden><button id="ai-previous" type="button">上一页</button><span id="ai-page"></span><button id="ai-next" type="button">下一页</button></div>
+</section>

@@ -1,0 +1,24 @@
+(()=>{
+const $=id=>document.getElementById(id);let page=1,selected=null;
+const sample={name:'学习引导',conditions:['思路'],enabled:true,tools:[],steps:[{type:'model',instruction:'选择识别条件与检查步骤。'}]};
+const tell=text=>{$('skill-status').textContent=text;};
+function fail(error){tell(error.message);$('skill-retry').hidden=false;}
+async function api(path,method='GET',payload){const response=await fetch('/api/v1/skills'+path,{method,credentials:'same-origin',headers:method==='GET'?{}:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin'},body:payload===undefined?undefined:JSON.stringify(payload)});const data=await response.json();if(!response.ok||data.code!==0)throw new Error(data.message||'操作失败，请重试');return data.data;}
+function action(text,fn){const node=document.createElement('button');node.type='button';node.textContent=text;node.onclick=()=>Promise.resolve(fn()).catch(fail);return node;}
+function reset(){selected=null;$('skill-json').disabled=false;$('skill-json').value=JSON.stringify(sample,null,2);$('skill-file').value='';}
+async function load(){tell('正在加载…');$('skill-retry').hidden=true;try{const data=await api('?page='+page+'&page_size=20');$('skill-list').replaceChildren();$('skill-builtins').replaceChildren();
+for(const builtin of data.available_builtins){$('skill-builtins').append(action('添加内置'+builtin.name,async()=>{await api('','POST',{builtin_key:builtin.key,enabled:true});await load();}));}
+for(const row of data.items){const li=document.createElement('li');const title=document.createElement('strong');title.textContent=row.name+' · 修订 '+row.revision+(row.enabled?' · 已启用':' · 已停用');li.append(title);
+li.append(action(row.enabled?'停用':'启用',async()=>{const payload=row.builtin_key?{revision:row.revision,enabled:!row.enabled}:{...row.definition,revision:row.revision,enabled:!row.enabled};await api('/'+row.id,'PATCH',payload);await load();}));
+if(!row.builtin_key){li.append(action('编辑',()=>{selected=row;$('skill-json').value=JSON.stringify(row.definition,null,2);$('skill-json').focus();}));li.append(action('删除',async()=>{if(!confirm('删除此技能并解除助手绑定？'))return;await api('/'+row.id,'DELETE',{revision:row.revision});if(selected?.id===row.id)reset();await load();}));}
+$('skill-list').append(li);}
+$('skill-page').textContent='第 '+page+' / '+Math.max(1,Math.ceil(data.total/20))+' 页';$('skill-prev').disabled=page===1;$('skill-next').disabled=page*20>=data.total;tell(data.total?'已加载本班技能。':'本班暂无技能，可添加内置技能或保存 JSON 清单。');}catch(error){fail(error);}}
+$('skill-form').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const text=$('skill-json').value;if(new TextEncoder().encode(text).length>8192)throw new Error('清单不得超过 8 KiB');
+// 保留原始JSON提交给服务端，让重复键检查生效。
+const suffix=selected?'/'+selected.id:'';const raw=selected?('{"revision":'+selected.revision+','+text.trim().slice(1)):text;
+const response=await fetch('/api/v1/skills'+suffix,{method:selected?'PATCH':'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin'},body:raw});const result=await response.json();if(!response.ok||result.code!==0)throw new Error(result.message);reset();await load();tell('技能已保存，可到教师工作台绑定。');}catch(error){fail(error);}finally{button.disabled=false;}};
+$('skill-file').onchange=async()=>{try{const file=$('skill-file').files[0];if(!file)return;if(file.size>8192)throw new Error('清单不得超过 8 KiB');$('skill-json').value=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}catch(error){fail(error);}};
+$('skill-new').onclick=reset;$('skill-retry').onclick=load;$('skill-prev').onclick=()=>{page--;load();};$('skill-next').onclick=()=>{page++;load();};
+$('logout').onclick=async()=>{try{const response=await fetch('/api/v1/auth/sessions/current',{method:'DELETE',credentials:'same-origin',headers:{'X-CampusClaw-Request':'same-origin'}});if(!response.ok)throw new Error('退出失败，请重试');location.assign('/login');}catch(error){fail(error);}};
+reset();load();
+})();

@@ -1,0 +1,117 @@
+(() => {
+const $ = id => document.getElementById(id), status = $('ai-status');
+let templatePage=1, page=1, total=0, templates=[], selected=null, materialPage=1, materialTotal=0;
+let chosenMaterials=new Set(), chosenSkills=new Set(), createKey=crypto.randomUUID(), runKey=crypto.randomUUID(), runInput='';
+const mode = view === 'console' ? 'assistant' : view;
+function tell(text,error=false){status.textContent=text; status.classList.toggle('error',error);}
+async function api(path,method='GET',payload,requestKey){
+ const headers={}; if(method!=='GET'){headers['Content-Type']='application/json';headers['X-CampusClaw-Request']='same-origin';}
+ if(requestKey)headers['Idempotency-Key']=requestKey;
+ const response=await fetch(path,{method,headers,credentials:'same-origin',body:payload===undefined?undefined:JSON.stringify(payload)});
+ let data;try{data=await response.json();}catch{throw new Error('服务响应无法读取，请重试。');}
+ if(data.code!==0){if(response.status===401)location.assign('/login?next='+encodeURIComponent(location.pathname));throw new Error(data.message+'；请检查输入或刷新后重试。请求标识：'+data.request_id);}
+ return data.data;
+}
+function fail(error){tell(error.message,true);$('ai-retry').hidden=false;}
+function showText(id,text){const node=$(id);node.textContent=text;node.hidden=false;}
+const appNames={polish:'写作润色',learning_plan:'学习规划',practice:'练习生成',material_qa:'资料问答',problem_guidance:'解题引导'};
+const runStates={running:'执行中',succeeded:'已完成',failed:'失败',interrupted:'已中断',revoked:'内容不可用'};
+function recordText(record){
+ const config=record.configuration||{},result=record.result,input=record.input?.variables;
+ return ['应用：'+(appNames[record.app_key]||'学习应用'),'状态：'+(runStates[record.status]||record.status),
+ '执行时间：'+new Date(record.created_at).toLocaleString(),'本次尝试：'+record.attempt,
+ ...(record.session_id?['生效助手修订：'+config.assistant_revision]:['生效模板修订：'+config.template_revision]),'模型：'+(config.model||'未登记'),
+ '生成设置：温度 '+config.temperature+'，输出上限 '+config.max_output_tokens+' token',
+ ...(input?['','学习内容：',input.input,'面向：'+(input.audience||'未填写')]:record.input?.question?['','当前问题：',record.input.question]:[]),
+ ...(result?['','本次模板预览：',(result.rendered_prompt||'本轮使用当前助手与授权资料'),'','执行结果：',result.text]:['','执行未完成，未保存生成正文。错误码：'+(record.error_code||'无')])].join('\n');
+}
+function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
+function action(label,fn){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(fn()).catch(fail));return button;}
+function pager(){const pages=Math.max(1,Math.ceil(total/20));$('ai-pagination').hidden=pages===1;$('ai-page').textContent=`第 ${page} / ${pages} 页`;$('ai-previous').disabled=page===1;$('ai-next').disabled=page>=pages;}
+async function catalogue(){
+ const data=await api('/api/v1/ai-apps');templates=data.items.flatMap(item=>item.templates);
+ if(mode==='apps'){switchApp();tell(templates.length?'请选择模板并输入内容。':'暂无可用模板，请联系本班教师；资料问答可从对应入口使用。');}
+ else if(mode==='assistant'){
+  $('ai-skills').replaceChildren(...(data.bindable_skills||[]).map(row=>option(row.id,row.name)));
+  for(const item of $('ai-skills').options)item.selected=chosenSkills.has(item.value);
+  $('ai-skill-status').textContent=(data.bindable_skills||[]).length?'选择当前班级技能。':'本班暂无可用技能，可先保存助手。';
+ }
+}
+function switchApp(){
+ const app=$('ai-app').value,ask=app==='material_qa';$('ai-run-form').hidden=ask;$('ai-ask-link').hidden=!ask;
+ $('ai-template').replaceChildren(...templates.filter(row=>row.app_key===app && row.enabled).map(row=>option(row.id,row.name+' · 修订 '+row.revision)));
+ $('ai-preview').disabled= !$('ai-template').options.length;
+ $('ai-run-form').querySelector('button[type=submit]').disabled= !$('ai-template').options.length;
+ $('ai-preview-text').hidden=true;$('ai-result').hidden=true;
+}
+async function templateOptions(){
+ if($('ai-app').value==='material_qa'){switchApp();return;}
+ const data=await api('/api/v1/prompt-templates?app_key='+encodeURIComponent($('ai-app').value)+'&page='+templatePage+'&page_size=20');
+ templates=data.items;switchApp();$('ai-template-page').textContent=`第 ${templatePage} / ${Math.max(1,Math.ceil(data.total/20))} 页`;
+ $('ai-template-previous').disabled=templatePage===1;$('ai-template-next').disabled=templatePage*20>=data.total;
+ tell(data.total?'请选择模板并输入内容。':'本班暂无此应用的可用模板，请联系教师。');
+}
+function runPayload(){const row=templates.find(item=>item.id===$('ai-template').value);if(!row)throw new Error('请先选择可用模板。');return {template_id:row.id,revision:row.revision,variables:{input:$('ai-input').value,audience:$('ai-audience').value}};}
+async function materials(){
+ const result=await api('/api/v1/materials?page='+materialPage+'&page_size=100');materialTotal=result.total;
+ $('ai-materials').replaceChildren(...result.items.map(row=>option(row.id,row.title)));
+ for(const item of $('ai-materials').options)item.selected=chosenMaterials.has(item.value);
+ $('ai-material-page').textContent=`资料第 ${materialPage} / ${Math.max(1,Math.ceil(materialTotal/100))} 页；已选 ${chosenMaterials.size} 项`;
+ $('ai-material-previous').disabled=materialPage===1;$('ai-material-next').disabled=materialPage*100>=materialTotal;
+}
+function reset(){selected=null;createKey=crypto.randomUUID();const form=$('ai-template-form')||$('ai-assistant-form');form.reset();if(mode==='templates')form.elements.app_key.disabled=false;if(mode==='assistant'){chosenMaterials.clear();chosenSkills.clear();materials().catch(fail);catalogue().catch(fail);}}
+async function edit(row){
+ selected=await api('/api/v1/'+(mode==='templates'?'prompt-templates':'assistants')+'/'+row.id);
+ const form=$('ai-template-form')||$('ai-assistant-form');form.elements.name.value=selected.name;form.elements.prompt.value=selected.prompt;form.elements.enabled.checked=selected.enabled;
+ if(mode==='templates'){form.elements.app_key.value=selected.app_key;form.elements.app_key.disabled=true;}
+ else{chosenMaterials=new Set(selected.material_ids);chosenSkills=new Set(selected.skill_ids);await materials();await catalogue();}
+ tell('正在编辑“'+selected.name+'”，修订 '+selected.revision+'。');form.elements.name.focus();
+}
+async function load(){
+ tell('正在加载…');$('ai-retry').hidden=true;
+ try{
+ if(mode==='apps'){await catalogue();await templateOptions();return;}
+ if(mode==='assistant'){await catalogue();await materials();}
+ const path=mode==='runs'?'runs':mode==='templates'?'prompt-templates':'assistants';
+ const data=await api('/api/v1/'+path+'?page='+page+'&page_size=20');total=data.total;
+ const list=$('ai-'+(mode==='runs'?'run':mode==='templates'?'template':'assistant')+'-list');list.replaceChildren();
+ for(const row of data.items){const li=document.createElement('li');
+  const label=document.createElement('strong');label.textContent=mode==='runs'?(({'polish':'写作润色','learning_plan':'学习规划','practice':'练习生成'}[row.app_key]||'应用')+' · '+(runStates[row.status]||row.status)):(row.name+' · 修订 '+row.revision+(row.enabled?' · 已启用':' · 已停用'));li.append(label);
+  if(mode==='runs')li.append(action('查看本人记录',async()=>{const record=await api('/api/v1/runs/'+row.id);showText('ai-run-detail',recordText(record));}));
+  else{li.append(action('编辑',()=>edit(row)));if(mode==='templates')li.append(action('删除模板',async()=>{if(!confirm('删除后将不能再使用此模板，已有记录按原修订保留。'))return;await api('/api/v1/prompt-templates/'+row.id,'DELETE',{revision:row.revision});if(selected?.id===row.id)reset();await load();}));}
+  list.append(li);
+ }
+ pager();tell(total?'已加载。':mode==='runs'?'暂无本人执行记录。':'本班暂无配置，可从上方新建。');
+ if(mode==='runs'&&target)showText('ai-run-detail',recordText(await api('/api/v1/runs/'+target)));
+ }catch(error){fail(error);}
+}
+if(mode==='apps'){
+ $('ai-app').addEventListener('change',()=>{templatePage=1;templateOptions().catch(fail);});
+ for(const [id,delta] of [['ai-template-previous',-1],['ai-template-next',1]])$(id).addEventListener('click',()=>{templatePage+=delta;templateOptions().catch(fail);});
+ $('ai-preview').addEventListener('click',async()=>{try{const payload=runPayload();tell('正在预览…');const result=await api('/api/v1/prompt-templates/'+payload.template_id+'/previews','POST',{revision:payload.revision,variables:payload.variables});showText('ai-preview-text',result.text);tell('预览完成，尚未执行应用。');}catch(error){fail(error);}});
+ $('ai-run-form').addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const payload=runPayload();const current=JSON.stringify(payload);if(current!==runInput){runInput=current;runKey=crypto.randomUUID();}tell('正在执行，请稍候…');const result=await api('/api/v1/ai-apps/'+$('ai-app').value+'/runs','POST',payload,runKey);showText('ai-result',result.record.result.text);tell(result.replayed?'已读取此前完成的记录。':'执行完成，可在本人执行记录中回看。');}catch(error){fail(error);}finally{button.disabled=false;}});
+}
+if(mode==='templates'||mode==='assistant'){
+ const form=$('ai-template-form')||$('ai-assistant-form');
+ form.addEventListener('input',()=>{createKey=crypto.randomUUID();});
+ form.addEventListener('submit',async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const payload={name:form.elements.name.value,prompt:form.elements.prompt.value,enabled:form.elements.enabled.checked};
+ if(mode==='templates'&&!selected)payload.app_key=form.elements.app_key.value;
+ if(mode==='assistant'){payload.material_ids=[...chosenMaterials];payload.skill_ids=[...chosenSkills];}
+ if(selected)payload.revision=selected.revision;
+ const path='/api/v1/'+(mode==='templates'?'prompt-templates':'assistants')+(selected?'/'+selected.id:'');
+ const result=await api(path,selected?'PATCH':'POST',payload,selected?undefined:createKey);reset();await load();tell('已保存“'+result.name+'”，修订 '+result.revision+'。');
+ }catch(error){fail(error);}finally{button.disabled=false;}});
+ $(mode==='templates'?'ai-template-new':'ai-assistant-new').addEventListener('click',reset);
+}
+if(mode==='assistant'){
+ $('ai-materials').addEventListener('change',()=>{for(const item of $('ai-materials').options){if(item.selected)chosenMaterials.add(item.value);else chosenMaterials.delete(item.value);}createKey=crypto.randomUUID();});
+ $('ai-skills').addEventListener('change',()=>{chosenSkills=new Set([...$('ai-skills').selectedOptions].map(item=>item.value));createKey=crypto.randomUUID();});
+ for(const [id,delta] of [['ai-material-previous',-1],['ai-material-next',1]])$(id).addEventListener('click',()=>{materialPage+=delta;materials().catch(fail);});
+}
+if(mode!=='apps'){
+ $('ai-previous').addEventListener('click',()=>{page--;load();});$('ai-next').addEventListener('click',()=>{page++;load();});
+}
+$('ai-retry').addEventListener('click',load);
+if(view!=='console')$('logout').addEventListener('click',async()=>{try{await api('/api/v1/auth/sessions/current','DELETE');location.assign('/login');}catch(error){fail(error);}});
+load();
+})();

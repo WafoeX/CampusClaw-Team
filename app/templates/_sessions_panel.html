@@ -1,0 +1,41 @@
+<section class="card" aria-labelledby="session-title">
+<h2 id="session-title">本人会话</h2>
+<p id="session-status" class="status" role="status">正在加载…</p>
+<button id="session-reload" type="button">重新读取</button>
+<form id="session-create">
+<label>本班助手 <select id="session-assistant" required></select></label>
+<label>会话模式 <select id="session-mode"><option value="material_qa">资料问答</option><option value="problem_guidance">解题引导</option></select></label>
+<button type="submit">新建会话</button>
+</form>
+<ul id="session-list"></ul>
+<div class="pagination"><button id="session-prev" type="button">上一页会话</button><span id="session-page"></span><button id="session-next" type="button">下一页会话</button></div>
+</section>
+<section id="session-detail" class="card" aria-labelledby="session-detail-title" hidden>
+<h2 id="session-detail-title">会话消息</h2><p class="muted">消息和执行记录仅本人可读；流中内容为未完成预览，成功后才进入历史。</p>
+<ul id="session-messages"></ul>
+<div class="pagination"><button id="message-prev" type="button">上一页消息</button><span id="message-page"></span><button id="message-next" type="button">下一页消息</button></div>
+<form id="session-send">
+<label>当前问题 <textarea id="session-question" required aria-describedby="session-question-help"></textarea></label>
+<p id="session-question-help" class="muted">请输入2至500个字符；仅使用当前问题检索。</p>
+<label>章节范围 <select id="session-chapter"><option value="">全部章节</option><option value="uncategorized">未分类</option></select></label>
+<label>检索方式 <select id="session-retrieval"><option value="keyword">关键词</option><option value="vector">向量</option><option value="hybrid">混合</option></select></label>
+<div class="row"><button type="submit">发送问题</button><button id="session-cancel" type="button" disabled>取消生成</button></div>
+</form>
+<pre id="session-preview" aria-live="polite" hidden></pre>
+</section>
+
+<section id="citation-detail" class="card" hidden aria-labelledby="citation-heading"><h2 id="citation-heading">历史出处</h2><p id="citation-status" role="status"></p><pre id="citation-text"></pre></section>
+{% if actor.role == 'student' %}
+<section id="feedback-editor" class="card" hidden aria-labelledby="feedback-heading">
+<h2 id="feedback-heading">评价助手回复</h2>
+<p class="muted">只分享你主动填写的卡点说明及评价、允许显示的章节、时间和处理状态。请勿填写私人信息；不会自动分享问题、回答、出处或身份。</p>
+<form id="message-feedback-form">
+<label>评价（必填） <select id="feedback-rating"><option value="helpful">有帮助</option><option value="unresolved">未解决</option></select></label>
+<label>卡点说明（未解决时必填，最多500字符） <textarea id="feedback-note" aria-describedby="feedback-help"></textarea></label>
+<p id="feedback-help" class="muted">请主动概述希望教师帮助解决的学习卡点。</p>
+<button type="submit">预览教师可见内容</button>
+</form>
+<pre id="feedback-preview" hidden></pre><button id="feedback-confirm" type="button" hidden>确认分享反馈</button>
+<p id="feedback-status" class="status" role="status"></p>
+</section>
+{% endif %}

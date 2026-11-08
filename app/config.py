@@ -1,5 +1,6 @@
 import math
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -89,6 +90,7 @@ class Settings:
     embedding: EmbeddingSettings | None = None
     retrieval_min_score: float | None = None
     chat: ChatSettings | None = None
+    ai_data_expires_at: datetime | None = None
 
     @classmethod
     def load(cls, env, version_file: Path):
@@ -159,7 +161,17 @@ class Settings:
                 raise ValueError
         except ValueError:
             raise ConfigError("RETRIEVAL_MIN_SCORE") from None
+        raw_expiry = env.get("AI_DATA_EXPIRES_AT", "")
+        try:
+            expiry = datetime.fromisoformat(raw_expiry) if raw_expiry else None
+            if expiry is not None:
+                if expiry.utcoffset() != UTC.utcoffset(expiry):
+                    raise ValueError
+                expiry = expiry.replace(tzinfo=None)
+        except ValueError:
+            raise ConfigError("AI_DATA_EXPIRES_AT") from None
         return cls(
+            ai_data_expires_at=expiry,
             mysql_host=required("MYSQL_HOST"),
             mysql_port=port,
             mysql_database=required("MYSQL_DATABASE"),

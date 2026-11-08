@@ -28,11 +28,31 @@ class ChatClient:
         self.sleep = sleep
         self.on_result = on_result or (lambda **details: None)
 
-    def complete(self, messages, deadline, *, before_call=None):
+    def complete_cancellable(
+        self, messages, deadline, *, context, before_call=None, allow_retry=True
+    ):
+        return self.complete(
+            messages,
+            deadline,
+            before_call=before_call,
+            allow_retry=allow_retry,
+            context=context,
+        )
+
+    def complete_once(self, messages, deadline, *, before_call=None):
+        return self.complete(
+            messages, deadline, before_call=before_call, allow_retry=False
+        )
+
+    def complete(
+        self, messages, deadline, *, before_call=None, allow_retry=True, context=None
+    ):
         if not self.config.api_key:
             raise IndexDependencyError("chat_config")
         started = time.monotonic()
-        for attempt in range(2):
+        for attempt in range(2 if allow_retry else 1):
+            if context is not None:
+                context.check()
             remaining(deadline)
             if before_call:
                 before_call()
@@ -48,10 +68,18 @@ class ChatClient:
                         "response_format": {"type": "json_object"},
                     },
                     deadline,
+                    **({"context": context} if context is not None else {}),
                 )
                 break
             except IndexDependencyError as error:
-                if not error.transient or attempt or remaining(deadline) <= 1:
+                if context is not None:
+                    context.check()
+                if (
+                    not allow_retry
+                    or not error.transient
+                    or attempt
+                    or remaining(deadline) <= 1
+                ):
                     raise
                 self.sleep(1)
         try:

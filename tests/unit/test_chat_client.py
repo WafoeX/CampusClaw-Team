@@ -64,3 +64,36 @@ def test_QA_N01_chat_configuration_and_sanitized_usage_only():
         logger.call_args
     )
     assert logger.call_args.kwargs["total_tokens"] == 8
+
+
+def test_ST_F04_after_first_delta_transient_failure_is_not_automatically_retried():
+    from app.adapters.index_clients import IndexDependencyError
+
+    endpoint, quota, sleep = Mock(), Mock(), Mock()
+    endpoint.request.side_effect = IndexDependencyError("synthetic", transient=True)
+    client = ChatClient(CONFIG, endpoint=endpoint, sleep=sleep)
+    with pytest.raises(IndexDependencyError):
+        client.complete_once([], time.monotonic() + 35, before_call=quota)
+    assert endpoint.request.call_count == 1 and quota.call_count == 1
+    sleep.assert_not_called()
+
+
+def test_ST_F06_cancelled_gateway_is_not_retried_or_charged_again():
+    from app.adapters.index_clients import IndexDependencyError
+    from app.services.streaming import StreamCancelled, StreamContext
+
+    context = StreamContext(time.monotonic() + 35)
+    endpoint, quota, sleep = Mock(), Mock(), Mock()
+
+    def interrupted(*args, **kwargs):
+        assert kwargs["context"] is context
+        context.cancel()
+        raise IndexDependencyError("transport", transient=True)
+
+    endpoint.request.side_effect = interrupted
+    with pytest.raises(StreamCancelled):
+        ChatClient(CONFIG, endpoint=endpoint, sleep=sleep).complete_cancellable(
+            [], context.deadline, context=context, before_call=quota
+        )
+    assert endpoint.request.call_count == quota.call_count == 1
+    sleep.assert_not_called()

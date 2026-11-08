@@ -34,6 +34,7 @@ from app.api.http import install_http
 from app.api.index_builds import INDEX_POLICIES, install_index_builds
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
 from app.api.materials import MATERIAL_POLICIES, install_materials
+from app.api.openapi import DOC_POLICIES, install_openapi
 from app.api.retrieval import RETRIEVAL_POLICIES, install_retrieval
 from app.api.sessions import SESSION_POLICIES, install_sessions
 from app.api.skills import SKILL_POLICIES, install_skills
@@ -219,6 +220,7 @@ def create_app(
             **AI_POLICIES,
             **SKILL_POLICIES,
             **SESSION_POLICIES,
+            **DOC_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
     install_http(
@@ -243,4 +245,5 @@ def create_app(
         install_skills(app, ai_apps)
         install_sessions(app, ai_apps, retrieval)
         install_material_pages(app)
+        install_openapi(app)
     return app

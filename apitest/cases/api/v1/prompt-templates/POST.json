@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/api/v1/prompt-templates",
+  "pytest": [
+    "tests/api/test_ai_apps.py"
+  ]
+}

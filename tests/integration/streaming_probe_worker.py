@@ -115,66 +115,81 @@ def serve_upstream():
                 identifier = data["question"].split()[-1]
                 second = data["paragraph"] == 2
                 gate = threading.Event()
-                if second:
-                    with lock:
-                        gates[identifier] = gate
-                        active.add(identifier)
-                    until = time.monotonic() + 15
-                    while not gate.wait(0.02):
-                        if time.monotonic() > until:
-                            return
-                        if socket_select.select([self.connection], [], [], 0)[
-                            0
-                        ] and not self.connection.recv(1, socket.MSG_PEEK):
-                            with lock:
-                                active.discard(identifier)
-                                cancelled.append(identifier)
-                            return
-                if identifier.startswith("dependency") and second:
-                    with lock:
-                        active.discard(identifier)
-                        completed.append(identifier)
-                    self.send_response(503)
-                    self.send_header("Content-Length", "0")
+                finished = False
+                try:
+                    if second:
+                        with lock:
+                            gates[identifier] = gate
+                            active.add(identifier)
+                        until = time.monotonic() + 15
+                        while not gate.wait(0.02):
+                            if time.monotonic() > until:
+                                return
+                            if socket_select.select([self.connection], [], [], 0)[
+                                0
+                            ] and not self.connection.recv(1, socket.MSG_PEEK):
+                                with lock:
+                                    active.discard(identifier)
+                                    cancelled.append(identifier)
+                                return
+                    if identifier.startswith("dependency") and second:
+                        with lock:
+                            active.discard(identifier)
+                            completed.append(identifier)
+                        self.send_response(503)
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                        return
+                    result = paragraph(
+                        "电压为24伏"
+                        if not second
+                        else (
+                            "电压为25伏"
+                            if identifier.startswith("invalid")
+                            else "频率为50赫兹"
+                        )
+                    ) | {"more": not second}
+                    if second and identifier.startswith("protected"):
+                        result = paragraph("未开放答案731") | {"more": False}
+                    if second and identifier.startswith("citation"):
+                        result["claims"][0]["evidence"] = [2]
+                    value = json.dumps(
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": json.dumps(
+                                            result, ensure_ascii=False
+                                        ),
+                                    },
+                                    "finish_reason": "stop",
+                                }
+                            ]
+                        },
+                        ensure_ascii=False,
+                    ).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(value)))
                     self.end_headers()
+                    self.wfile.write(value)
+                    self.wfile.flush()
+                    finished = True
                     return
-                result = paragraph(
-                    "电压为24伏"
-                    if not second
-                    else (
-                        "电压为25伏"
-                        if identifier.startswith("invalid")
-                        else "频率为50赫兹"
-                    )
-                ) | {"more": not second}
-                if second and identifier.startswith("protected"):
-                    result = paragraph("未开放答案731") | {"more": False}
-                if second and identifier.startswith("citation"):
-                    result["claims"][0]["evidence"] = [2]
-                value = json.dumps(
-                    {
-                        "choices": [
-                            {
-                                "message": {
-                                    "role": "assistant",
-                                    "content": json.dumps(result, ensure_ascii=False),
-                                },
-                                "finish_reason": "stop",
-                            }
-                        ]
-                    },
-                    ensure_ascii=False,
-                ).encode()
-                self.send_response(200)
-                self.send_header("Content-Length", str(len(value)))
-                self.end_headers()
-                self.wfile.write(value)
-                self.wfile.flush()
-                if second:
-                    with lock:
-                        active.discard(identifier)
-                        completed.append(identifier)
-                return
+                except (ConnectionError, OSError):
+                    # 客户端取消可表现为FIN或RST，均必须回收夹具活动记录。
+                    return
+                finally:
+                    if second:
+                        with lock:
+                            active.discard(identifier)
+                            if (
+                                identifier not in completed
+                                and identifier not in cancelled
+                            ):
+                                (completed if finished else cancelled).append(
+                                    identifier
+                                )
             identifier = self.path.removeprefix("/release/")
             with lock:
                 gate = gates.get(identifier)

@@ -51,6 +51,22 @@ expected = {
     "material_index_cleanups",
     "material_index_operations",
     "material_chunk_tombstones",
+    "prompt_templates",
+    "prompt_template_revisions",
+    "assistants",
+    "assistant_revisions",
+    "skills",
+    "skill_revisions",
+    "assistant_materials",
+    "assistant_skills",
+    "sessions",
+    "ai_operations",
+    "messages",
+    "application_runs",
+    "message_citations",
+    "teaching_feedback",
+    "ai_configuration_audits",
+    "ai_configuration_requests",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

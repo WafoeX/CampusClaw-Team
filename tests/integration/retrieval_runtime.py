@@ -9,10 +9,13 @@ from pathlib import Path
 from threading import Event
 from uuid import uuid4
 
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import create_app
+from app.adapters.assistant_schema_v8 import messages as private_messages
+from app.adapters.assistant_schema_v8 import runs as private_runs
+from app.adapters.assistant_schema_v8 import sessions as private_sessions
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts, classes
 from app.adapters.chapter_schema_v4 import chapters
@@ -37,6 +40,11 @@ engine = mysql_engine(
     password=os.environ["MYSQL_PASSWORD"],
 )
 assert engine.url.database.startswith("campusclaw_test_")
+with engine.connect() as connection:
+    private_before = [
+        connection.scalar(select(func.count()).select_from(table))
+        for table in (private_sessions, private_messages, private_runs)
+    ]
 phase = sys.argv[1]
 origin = "https://campusclaw.test"
 config = EmbeddingSettings(
@@ -436,4 +444,10 @@ elif phase == "delete":
         assert result.status_code == 200 and result.json["data"]["items"] == []
     assert student.get(citation_url(item), base_url=origin).status_code == 404
     vectors.endpoint.request("DELETE", vectors.path, None, time.monotonic() + 15)
+with engine.connect() as connection:
+    private_after = [
+        connection.scalar(select(func.count()).select_from(table))
+        for table in (private_sessions, private_messages, private_runs)
+    ]
+assert private_after == private_before, "ST-N02：单次问答不得新增会话、消息或执行记录"
 engine.dispose()

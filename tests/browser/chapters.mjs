@@ -312,6 +312,21 @@ try {
   await screenshot("feedback-preview-mobile.png");
   await js('document.getElementById("feedback-confirm").focus()');await key("Enter");
   await eventually(()=>js('document.getElementById("feedback-status").textContent.includes("反馈已保存")'));
+  // Task 5.1：原生试调页在真实Cookie下发起POST SSE，保留原始帧供核对。
+  const swaggerSessionId = await js(`(async()=>{const r=await fetch('/api/v1/sessions');return (await r.json()).data.items[0].id})()`);
+  await navigate("/swagger");
+  await eventually(()=>js('!document.getElementById("send")?.disabled'));
+  await js(`{const s=document.getElementById('operation');s.selectedIndex=[...s.options].findIndex(o=>o.textContent==='POST /api/v1/sessions/{session_id}/messages');s.dispatchEvent(new Event('change'));}`);
+  await js('document.getElementById("param-session_id").value='+JSON.stringify(swaggerSessionId)+';document.getElementById("payload").value=JSON.stringify({question:"试调页没有绑定资料的问题"});document.getElementById("send").focus()');
+  await key("Enter");
+  await eventually(()=>js('document.getElementById("state").textContent.includes("读取结束")'));
+  assert.equal(await js('document.getElementById("response").textContent.includes("event: done")'),true);
+  assert.equal(await js('document.getElementById("response").textContent.includes("资料中未找到相关内容")'),true);
+  for (const width of [390,1440]) {
+    await send("Emulation.setDeviceMetricsOverride",{width,height:900,deviceScaleFactor:1,mobile:false});
+    assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'),true);
+    await screenshot("swagger-"+width+".png");
+  }
   await js(`fetch('/api/v1/auth/sessions/current',{method:'DELETE',headers:{'X-CampusClaw-Request':'same-origin'}})`);
   await navigate("/console/feedback");
   await eventually(()=>js('location.pathname === "/login" && !!document.getElementById("login-name")'));

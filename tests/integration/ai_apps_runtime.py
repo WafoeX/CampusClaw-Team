@@ -45,7 +45,7 @@ from app.api.auth import COOKIE
 from app.config import Settings
 from app.services.access import AccessDenied, Identity
 from app.services.ai_apps import AIApplicationService
-from app.services.ai_contracts import AI_USE
+from app.services.ai_contracts import AI_USE, DEFAULT_ROLE
 from app.services.auth import utc_now
 from app.services.model_gate import ModelGate
 from app.services.rate_limits import RequestLimiter
@@ -205,6 +205,28 @@ def request(who, method, path, payload=None, key=None):
 def count(table):
     with engine.connect() as connection:
         return connection.scalar(select(func.count()).select_from(table))
+
+
+# Task 5.1：真实数据库 Cookie 登录后同源取得文档；试调复用以下全套
+# 请求与 MySQL 副作用断言，未设置写入头时仍拒绝且不创建会话。
+document_response = request("student", "GET", "/api/v1/openapi.json")
+assert document_response.status_code == 200
+api_document = document_response.json
+assert api_document["security"] == [{"cookieSession": []}]
+assert request("student", "GET", "/swagger").status_code == 200
+assert (
+    "text/event-stream"
+    in api_document["paths"]["/api/v1/sessions/{session_id}/messages"]["post"][
+        "responses"
+    ]["200"]["content"]
+)
+before_document_write = count(sessions)
+blocked_document_write = clients["student"].post(
+    "/api/v1/sessions", base_url=origin, json={}
+)
+assert blocked_document_write.status_code == 403
+assert blocked_document_write.json["code"] == 1200
+assert count(sessions) == before_document_write
 
 
 def create_template(who, app_key, *, key=None):
@@ -912,6 +934,31 @@ created_session = request(
 assert created_session.status_code == 201, created_session.json
 session_id = created_session.json["data"]["id"]
 session_path = "/api/v1/sessions/" + session_id
+# Task 5.3：外班助手与缺失助手同构；伪造班级不能扩大查询。
+boundary_before = count(sessions), count(messages), count(runs)
+hidden_assistant_results = []
+for target_assistant in (assistant_id, str(uuid4())):
+    hidden = request(
+        "session_b_student",
+        "POST",
+        "/api/v1/sessions",
+        {"assistant_id": target_assistant, "mode": "material_qa"},
+        "foreign-assistant-" + target_assistant,
+    )
+    assert hidden.status_code == 404
+    hidden_assistant_results.append(
+        {k: hidden.json[k] for k in ("code", "message", "data")}
+    )
+assert hidden_assistant_results[0] == hidden_assistant_results[1]
+injected_class = request(
+    "session",
+    "POST",
+    session_path + "/messages",
+    {"question": "合成原文", "class_id": class_ids["b"]},
+    "forged-class",
+)
+assert injected_class.status_code == 400 and injected_class.json["code"] == 1000
+assert (count(sessions), count(messages), count(runs)) == boundary_before
 assert (
     request(
         "session",
@@ -1210,6 +1257,12 @@ assert (
     fallback_record["configuration"]["assistant_enabled"] is False
     and fallback_record["configuration"]["material_ids"] == []
 )
+fallback_ticket = ss.prepare(
+    owner, owner_cookie, session_id, b"verify-default-role", {"question": "合成原文"}
+)
+assert fallback_ticket["effective_prompt"] == DEFAULT_ROLE
+assert fallback_ticket["evidence"] == [] and fallback_ticket["selected_skill"] is None
+ss.abort(owner, fallback_ticket)
 # ST-B01/ST-F06：真实数据库历史上限及过期租约的陈旧执行者隔离。
 assert (
     request(

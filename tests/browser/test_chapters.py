@@ -112,7 +112,13 @@ def test_CH_N01_CH_B01_browser_keyboard_and_two_widths(stack, tmp_path):
             "EMBEDDING_DIM=2048",
             "-e",
             "RETRIEVAL_MIN_SCORE=0.449357",
+            "-e",
+            "PYTHONPATH=/srv/campusclaw:/tmp",
             "app",
+            "python",
+            "-c",
+            "from pathlib import Path; import os,sys; Path('/tmp/ai_app_worker.py').write_text(sys.argv[1]); os.execvp('python',['python','-m','gunicorn','--config','python:app.wsgi_config','--bind','0.0.0.0:8080','ai_app_worker:load_worker()'])",
+            Path(__file__).with_name("ai_app_worker.py").read_text(),
         ).splitlines()[-1]
         backend[0] = int(
             subprocess.check_output(

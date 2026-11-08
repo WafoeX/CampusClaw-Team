@@ -61,6 +61,19 @@ class RetrievalService:
         self.quota = quota or (lambda identity: None)
         self.model_guard = model_guard or (lambda identity: nullcontext())
 
+    def for_materials(self, material_ids):
+        return RetrievalService(
+            self.repository.for_materials(material_ids),
+            self.database_error,
+            self.embedding,
+            self.vectors,
+            self.dependency_error,
+            self.current_actor,
+            self.threshold,
+            quota=self.quota,
+            model_guard=self.model_guard,
+        )
+
     def identity(self, identity, cookie):
         actor = self.current_actor(cookie)
         if (

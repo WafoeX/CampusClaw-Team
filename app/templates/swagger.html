@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CampusClaw OpenAPI 试调</title>
+{% include '_page_styles.html' %}
+<main class="card api-console">
+<h1>OpenAPI 同源试调（/swagger）</h1>
+<p>此页为项目原生 OpenAPI 控制台。先从<a href="/login">登录页</a>登录，再返回此页。
+Cookie 由浏览器自动携带，不能手填；写入会修改当前账号有权操作的真实数据。</p>
+<p><a href="/api/v1/openapi.json">OpenAPI JSON</a> · <a href="/apps">返回 AI 应用</a></p>
+<p>课件使用 Bearer Swagger，本项目采用同源 Cookie 与写入头，课程等价待最终验收 1.5 确认。</p>
+<label for="operation">接口</label><select id="operation" disabled></select>
+<div id="parameters"></div>
+<label for="payload">JSON 请求体（字段和枚举见下方契约）</label><textarea id="payload" spellcheck="false">{}</textarea>
+<details><summary>当前接口契约</summary><pre id="contract"></pre></details>
+<button id="send" disabled>执行请求</button><button id="cancel" disabled>取消读取</button>
+<p id="state" role="status">正在加载接口，请稍候。</p>
+<p>SSE 显示原始 meta、delta、done/error 帧；delta 是未完成预览，只有 done 表示提交成功。失败或取消后请通过会话 GET 确认持久状态。</p>
+<pre class="preview" id="response" aria-label="原始响应"></pre>
+</main>
+<script nonce="{{ nonce }}">
+const $ = id => document.getElementById(id);
+let operations = [], controller;
+function selectOperation() {
+  const item = operations[$('operation').selectedIndex];
+  $('parameters').replaceChildren();
+  for (const parameter of item.operation.parameters) {
+    const label = document.createElement('label'), input = document.createElement('input');
+    input.id = 'param-' + parameter.name; input.dataset.name = parameter.name; input.dataset.location = parameter.in;
+    label.htmlFor = input.id; label.textContent = parameter.name + (parameter.required ? '（必填）' : '');
+    if (parameter.name === 'X-CampusClaw-Request') {input.value = 'same-origin'; input.readOnly = true;}
+    if (parameter.name === 'Idempotency-Key') input.value = crypto.randomUUID();
+    $('parameters').append(label, input);
+  }
+  $('payload').disabled = !item.operation.requestBody;
+  $('contract').textContent = JSON.stringify(item.operation, null, 2);
+}
+$('operation').onchange = selectOperation;
+$('cancel').onclick = () => controller?.abort();
+$('send').onclick = async () => {
+  const item = operations[$('operation').selectedIndex];
+  let path = item.path; const headers = {};
+  try {
+    for (const input of $('parameters').querySelectorAll('input')) {
+      if (!input.value && input.dataset.location !== 'query') throw new Error('请填写 ' + input.dataset.name);
+      if (input.dataset.location === 'path') path = path.replace('{' + input.dataset.name + '}', encodeURIComponent(input.value));
+      else if (input.dataset.location === 'header') headers[input.dataset.name] = input.value;
+    }
+    const query = new URLSearchParams();
+    for (const input of $('parameters').querySelectorAll('input[data-location="query"]')) if (input.value) query.set(input.dataset.name, input.value);
+    if (query.size) path += '?' + query;
+    if (!path.startsWith('/api/v1/') || new URL(path, location.origin).origin !== location.origin) throw new Error('只允许同源接口');
+    const options = {method:item.method, headers, credentials:'same-origin', redirect:'error', cache:'no-store'};
+    if (item.operation.requestBody) {options.body = JSON.stringify(JSON.parse($('payload').value)); headers['Content-Type'] = 'application/json';}
+    controller = new AbortController(); options.signal = controller.signal;
+    $('send').disabled = true; $('operation').disabled = true; $('cancel').disabled = false;
+    $('response').textContent = ''; $('state').textContent = '正在请求，请稍候。';
+    const result = await fetch(path, options);
+    $('state').textContent = 'HTTP ' + result.status + '；请求标识 ' + result.headers.get('X-Request-ID');
+    const reader = result.body.getReader(), decoder = new TextDecoder();
+    while (true) {const {value,done} = await reader.read(); if (done) break; $('response').textContent += decoder.decode(value,{stream:true});}
+    $('response').textContent += decoder.decode();
+    $('state').textContent += '；读取结束，请核对业务码或 SSE 终态。';
+  } catch (error) {
+    $('response').textContent = '';
+    $('state').textContent = '请求未完成：' + error.message + '。请检查参数、登录状态和网络后重试；会话写入请先回读确认。';
+  } finally {$('send').disabled = false; $('operation').disabled = false; $('cancel').disabled = true;}
+};
+(async () => {
+  try {
+    const result = await fetch('/api/v1/openapi.json', {credentials:'same-origin',cache:'no-store'});
+    if (!result.ok) throw new Error('登录或文档加载失败');
+    const spec = await result.json();
+    operations = Object.entries(spec.paths).flatMap(([path,methods]) => Object.entries(methods).map(([method,operation]) => ({path,method:method.toUpperCase(),operation})));
+    for (const item of operations) {const option = document.createElement('option'); option.textContent = item.method + ' ' + item.path; $('operation').append(option);}
+    $('state').textContent = operations.length ? '接口已加载，请选择接口并填写参数。' : '暂无接口，请检查应用配置。';
+    if (operations.length) {$('operation').disabled = false; $('send').disabled = false; selectOperation();}
+  } catch (error) {$('state').textContent = error.message + '，请登录后刷新重试。';}
+})();
+</script>
+</html>

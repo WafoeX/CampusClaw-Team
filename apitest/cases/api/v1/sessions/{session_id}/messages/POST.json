@@ -1,0 +1,8 @@
+{
+  "method": "POST",
+  "path": "/api/v1/sessions/{session_id}/messages",
+  "pytest": [
+    "tests/api/test_sessions.py",
+    "tests/integration/test_compose.py"
+  ]
+}

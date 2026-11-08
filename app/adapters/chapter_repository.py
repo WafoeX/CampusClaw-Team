@@ -1,6 +1,7 @@
 from sqlalchemy import delete, func, insert, select, text, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
+from app.adapters.assistant_schema_v8 import feedback
 from app.adapters.chapter_schema_v4 import chapter_idempotency, chapters, materials
 from app.adapters.material_repository import MaterialRepository
 
@@ -84,6 +85,11 @@ class ChapterRepository(MaterialRepository):
                 revision=materials.c.revision + 1,
                 updated_at=now,
             )
+        )
+        connection.execute(
+            update(feedback)
+            .where(feedback.c.class_id == class_id, feedback.c.chapter_id == chapter_id)
+            .values(chapter_id=None, updated_at=now)
         )
         connection.execute(delete(chapters).where(chapters.c.id == chapter_id))
 

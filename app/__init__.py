@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Flask, Request, g, has_request_context
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from app.adapters.ai_repository import AIRepository
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.chapter_repository import ChapterRepository
 from app.adapters.chat_client import ChatClient, ChatProtocolError
@@ -20,6 +21,7 @@ from app.adapters.model_lease_repository import ModelLeaseRepository
 from app.adapters.probes import check_mysql, check_qdrant
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.adapters.retrieval_repository import RetrievalRepository
+from app.api.ai_apps import AI_POLICIES, install_ai_apps
 from app.api.answers import ANSWER_POLICIES, install_answers
 from app.api.auth import (
     AUTH_POLICIES,
@@ -32,9 +34,13 @@ from app.api.http import install_http
 from app.api.index_builds import INDEX_POLICIES, install_index_builds
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
 from app.api.materials import MATERIAL_POLICIES, install_materials
+from app.api.openapi import DOC_POLICIES, install_openapi
 from app.api.retrieval import RETRIEVAL_POLICIES, install_retrieval
+from app.api.sessions import SESSION_POLICIES, install_sessions
+from app.api.skills import SKILL_POLICIES, install_skills
 from app.config import Settings
 from app.observability import log_event
+from app.services.ai_apps import AIApplicationService
 from app.services.answers import AnswerService
 from app.services.auth import AuthService
 from app.services.chapters import ChapterService
@@ -44,6 +50,7 @@ from app.services.materials import MaterialService
 from app.services.model_gate import ModelGate
 from app.services.rate_limits import RequestLimiter
 from app.services.retrieval import RetrievalService
+from app.services.streaming import LongRequestCapacity
 
 VERSION_FILE = Path(__file__).with_name("BUILD_VERSION")
 
@@ -69,6 +76,7 @@ def create_app(
     indexing=None,
     retrieval=None,
     answers=None,
+    ai_apps=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -81,6 +89,7 @@ def create_app(
             draining,
         )
     app = Flask(__name__, static_folder=None)
+    app.extensions["long_request_capacity"] = LongRequestCapacity(draining=draining)
     app.request_class = CampusRequest
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     origin = settings.public_origin
@@ -93,6 +102,7 @@ def create_app(
             or (settings.embedding is not None and indexing is None)
             or retrieval is None
             or answers is None
+            or ai_apps is None
         ):
             engine = mysql_engine(
                 host=settings.mysql_host,
@@ -171,6 +181,32 @@ def create_app(
                 model_guard=ModelGate(ModelLeaseRepository(engine), DatabaseError).hold,
                 on_result=model_event,
             )
+        if ai_apps is None:
+            ai_apps = AIApplicationService(
+                AIRepository(engine),
+                DatabaseError,
+                ChatClient(settings.chat, on_result=model_event)
+                if settings.chat
+                else None,
+                IndexDependencyError,
+                ChatProtocolError,
+                capacity=app.extensions["long_request_capacity"],
+                model_guard=ModelGate(ModelLeaseRepository(engine), DatabaseError).hold,
+                quota=lambda identity: limiter.check(
+                    "model-call", identity.subject_id, limit=6
+                ),
+                expires_at=settings.ai_data_expires_at,
+                model_configuration=(
+                    {
+                        "model": settings.chat.model,
+                        "model_config": settings.chat.version,
+                        "temperature": settings.chat.temperature,
+                        "max_output_tokens": settings.chat.max_output_tokens,
+                    }
+                    if settings.chat
+                    else {}
+                ),
+            )
         resolve_identity = resolve_identity or (lambda: resolve_session(auth))
         policies = {
             **(policies or {}),
@@ -181,6 +217,10 @@ def create_app(
             **(INDEX_POLICIES if indexing is not None else {}),
             **RETRIEVAL_POLICIES,
             **ANSWER_POLICIES,
+            **AI_POLICIES,
+            **SKILL_POLICIES,
+            **SESSION_POLICIES,
+            **DOC_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
     install_http(
@@ -201,5 +241,9 @@ def create_app(
         install_chapters(app, chapters)
         install_retrieval(app, retrieval)
         install_answers(app, answers)
+        install_ai_apps(app, ai_apps)
+        install_skills(app, ai_apps)
+        install_sessions(app, ai_apps, retrieval)
         install_material_pages(app)
+        install_openapi(app)
     return app

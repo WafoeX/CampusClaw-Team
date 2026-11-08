@@ -1,0 +1,17 @@
+<section class="card" aria-labelledby="assistant-title">
+<h2 id="assistant-title">班级助手</h2>
+<p id="ai-status" class="status" role="status">正在加载…</p><button id="ai-retry" type="button" hidden>重试加载</button>
+<form id="ai-assistant-form">
+<label>助手名称 <input name="name" maxlength="64" required></label>
+<label>助手提示词 <textarea name="prompt" maxlength="2000"></textarea></label>
+<p class="muted">留空使用默认学习助手角色。材料绑定只限本班。</p>
+<label><span><input name="enabled" type="checkbox" checked> 启用助手</span></label>
+<label>绑定资料（可多选） <select id="ai-materials" multiple size="5"></select></label>
+<div class="pagination"><button id="ai-material-previous" type="button">上一页资料</button><span id="ai-material-page"></span><button id="ai-material-next" type="button">下一页资料</button></div>
+<label>绑定技能（可多选） <select id="ai-skills" multiple size="3"></select></label>
+<p id="ai-skill-status" class="muted"></p>
+<div class="row"><button class="primary" type="submit">保存助手</button><button id="ai-assistant-new" type="button">新建助手</button></div>
+</form>
+<ul id="ai-assistant-list"></ul>
+<div id="ai-pagination" class="pagination" hidden><button id="ai-previous" type="button">上一页</button><span id="ai-page"></span><button id="ai-next" type="button">下一页</button></div>
+</section>

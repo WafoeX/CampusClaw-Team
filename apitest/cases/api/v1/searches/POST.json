@@ -1,0 +1,8 @@
+{
+  "method": "POST",
+  "path": "/api/v1/searches",
+  "pytest": [
+    "tests/api/test_retrieval.py",
+    "tests/api/test_answers.py"
+  ]
+}

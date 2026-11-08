@@ -1,6 +1,7 @@
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
+from app.adapters.assistant_copies import redact_material_copies
 from app.adapters.auth_schema_v1 import accounts, auth_sessions
 from app.adapters.chapter_schema_v4 import materials
 from app.adapters.index_receipts import record_cleanup
@@ -127,6 +128,7 @@ class MaterialRepository:
         )
 
     def remove(self, connection, material_id, deleted_at):
+        redact_material_copies(connection, material_id, deleted_at)
         indexed = (
             connection.execute(
                 select(builds).where(builds.c.material_id == material_id)

@@ -78,3 +78,57 @@ MySQL 启动固定 `ngram_token_size=2` 与 `innodb_ft_enable_stopword=OFF`，�
 ## 单次检索问答的副本边界（2026-11-07）
 
 `/search`、`/ask` 不新增持久会话、回答快照或聊天历史表。一次问答只在内存保留当前问题、至多8片/12000码点证据、模型结构与已验证出处；日志只记服务器请求标识、固定模型/配置摘要、模板版本、token用量及耗时/结果，不记原文、问题、回答、Cookie或密钥。提供方未返回的不可变模型版本记缺项，不编造。跨 worker 模型并发使用数据库名+账号摘要的 MySQL 连接命名锁，连接自动提交、不持有行事务，最终释放；每次实际模型尝试仍消耗共享每分钟6次配额。
+
+## 流式助手存储基础（0008，第 1 组）
+
+本组只建立结构和资料删除时的副本去内容化原语，不启用应用、会话、SSE 或反馈 API。所有新主键沿用小写 UUID，时间为 UTC 微秒；`class_id`、`owner_id`、`creator_id` 由后续服务端身份解析器填写。新增 `accounts(class_id,id)` 唯一索引供同班账号组合外键引用，既有账号不改值。所有新表默认 RESTRICT；配置绑定随对应配置/原资料删除 CASCADE，历史出处的资料标识无原文外键，允许保留已删除状态。
+
+| 表 | 字段与用途 | 约束与状态 |
+| --- | --- | --- |
+| `prompt_templates` | `id,class_id,creator_id,name,app_key,revision,enabled,created_at,updated_at` | 四类应用键；修订正整数，同班创建人外键；`(class_id,id)` 唯一 |
+| `prompt_template_revisions` | `class_id,template_id,revision,creator_id,prompt,created_at` | 组合主键，模板及创建人同班；不可变修订由后续写服务只增，prompt 至多 2000 码点 |
+| `assistants` | `id,class_id,creator_id,name,revision,enabled,created_at,updated_at` | 同班创建人；`(class_id,id)` 唯一 |
+| `assistant_revisions` | `class_id,assistant_id,revision,creator_id,prompt,created_at` | 同班助手不可变修订，空提示词留空，由服务端使用默认角色 |
+| `skills` | `id,class_id,creator_id,name,name_key,revision,enabled,builtin_key,created_at,updated_at` | `name_key` 是 NFKC+casefold 的 UTF-8 字节，班内唯一；内置键可空，非空为 problem_guidance/learning_plan，班内内置键唯一；定义只读由后续服务约束 |
+| `skill_revisions` | `class_id,skill_id,revision,creator_id,definition,created_at` | 同班不可变技能版本；JSON 为数据，白名单校验在后续服务执行，不由数据库执行清单 |
+| `assistant_materials` | `class_id,assistant_id,revision,material_id` | 同班助手修订与同班资料组合外键；删除资料仅移除绑定，不阻碍原文删除 |
+| `assistant_skills` | `class_id,assistant_id,revision,skill_id` | 同班修订/技能组合外键；绑定不冻结技能启停，下轮重读当前技能版本 |
+| `sessions` | `id,class_id,owner_id,assistant_id,mode,created_at,updated_at,expires_at` | mode 为 material_qa/problem_guidance；同班账号/助手外键；`(class_id,owner_id,id)` 唯一，所有私人子表沿此归属链 |
+| `ai_operations` | `id,class_id,owner_id,session_id,app_key,operation_scope,request_key,fingerprint,input_payload,status,attempt_count,lease_token,lease_expires_at,created_at,updated_at,expires_at,active_session_id` | session 可空用于独立应用；作用域是会话 UUID 或应用键的 ASCII 字节，键 VARBINARY(64) 大小写敏感，摘要 BINARY(32)；`(class_id,owner_id,operation_scope,request_key)` 唯一。status running/succeeded/failed/interrupted/revoked，尝试 1–3；running 必须有租约及令牌，其余须为空。生成列 active_session_id 仅在 running 时取 session_id，联合唯一保证一会话最多一个在途轮次。会话与应用/作用域一致性有 CHECK |
+| `messages` | `id,class_id,owner_id,session_id,operation_id,role,content,content_state,created_at,expires_at` | 归属链同时绑定操作与会话，role user/assistant，`(operation_id,role)` 唯一；只存已受理用户消息和已校验成功助手正文，失败不存模型原文；content_state available/revoked/expired，非 available 时正文须空 |
+| `application_runs` | `id,class_id,owner_id,operation_id,attempt,status,configuration,details,error_code,duration_ms,created_at,updated_at,expires_at,successful_operation_id` | 同班本人操作，attempt 1–3 且每操作/尝试唯一；status running/succeeded/failed/interrupted/revoked；成功/已撤销成功的生成列唯一，保证一操作最多一条成功记录，去内容化后也不释放成功占位。configuration 只允许去密钥的模型/修订/参数；details 是成功的已验证步骤/结果，失败必须为空，error_code 仅固定码，不存上游错误原文 |
+| `message_citations` | `class_id,owner_id,session_id,message_id,ordinal,material_id,source_version,index_version,index_config_version,start_offset,end_offset,title,excerpt,status,created_at,expires_at` | 同班本人消息外键，消息/编号唯一，ordinal 1–4，码点半开区间；status available/deleted/revoked/expired；失效时 title/excerpt 均空。不指向当前切片；重建保留旧快照，删除同事务去内容化 |
+| `teaching_feedback` | `id,class_id,owner_id,session_id,message_id,chapter_id,rating,note,status,revision,creator_id,created_at,updated_at,expires_at` | 同班本人消息/账号及可空章节外键；消息唯一，rating helpful/unresolved，status pending/handled/unavailable，revision 正整数；未解决有效记录 note 1–500 码点。教师最小投影由后续服务实现，不能直接返回此表 |
+| `ai_configuration_audits` | `id,class_id,actor_id,resource_type,resource_id,revision,event,created_at` | 配置及反馈写入的去内容审计；只记对象标识、修订与 create/update/disable/delete/handle，不含提示词、说明、问题或身份展示字段；服务只增，90 天 |
+
+私人记录按所属学期结束后 30 天内到期，`expires_at` 在受理时固定，出处、操作、消息、执行和反馈不得晚于父对象到期。配置及其版本随班级/学期复核；日志14天、去内容审计90天、隔离备份14天轮转。具体学期、到期时间和实名清理执行人沿用既有安排，生产启用前由小组登记；本组只在随机 `campusclaw_test_` 合成库验证，未上线持久化真实个人数据。
+
+新正文副本仅在 MySQL 的 `ai_operations.input_payload`、`messages.content`、`application_runs.details`、`message_citations.title/excerpt`，教学说明只由学生主动提供。无新增文件、Qdrant 或缓存副本。资料删除同事务按出处依赖清空整条消息正文、该操作的输入/步骤结果及该消息全部出处和反馈说明，保留安全状态与去内容标识；清理故障回滚删除事务。恢复先重放独立原文删除清单，再清理到期记录，完成前不接流量；本组对隔离还原的数据库行执行同一删除原语重放，不冒充生产备份恢复。会话/账号隐私删除及统一到期清理的入口随私有记录与历史治理组实现，存储基础阶段未启用新数据写入口；当前会话接入状态见本文末尾的3.1补充。
+
+迁移0008仅增表和账号组合唯一索引，条件化重跑应对 MySQL DDL 中断。应用回退保留0008扩展表，新功能停流、收敛租约后回到原制品，并暂停涉及新副本协议的资料/章节删除与私人写入；恢复新制品后重放清单和到期清理再开放；物理降级会丢失本课新配置与私人数据，仅在专用合成库中演练，保留原文、认证、章节和索引。恢复所需独立删除清单不得随备份回退。业务授权、不可变修订写入和配置变化重验仍由后续服务实现，数据库约束不替代逐次授权。
+
+## 应用配置与同步执行（0009，Task 2.1）
+
+追加 `prompt_templates.deleted`（非空Boolean，默认false），删除同事务递增revision、保留修订及去内容审计；本班读取也隐藏deleted，不以90天审计记录充当删除事实。追加 `ai_configuration_requests(class_id,actor_id,resource_type,request_key,fingerprint,resource_id,created_at,expires_at)`，前四字段联合主键，actor有同班账号组合外键，request_key为VARBINARY(64)、fingerprint为BINARY(32)，类型template/assistant，24小时幂等；不保存提示词或请求正文。创建事务最多清除100条到期幂等行；停流残余由显式清理命令处理。0009单步降级只允许合成库，会丢失删除标记与幂等记录，须停新接口，不作为正式应用回退。
+
+本组同步操作复用0008的 `ai_operations/application_runs`，session_id为空、作用域为应用键。configuration只存模型/参数/系统模板版本及班级模板id/修订；成功details存已校验text和该次rendered_prompt，input_payload存本人variables及模板id/修订，均为私人正文副本。失败details和input_payload清空，不存原始异常或无效模型输出。显式AI_DATA_EXPIRES_AT在受理时固定，未知学期时不启用持久执行；读取、重放都需当前身份、同班本人和未到期。`python -m app.ai_admin cleanup` 每批最多100个已过期同步操作，先删其执行记录再删操作，另清理最多100条过期配置创建幂等；无网络副作用。备份中的到期值不随恢复延长，恢复接流量前重做日期清理；没有新增文件/缓存/向量副本。账号/会话隐私删除及来源治理由后续组实现，上线前仍需登记学期及实名清理责任。
+
+### 技能定义读写补充（2026-11-08，2.2组件）
+
+沿用0008 `skills` 与 `skill_revisions`，不修改既有迁移。`name_key` 为NFKC、casefold、strip后的UTF-8字节；班级锁串行化不同教师同名创建，`uq_skills_name`继续兜底。内置实例用班级与 `builtin_key` 生成稳定UUID，`definition`保存经白名单校验的条件、工具和有序步骤，启停也追加修订与去内容审计。当前上传技能删除按既有外键级联删除定义修订及助手绑定，保留删除审计；未来会话执行必须保存当时生效的受控配置，不能依赖已删除定义回读。数据归属为教师所在班级，私人会话记录不因教师管理权限开放。配置回退保留原0008/0009表；无生产迁移或删除操作。
+
+### 私有会话读写与到期治理（2026-11-08续做，3.1）
+
+沿用0008实体，不改变已执行迁移。会话创建ID为班级/本人/创建幂等键的UUIDv5，绑定模式和助手在存续期不可换；重放相同输入不重复创建，到期值不延期。轮次指纹覆盖规范化 `question/chapter_scope/retrieval_mode`，幂等作用域仍为班级/本人/会话，成功回放不新增任何行；失败清除操作输入及步骤正文，保留一条原用户消息和去内容尝试，最多3次。受理与条件提交均重验当前身份、助手/技能修订及当前材料，来源锁与原文删除共用事务边界。
+
+`application_runs.configuration` 保存模型参数、系统模板版本、助手ID/修订/启用状态、材料绑定和技能ID/修订，以及所选技能摘要，不存提示词或密钥；`details` 仅成功时保存已校验正文和步骤序号/文本。`messages`、`message_citations` 与成功状态同事务写入；失败不写成功助手消息或原始模型正文。本人回读同时检查来源状态，来源不可用时隐藏正文；历史出处详情及反馈的第4组接入见本文末尾。旧单次问答仍不写这三类私人记录。
+
+统一清理命令每批额外锁定最多100个已过期会话，按反馈、出处、消息、执行、操作、会话顺序删除；读取在清理前即按父会话期限拒绝。恢复保留原expires_at，重放到期/删除清单后接流量。本轮仅做合成库行级回灌与重放验证，不冒充生产备份恢复、加密备份或RPO/RTO演练。应用回退保留既有扩展表、关闭新会话写入并排空在途，不能通过删表回退。实名清理与生产学期仍由小组登记。
+
+### 第4组：历史出处与反馈读写
+
+复用0008/0009，无新增表、字段或迁移。`message_citations` 的版本/区间/标题/摘录保持生成时值；当前同班原文存在且无删除凭证时才可读。当前版本不同标为historical，已删除/撤销不返回标题、摘录或定位。原文删除凭证同时用于私人消息、执行记录及教师列表的即时过滤；关联成功轮次的用户消息也按同一来源依赖隐藏，失效历史不得进入模型上下文。物理清除仍由既有删除事务与向量清理凭证负责。
+
+`teaching_feedback` 的rating只接受helpful/unresolved；note去首尾空白后至多500码点，unresolved必填。首次expected_revision=0，创建revision=1；实质更新/教师处理递增。相同评价与说明重放保留修订和处理状态，不续期。学生实质改评重置pending；helpful不进入教师未解决列表。处理仅允许pending→handled（重放原处理幂等）。来源失效时过滤列表，物理删除清空note并标unavailable。chapter_id只取受理时已校验的chapter_scope且仍属本班，不接受客户端另行指定。
+
+教师投影仅 `id,rating,note,status,revision,chapter,updated_at`；revision是并发控制元数据，chapter为当前本班可公开章节名或null，无学生标识/会话/消息/执行/出处引用。本人会话回读附本人反馈与可分享章节名供预览。写反馈与处理追加去内容审计，期限不晚于父会话/消息，过期清理沿用每批100个会话。保留期、隔离备份14天及恢复重放义务不变；真实学期和实名执行人由小组上线前登记。

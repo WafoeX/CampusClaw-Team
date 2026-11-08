@@ -21,8 +21,8 @@ ifneq ($(strip $(CHANGE)),)
 endif
 
 check-static: check-specs
-	$(RUN) ruff format --check app scripts tests
-	$(RUN) ruff check app scripts tests
+	$(RUN) ruff format --check app scripts tests apitest
+	$(RUN) ruff check app scripts tests apitest
 	$(RUN) python scripts/check_layout.py
 	$(RUN) python scripts/scenario_trace.py
 

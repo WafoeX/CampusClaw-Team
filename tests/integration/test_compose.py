@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from scripts.verify_runtime import inspect_probes
+from tests.integration.streaming_proxy_check import verify_streaming_proxy
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_OVERRIDES = {
@@ -197,7 +198,7 @@ def stack(tmp_path_factory):
                 )
 
 
-def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
+def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     compose, request, status, version = stack
     code, ready, headers = status("ready")
     assert code == 200 and ready["version"] == version
@@ -224,6 +225,8 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     verify_chapter_api(compose)
     verify_index_foundation(compose)
     verify_index_builds(compose)
+    verify_assistant_storage(compose)
+    verify_ai_apps(compose)
     verify_rate_limits(compose)
     verify_retrieval(compose, "setup")
     verify_evaluation(compose)
@@ -244,6 +247,7 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack):
     assert status("ready")[0] == 200
 
     verify_retrieval(compose, "delete")
+    verify_streaming_proxy(compose, tmp_path / "streaming-proxy")
 
     started = time.monotonic()
     compose("kill", "-s", "SIGTERM", "app")
@@ -368,4 +372,35 @@ def verify_evaluation(compose):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "evaluation.json").write_text(
         json.dumps(reports[0], ensure_ascii=False, indent=2) + "\n"
+    )
+
+
+def verify_assistant_storage(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("assistant_storage_runtime.py").read_text(),
+    )
+
+
+def verify_ai_apps(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/feedback_runtime.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("feedback_runtime.py").read_text(),
+    )
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("ai_apps_runtime.py").read_text(),
     )

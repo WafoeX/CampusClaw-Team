@@ -8,6 +8,13 @@ from app.adapters.material_repository import MaterialRepository
 
 
 class RetrievalRepository(MaterialRepository):
+    def __init__(self, engine, material_ids=None):
+        super().__init__(engine)
+        self.material_ids = None if material_ids is None else tuple(material_ids)
+
+    def for_materials(self, material_ids):
+        return RetrievalRepository(self.engine, material_ids)
+
     def chapter_exists(self, class_id, chapter_id):
         with self.engine.connect() as connection:
             return (
@@ -19,9 +26,10 @@ class RetrievalRepository(MaterialRepository):
                 is not None
             )
 
-    @staticmethod
-    def scope(class_id, chapter_scope):
+    def scope(self, class_id, chapter_scope):
         conditions = [materials.c.class_id == class_id]
+        if self.material_ids is not None:
+            conditions.append(materials.c.id.in_(self.material_ids))
         if chapter_scope == "uncategorized":
             conditions.append(materials.c.chapter_id.is_(None))
         elif chapter_scope is not None:

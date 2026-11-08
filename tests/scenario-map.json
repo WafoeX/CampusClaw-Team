@@ -658,6 +658,187 @@
         "runner": "verify_index_builds",
         "assertion": "assert vectors.count(deleted_scope, time.monotonic() + 15) == 0 and vectors.count(other_scope, time.monotonic() + 15) > 0"
       }
+    },
+    "2026-11-04-add-streaming-ai-assistant/specs/class-ai-apps/spec.md": {
+      "AP-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert record['result']['rendered_prompt'] == expected and record['configuration']['template_revision'] == 1"
+      },
+      "AP-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert changed.status_code == 200 and changed.json['data']['revision'] == 2 and changed.json['data']['uses_default_role']"
+      },
+      "AP-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert baseline == (count(audits), count(operations), count(runs))"
+      },
+      "AP-F02": {
+        "test": "tests/api/test_ai_apps.py",
+        "function": "test_AP_F02_student_cannot_write_configuration"
+      },
+      "AP-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert response.status_code == 404"
+      },
+      "AP-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert result.status_code == (503 if mode == 'timeout' else 502), result.json"
+      }
+    },
+    "2026-11-04-add-streaming-ai-assistant/specs/bounded-ai-skills/spec.md": {
+      "SK-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert [step['ordinal'] for step in winning_record['result']['steps']] == [1, 2, 3]"
+      },
+      "SK-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert without_skill[0][1]['data']['skill'] is None and without_skill[-1][0] == 'done'"
+      },
+      "SK-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert '以下为一般解题提示，暂无课内资料依据' in general[1][1]['data']['text'] and len(session_chat.calls) == calls_before"
+      },
+      "SK-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert len(session_chat.calls) == call_count + 2"
+      },
+      "SK-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert [name for name, _ in rejected] == ['meta', 'error'] and rejected[-1][1]['code'] == 1501"
+      },
+      "SK-F01": {
+        "test": "tests/unit/test_skills.py",
+        "function": "test_SK_F01_invalid_definition"
+      },
+      "SK-F02": {
+        "test": "tests/api/test_skills.py",
+        "function": "test_SK_F02_anonymous_and_student_cannot_manage"
+      },
+      "SK-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert denied.status_code == 404 and denied.json[\"code\"] == 1300"
+      }
+    },
+    "2026-11-04-add-streaming-ai-assistant/specs/private-streaming-sessions/spec.md": {
+      "ST-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "ST-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/retrieval_runtime.py",
+        "runner": "verify_retrieval",
+        "assertion": "assert private_after == private_before, 'ST-N02：单次问答不得新增会话、消息或执行记录'"
+      },
+      "ST-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert len(bounded['evidence']) == 4 and sum((len(item['text']) for item in bounded['evidence'])) <= 12000"
+      },
+      "ST-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert fallback_record['configuration']['assistant_enabled'] is False and fallback_record['configuration']['material_ids'] == []"
+      },
+      "ST-F01": {
+        "test": "tests/unit/test_sessions.py",
+        "function": "test_ST_F01_invalid_input"
+      },
+      "ST-F02": {
+        "test": "tests/api/test_sessions.py",
+        "function": "test_ST_F02_anonymous_has_no_stream_or_writes"
+      },
+      "ST-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert request(who, 'GET', '/api/v1/sessions').json['data']['total'] == 0"
+      },
+      "ST-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "ST-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "ST-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "ST-F07": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      }
+    },
+    "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": {
+      "FB-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "FB-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      }
     }
   },
   "planned": {
@@ -672,10 +853,6 @@
     "2026-11-04-add-controlled-mcp-tools/specs/mcp-teaching-service/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-controlled-mcp-tools/specs/tool-call-audit/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-streaming-ai-assistant/specs/bounded-ai-skills/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-streaming-ai-assistant/specs/class-ai-apps/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-streaming-ai-assistant/specs/private-streaming-sessions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-streaming-ai-assistant/specs/qa-snapshots-feedback/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
   }

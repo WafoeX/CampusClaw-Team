@@ -3,6 +3,7 @@
 import json
 import math
 import re
+import socket
 import time
 from http.client import HTTPConnection, HTTPException, HTTPSConnection
 from urllib.parse import urlsplit
@@ -30,7 +31,7 @@ class JsonEndpoint:
         self.headers = dict(headers)
         self.connection_factory = connection_factory
 
-    def request(self, method, path, payload, deadline):
+    def request(self, method, path, payload, deadline, *, context=None):
         address = self.address
         factory = self.connection_factory or (
             HTTPSConnection if address.scheme == "https" else HTTPConnection
@@ -40,6 +41,12 @@ class JsonEndpoint:
         )
         try:
             body = None if payload is None else json.dumps(payload, allow_nan=False)
+            if context is not None:
+                context.check()
+                connection.connect()
+                upstream_socket = connection.sock
+                context.on_cancel(lambda: upstream_socket.shutdown(socket.SHUT_RDWR))
+                context.check()
             connection.request(
                 method,
                 address.path.rstrip("/") + path,

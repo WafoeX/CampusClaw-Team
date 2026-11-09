@@ -55,6 +55,62 @@ SKILL = {
     },
 }
 REQUESTS = {
+    "create_question": obj(
+        {
+            "kind": {"enum": ["single_choice", "true_false"]},
+            "stem": TEXT,
+            "options": {"type": "array", "items": TEXT, "minItems": 2, "maxItems": 6},
+            "answer": TEXT,
+            "explanation": TEXT,
+            "source_material_id": ID,
+        },
+        ["kind", "stem", "options", "answer", "explanation"],
+    ),
+    "edit_question": obj(
+        {
+            "expected_version": REV,
+            "kind": {"enum": ["single_choice", "true_false"]},
+            "stem": TEXT,
+            "options": {"type": "array", "items": TEXT},
+            "answer": TEXT,
+            "explanation": TEXT,
+            "source_material_id": ID,
+        },
+        ["expected_version", "kind", "stem", "options", "answer", "explanation"],
+    ),
+    "review_question": obj({"expected_version": REV}),
+    "create_quiz": obj(
+        {
+            "title": TEXT,
+            "chapter_id": {"oneOf": [ID, {"type": "null"}]},
+            "deadline_at": {"type": "string", "format": "date-time"},
+            "answers_open_at": {"type": "string", "format": "date-time"},
+            "items": {
+                "type": "array",
+                "items": obj(
+                    {
+                        "question_id": ID,
+                        "points": {"type": "integer", "minimum": 1, "maximum": 100},
+                    }
+                ),
+                "minItems": 1,
+                "maxItems": 50,
+            },
+        }
+    ),
+    "publish_quiz": obj({}),
+    "save_quiz_draft": obj(
+        {
+            "draft_revision": {"type": "integer", "minimum": 0},
+            "answers": {"type": "object", "additionalProperties": TEXT},
+        }
+    ),
+    "submit_quiz": obj(
+        {
+            "draft_revision": {"type": "integer", "minimum": 0},
+            "answers": {"type": "object", "additionalProperties": TEXT},
+        }
+    ),
     "login": obj(
         {"login_name": TEXT, "password": {"type": "string", "format": "password"}}
     ),
@@ -122,6 +178,7 @@ REQUESTS = {
     ),
 }
 KEYED = {
+    "submit_quiz",
     "create_templates",
     "create_assistants",
     "create_private_session",
@@ -129,6 +186,13 @@ KEYED = {
     "run_ai_app",
 }
 ENDPOINTS = set(REQUESTS) | {
+    "list_questions",
+    "read_question",
+    "list_quizzes",
+    "read_quiz",
+    "read_quiz_draft",
+    "read_my_submission",
+    "list_submission_results",
     "current_session",
     "logout",
     "ai_catalogue",
@@ -250,7 +314,10 @@ def document(app):
             }
             if endpoint == "login":
                 operation["security"] = []
-            if endpoint.startswith("create_") or endpoint == "run_ai_app":
+            if endpoint.startswith("create_") or endpoint in {
+                "run_ai_app",
+                "submit_quiz",
+            }:
                 operation["responses"]["201"] = operation["responses"]["200"]
             if endpoint in REQUESTS:
                 operation["requestBody"] = {

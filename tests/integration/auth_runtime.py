@@ -67,6 +67,17 @@ expected = {
     "teaching_feedback",
     "ai_configuration_audits",
     "ai_configuration_requests",
+    "questions",
+    "question_versions",
+    "question_audits",
+    "quizzes",
+    "quiz_draft_items",
+    "quiz_items",
+    "quiz_participants",
+    "quiz_drafts",
+    "quiz_submissions",
+    "quiz_results",
+    "quiz_audits",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

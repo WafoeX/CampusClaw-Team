@@ -9,6 +9,7 @@ from app.api.http import success
 from app.services.access import AccessDenied, Identity
 from app.services.ai_contracts import AI_CONFIGURE, AI_USE
 from app.services.materials import READ_MATERIALS, WRITE_MATERIALS
+from app.services.teaching import TEACHING_ANSWER, TEACHING_WRITE
 
 COOKIE = "__Host-campusclaw_session"
 COOKIE_OPTIONS = {"secure": True, "httponly": True, "samesite": "Strict", "path": "/"}
@@ -18,6 +19,9 @@ RUN_PATH = re.compile(
 )
 DETAIL_PATH = re.compile(
     r"/materials/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
+QUIZ_PATH = re.compile(
+    r"/quizzes/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 )
 AUTH_POLICIES = {
     ("current_session", "GET"): "session",
@@ -40,7 +44,9 @@ def resolve_session(auth):
     if actor.role in {"teacher", "student"}:
         permissions.update((READ_MATERIALS, AI_USE))
     if actor.role == "teacher":
-        permissions.update((WRITE_MATERIALS, AI_CONFIGURE))
+        permissions.update((WRITE_MATERIALS, AI_CONFIGURE, TEACHING_WRITE))
+    if actor.role == "student":
+        permissions.add(TEACHING_ANSWER)
     return Identity(actor.id, actor.class_id, frozenset(permissions))
 
 
@@ -86,6 +92,8 @@ def _return_path(app, path):
             "/console/templates",
             "/sessions",
             "/console/feedback",
+            "/console/questions",
+            "/quizzes",
         }
         and path in registered
     ):
@@ -93,6 +101,8 @@ def _return_path(app, path):
     if DETAIL_PATH.fullmatch(path) and "/materials/<material_id>" in registered:
         return path
     if RUN_PATH.fullmatch(path) and "/runs/<run_id>" in registered:
+        return path
+    if QUIZ_PATH.fullmatch(path) and "/quizzes/<value>" in registered:
         return path
     return "/materials" if "/materials" in registered else "/login"
 

@@ -1,0 +1,192 @@
+  const $ = (id) => document.getElementById(id);
+  const notice = $('notice');
+  const retry = $('retry');
+  const element = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
+  const say = (text, error = false) => { notice.textContent = text; notice.classList.toggle('error', error); };
+  const writing = { 'Content-Type': 'application/json', 'X-CampusClaw-Request': 'same-origin' };
+  let reload = async () => {};
+
+  async function api(path, options = {}) {
+    let response;
+    try { response = await fetch(path, { ...options, signal: AbortSignal.timeout(15000) }); }
+    catch { throw new Error('连接失败或超时，请重试。'); }
+    if (response.status === 401) {
+      location.replace('/login?next=' + encodeURIComponent(location.pathname));
+      throw new Error('登录已失效，请重新登录。');
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || '请求失败，请重试。');
+    return body.data;
+  }
+  function operation(method, payload, key) {
+    return { method, headers: { ...writing, ...(key ? { 'Idempotency-Key': key } : {}) }, body: JSON.stringify(payload) };
+  }
+  async function act(button, work) {
+    button.disabled = true;
+    say('正在处理…');
+    try { const message = await work(); say(message || '操作完成。'); }
+    catch (error) { say(error.message, true); }
+    finally { button.disabled = false; }
+  }
+  async function load() {
+    retry.hidden = true;
+    say('正在加载…');
+    try { await reload(); say('已加载。'); }
+    catch (error) { say(error.message, true); retry.hidden = false; }
+  }
+  retry.addEventListener('click', load);
+
+  if (teachingView === 'questions') {
+    const form = $('question-form');
+    const list = $('question-list');
+    let editing = null;
+    const reset = () => { editing = null; form.reset(); form.querySelector('button[type=submit]').textContent = '保存题目'; };
+    $('question-reset').addEventListener('click', reset);
+    const fields = () => {
+      const data = new FormData(form);
+      const kind = data.get('kind');
+      return { kind, stem: data.get('stem'), options: kind === 'true_false' ? ['正确', '错误'] : data.get('options').split('\n').map(s => s.trim()).filter(Boolean), answer: data.get('answer').trim(), explanation: data.get('explanation'), source_material_id: data.get('source_material_id').trim() || null };
+    };
+    form.addEventListener('submit', event => { event.preventDefault(); act(form.querySelector('button[type=submit]'), async () => {
+      const path = editing ? '/api/v1/questions/' + editing.id : '/api/v1/questions';
+      const payload = editing ? { ...fields(), expected_version: editing.version } : fields();
+      await api(path, operation(editing ? 'PATCH' : 'POST', payload));
+      reset(); await reload(); return '题目已保存，修改后须重新审核。';
+    }); });
+    reload = async () => {
+      const data = await api('/api/v1/questions');
+      list.replaceChildren();
+      if (!data.items.length) list.append(element('li', '暂无题目。'));
+      for (const item of data.items) {
+        const row = element('li');
+        row.append(element('strong', item.stem), element('span', item.reviewed ? '已审核' : '待审核'));
+        const controls = element('div'); controls.className = 'row';
+        const edit = element('button', '修改'); edit.type = 'button';
+        edit.addEventListener('click', () => act(edit, async () => {
+          const full = await api('/api/v1/questions/' + item.id);
+          editing = full;
+          for (const name of ['kind','stem','answer','explanation','source_material_id']) form.elements[name].value = full[name] || '';
+          form.elements.options.value = full.kind === 'true_false' ? '' : full.options.join('\n');
+          form.querySelector('button[type=submit]').textContent = '保存新修订';
+          form.scrollIntoView({ behavior: 'smooth' }); return '已载入题目。';
+        })); controls.append(edit);
+        if (!item.reviewed) {
+          const review = element('button', '审核'); review.type = 'button';
+          review.addEventListener('click', () => act(review, async () => {
+            await api('/api/v1/questions/' + item.id + '/reviews', operation('POST', { expected_version: item.version }));
+            await reload(); return '题目已审核。';
+          })); controls.append(review);
+        }
+        row.append(controls); list.append(row);
+      }
+    };
+  } else if (teachingView === 'quizzes') {
+    const list = $('quiz-list');
+    const form = $('quiz-form');
+    if (form) {
+      form.addEventListener('submit', event => { event.preventDefault(); act(form.querySelector('button[type=submit]'), async () => {
+        const data = new FormData(form);
+        const items = [...$('question-choices').querySelectorAll('input[type=checkbox]:checked')].map(box => ({ question_id: box.value, points: Number(box.closest('label').querySelector('input[type=number]').value) }));
+        if (!items.length) throw new Error('请至少选择一道已审核题目。');
+        const deadline = new Date(data.get('deadline_at'));
+        const open = new Date(data.get('answers_open_at'));
+        if (Number.isNaN(deadline.getTime()) || Number.isNaN(open.getTime())) throw new Error('请填写截止和开放时间。');
+        const result = await api('/api/v1/quizzes', operation('POST', { title: data.get('title'), chapter_id: data.get('chapter_id').trim() || null, deadline_at: deadline.toISOString(), answers_open_at: open.toISOString(), items }));
+        location.assign('/quizzes/' + result.id); return '测验草稿已创建。';
+      }); });
+    }
+    reload = async () => {
+      const data = await api('/api/v1/quizzes'); list.replaceChildren();
+      if (!data.items.length) list.append(element('li', '暂无可见测验。'));
+      for (const quiz of data.items) {
+        const row = element('li'); const link = element('a', quiz.title); link.href = '/quizzes/' + quiz.id;
+        row.append(link, element('span', (quiz.published ? '已发布' : '草稿') + ' · 截止 ' + new Date(quiz.deadline_at).toLocaleString())); list.append(row);
+      }
+      if (form) {
+        const questions = await api('/api/v1/questions');
+        const container = $('question-choices'); container.replaceChildren();
+        const reviewed = questions.items.filter(item => item.reviewed);
+        if (!reviewed.length) container.append(element('p', '暂无已审核题目，请先到题库建题并审核。'));
+        for (const question of reviewed) {
+          const label = element('label');
+          const box = element('input'); box.type = 'checkbox'; box.value = question.id;
+          const points = element('input'); points.type = 'number'; points.min = '1'; points.max = '100'; points.value = '10'; points.setAttribute('aria-label', question.stem + '的分值');
+          label.append(box, element('span', question.stem), points); container.append(label);
+        }
+      }
+    };
+  } else {
+    const itemsContainer = $('quiz-items');
+    let quiz = null, draft = null, requestKey = null;
+    function currentAnswers() {
+      const answers = {};
+      for (const item of quiz.items) {
+        const chosen = itemsContainer.querySelector('input[name="answer-' + item.id + '"]:checked');
+        if (chosen) answers[item.id] = chosen.value;
+      }
+      return answers;
+    }
+    const renderStudent = async () => {
+      draft = await api('/api/v1/quizzes/' + teachingTarget + '/draft');
+      for (const [id, value] of Object.entries(draft.answers)) {
+        const input = itemsContainer.querySelector('input[name="answer-' + id + '"][value="' + value + '"]');
+        if (input) input.checked = true;
+      }
+      const result = await api('/api/v1/quizzes/' + teachingTarget + '/my-submission');
+      const panel = $('my-result'); panel.replaceChildren();
+      if (!result.submitted) panel.append(element('p', '尚未正式提交。'));
+      else {
+        panel.append(element('p', '已正式提交：' + new Date(result.accepted_at).toLocaleString()));
+        if (result.score === undefined) panel.append(element('p', '成绩与答案将在开放时间后显示。'));
+        else {
+          panel.append(element('p', '得分 ' + result.score + ' / ' + result.max_score));
+          for (const detail of result.details) panel.append(element('p', (detail.correct ? '正确' : '错误') + ' · 正确答案：' + detail.answer + ' · ' + detail.explanation));
+        }
+      }
+      const closed = result.submitted || new Date(draft.server_time) >= new Date(draft.deadline_at);
+      $('save-draft').disabled = closed; $('submit-quiz').disabled = closed;
+    };
+    $('save-draft')?.addEventListener('click', event => act(event.currentTarget, async () => {
+      draft = await api('/api/v1/quizzes/' + teachingTarget + '/draft', operation('PUT', { draft_revision: draft.revision, answers: currentAnswers() }));
+      return '草稿已保存。';
+    }));
+    $('submit-quiz')?.addEventListener('click', event => act(event.currentTarget, async () => {
+      if (!confirm('正式提交后不能修改，确定提交吗？')) return '';
+      requestKey ||= crypto.randomUUID();
+      await api('/api/v1/quizzes/' + teachingTarget + '/submissions', operation('POST', { draft_revision: draft.revision, answers: currentAnswers() }, requestKey));
+      await renderStudent(); return '正式提交成功。';
+    }));
+    $('publish-quiz')?.addEventListener('click', event => act(event.currentTarget, async () => {
+      await api('/api/v1/quizzes/' + teachingTarget + '/publications', operation('POST', {}));
+      await reload(); return '测验已发布，题目与名单已冻结。';
+    }));
+    reload = async () => {
+      quiz = await api('/api/v1/quizzes/' + teachingTarget);
+      $('quiz-detail-title').textContent = quiz.title;
+      $('quiz-meta').textContent = (quiz.published ? '已发布' : '草稿') + ' · 截止 ' + new Date(quiz.deadline_at).toLocaleString() + ' · 答案开放 ' + new Date(quiz.answers_open_at).toLocaleString();
+      itemsContainer.replaceChildren();
+      for (const item of quiz.items) {
+        const section = element('section'); section.className = 'card';
+        section.append(element('h2', (item.position || '') + '. ' + (item.stem || item.question_id) + '（' + item.points + ' 分）'));
+        if (teachingRole === 'student') {
+          item.options.forEach((option, index) => {
+            const label = element('label'); const input = element('input'); input.type = 'radio'; input.name = 'answer-' + item.id;
+            input.value = item.kind === 'single_choice' ? String.fromCharCode(65 + index) : (index === 0 ? 'true' : 'false');
+            label.append(input, element('span', option)); section.append(label);
+          });
+        } else if (quiz.published) section.append(element('p', '正确答案：' + item.answer + ' · ' + item.explanation));
+        itemsContainer.append(section);
+      }
+      if (teachingRole === 'student') await renderStudent();
+      else {
+        $('publish-quiz').hidden = quiz.published;
+        const results = $('teacher-results'); results.replaceChildren();
+        if (quiz.published) {
+          const data = await api('/api/v1/quizzes/' + teachingTarget + '/submission-results');
+          if (!data.items.length) results.append(element('p', '暂无正式提交。'));
+          for (const item of data.items) results.append(element('p', item.student_id + ' · ' + item.score + ' / ' + item.max_score));
+        } else results.append(element('p', '发布后显示提交情况。'));
+      }
+    };
+  }
+  load();

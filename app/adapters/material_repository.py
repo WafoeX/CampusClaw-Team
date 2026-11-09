@@ -9,6 +9,7 @@ from app.adapters.index_schema_v5 import chunks
 from app.adapters.index_schema_v6 import operations
 from app.adapters.index_schema_v7 import builds, tombstones
 from app.adapters.material_schema_v2 import bodies, deletions, uploads
+from app.adapters.teaching_schema_v10 import question_versions, quiz_items
 
 
 class MaterialRepository:
@@ -129,6 +130,16 @@ class MaterialRepository:
 
     def remove(self, connection, material_id, deleted_at):
         redact_material_copies(connection, material_id, deleted_at)
+        connection.execute(
+            update(question_versions)
+            .where(question_versions.c.source_material_id == material_id)
+            .values(source_material_id=None)
+        )
+        connection.execute(
+            update(quiz_items)
+            .where(quiz_items.c.source_material_id == material_id)
+            .values(source_material_id=None)
+        )
         indexed = (
             connection.execute(
                 select(builds).where(builds.c.material_id == material_id)

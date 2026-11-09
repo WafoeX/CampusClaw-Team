@@ -21,6 +21,7 @@ from app.adapters.model_lease_repository import ModelLeaseRepository
 from app.adapters.probes import check_mysql, check_qdrant
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.adapters.retrieval_repository import RetrievalRepository
+from app.adapters.teaching_repository import TeachingRepository
 from app.api.ai_apps import AI_POLICIES, install_ai_apps
 from app.api.answers import ANSWER_POLICIES, install_answers
 from app.api.auth import (
@@ -38,6 +39,8 @@ from app.api.openapi import DOC_POLICIES, install_openapi
 from app.api.retrieval import RETRIEVAL_POLICIES, install_retrieval
 from app.api.sessions import SESSION_POLICIES, install_sessions
 from app.api.skills import SKILL_POLICIES, install_skills
+from app.api.teaching import TEACHING_POLICIES, install_teaching
+from app.api.teaching_pages import TEACHING_PAGE_POLICIES, install_teaching_pages
 from app.config import Settings
 from app.observability import log_event
 from app.services.ai_apps import AIApplicationService
@@ -51,6 +54,7 @@ from app.services.model_gate import ModelGate
 from app.services.rate_limits import RequestLimiter
 from app.services.retrieval import RetrievalService
 from app.services.streaming import LongRequestCapacity
+from app.services.teaching import TeachingService
 
 VERSION_FILE = Path(__file__).with_name("BUILD_VERSION")
 
@@ -77,6 +81,7 @@ def create_app(
     retrieval=None,
     answers=None,
     ai_apps=None,
+    teaching=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -103,6 +108,7 @@ def create_app(
             or retrieval is None
             or answers is None
             or ai_apps is None
+            or teaching is None
         ):
             engine = mysql_engine(
                 host=settings.mysql_host,
@@ -124,6 +130,8 @@ def create_app(
             limiter = RequestLimiter(RateLimitRepository(engine), DatabaseError)
         if chapters is None:
             chapters = ChapterService(ChapterRepository(engine), DatabaseError)
+        if teaching is None:
+            teaching = TeachingService(TeachingRepository(engine), DatabaseError)
 
         def model_event(**details):
             log_event(
@@ -221,6 +229,8 @@ def create_app(
             **SKILL_POLICIES,
             **SESSION_POLICIES,
             **DOC_POLICIES,
+            **TEACHING_POLICIES,
+            **TEACHING_PAGE_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
     install_http(
@@ -246,4 +256,6 @@ def create_app(
         install_sessions(app, ai_apps, retrieval)
         install_material_pages(app)
         install_openapi(app)
+        install_teaching(app, teaching)
+        install_teaching_pages(app)
     return app

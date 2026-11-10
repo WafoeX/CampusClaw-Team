@@ -839,15 +839,152 @@
         "test": "tests/integration/test_compose.py",
         "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
       }
+    },
+    "2026-11-04-add-async-teaching-workflows/specs/reviewed-question-bank/spec.md": {
+      "QB-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert created.status_code == 201, created.json"
+      },
+      "QB-N02": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "AI 候选题和异步批次未进入本次人工题库范围"
+      },
+      "QB-B01": {
+        "pending": "4.1",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "候选题上限和空证据依赖 AI 接入"
+      },
+      "QB-F01": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "人工题目输入已测；模型输出失败路径待 AI 候选题接入"
+      },
+      "QB-F02": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_QB_F02_QZ_F02_student_cannot_manage"
+      },
+      "QB-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(outsider, \"GET\", f\"/api/v1/questions/{question_id}\").json[\"code\"] == 1300"
+      },
+      "QB-F04": {
+        "pending": "4.1",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "模型与向量候选路径尚未接入"
+      },
+      "QB-F05": {
+        "pending": "4.2",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "AI 候选在途撤权尚未接入"
+      }
+    },
+    "2026-11-04-add-async-teaching-workflows/specs/published-class-quizzes/spec.md": {
+      "QZ-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert published.status_code == 200, published.json"
+      },
+      "QZ-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert opened.status_code == 200 and opened.json[\"data\"][\"score\"] == 15"
+      },
+      "QZ-F01": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_QZ_F01_invalid_configuration_has_no_write"
+      },
+      "QZ-F02": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_QB_F02_QZ_F02_student_cannot_manage"
+      },
+      "QZ-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(outsider, \"GET\", f\"/api/v1/quizzes/{quiz_id}\").status_code == 404"
+      },
+      "QZ-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert connection.scalar(select(quizzes.c.published_at).where(quizzes.c.id == new_quiz_id)) is None"
+      },
+      "QZ-F05": {
+        "pending": "5.3",
+        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
+        "reason": "现有页面和 API 门控已测；普通会话及 MCP 旁路待对应服务接入后回归"
+      }
+    },
+    "2026-11-04-add-async-teaching-workflows/specs/async-quiz-submissions/spec.md": {
+      "SB-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert first.status_code == 201 and set(first.json[\"data\"]) == {\"submission_id\", \"accepted_at\"}"
+      },
+      "SB-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert cutoff.status_code == 409 and cutoff.json[\"code\"] == 1402"
+      },
+      "SB-B02": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SB-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(again,\"POST\",f\"/api/v1/quizzes/{quiz_id}/submissions\",{\"draft_revision\":1,\"answers\":{\"bogus\":\"A\"}},key=\"bad-answer\").status_code == 400"
+      },
+      "SB-F02": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_SB_F02_teacher_cannot_submit_and_anonymous_cannot_read"
+      },
+      "SB-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(late, \"GET\", f\"/api/v1/quizzes/{quiz_id}\").status_code == 404"
+      },
+      "SB-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert connection.scalar(select(quiz_submissions.c.id).where(quiz_submissions.c.quiz_id == quiz_id)) is None"
+      },
+      "SB-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert same_student[1].status_code == 409 and same_student[1].json[\"code\"] == 1401"
+      }
     }
   },
   "planned": {
-    "2026-11-04-add-async-teaching-workflows/specs/async-quiz-submissions/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-async-teaching-workflows/specs/class-learning-insights/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-async-teaching-workflows/specs/durable-teaching-jobs/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-async-teaching-workflows/specs/published-class-quizzes/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-async-teaching-workflows/specs/reviewed-question-bank/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-controlled-mcp-tools/specs/class-tool-connectors/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-controlled-mcp-tools/specs/guarded-tool-dialogue/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-controlled-mcp-tools/specs/mcp-teaching-service/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",

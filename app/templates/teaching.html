@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情'}[view] }} · CampusClaw</title>
+  {% include '_page_styles.html' %}
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand"><span class="mark" aria-hidden="true">🎓</span><strong>CampusClaw</strong></div>
+    <nav aria-label="班级导航">
+      <a href="/materials">班级资料</a>
+      <a href="/chapters">班级章节</a>
+      <a href="/quizzes"{% if view in ('quizzes','quiz') %} aria-current="page"{% endif %}>班级测验</a>
+      {% if actor.role == 'teacher' %}
+      <a href="/console">教师工作台</a>
+      <a href="/console/questions"{% if view == 'questions' %} aria-current="page"{% endif %}>题库</a>
+      {% endif %}
+    </nav>
+  </aside>
+  <div>
+    <header><strong>{{ actor.class_name }}</strong><span>{{ actor.login_name }} · {{ '教师' if actor.role == 'teacher' else '学生' }}</span></header>
+    <main>
+      <h1>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情'}[view] }}</h1>
+      <p class="muted">{% if view == 'questions' %}人工建题、修改与审核；未审核修订不能发布。{% elif actor.role == 'student' %}仅展示你在发布时已列入名单的测验；成绩和答案在开放后显示。{% else %}发布后题目和参与名单保持不变。{% endif %}</p>
+      <p id="notice" class="status" role="status">正在加载…</p>
+      <button id="retry" type="button" hidden>重试加载</button>
+      {% if view == 'questions' %}
+      <section class="card" aria-labelledby="question-title">
+        <h2 id="question-title">新建或修改题目</h2>
+        <form id="question-form">
+          <label>题型 <select name="kind"><option value="single_choice">单选题</option><option value="true_false">判断题</option></select></label>
+          <label>题干 <textarea name="stem" maxlength="2000" required></textarea></label>
+          <label>单选选项（每行一个，2–6 行）<textarea name="options" maxlength="3000"></textarea></label>
+          <label>正确答案（单选填 A–F，判断填 true 或 false）<input name="answer" maxlength="8" required></label>
+          <label>解析 <textarea name="explanation" maxlength="2000" required></textarea></label>
+          <label>本班资料 ID（可选）<input name="source_material_id" maxlength="36"></label>
+          <div class="row"><button class="primary" type="submit">保存题目</button><button id="question-reset" type="button">取消修改</button></div>
+        </form>
+      </section>
+      <section class="card" aria-labelledby="question-list-title"><h2 id="question-list-title">本班题目</h2><ul id="question-list"></ul></section>
+      {% elif view == 'quizzes' %}
+      {% if actor.role == 'teacher' %}
+      <section class="card" aria-labelledby="quiz-create-title">
+        <h2 id="quiz-create-title">创建测验草稿</h2>
+        <form id="quiz-form">
+          <label>标题 <input name="title" maxlength="120" required></label>
+          <label>章节 ID（可选）<input name="chapter_id" maxlength="36"></label>
+          <label>截止时间 <input name="deadline_at" type="datetime-local" required></label>
+          <label>答案开放时间 <input name="answers_open_at" type="datetime-local" required></label>
+          <fieldset><legend>已审核题目</legend><div id="question-choices">正在加载…</div></fieldset>
+          <button class="primary" type="submit">创建草稿</button>
+        </form>
+      </section>
+      {% endif %}
+      <section class="card" aria-labelledby="quiz-list-title"><h2 id="quiz-list-title">{{ '本班测验' if actor.role == 'teacher' else '我的测验' }}</h2><ul id="quiz-list"></ul></section>
+      {% else %}
+      <section class="card" aria-labelledby="quiz-detail-title">
+        <h2 id="quiz-detail-title">测验内容</h2>
+        <p id="quiz-meta" class="muted"></p>
+        <div id="quiz-items"></div>
+        {% if actor.role == 'student' %}
+        <div class="row"><button id="save-draft" type="button">保存草稿</button><button id="submit-quiz" class="primary" type="button">正式提交</button></div>
+        <section aria-labelledby="my-result-title"><h2 id="my-result-title">我的提交</h2><div id="my-result" role="status"></div></section>
+        {% else %}
+        <button id="publish-quiz" class="primary" type="button" hidden>发布测验</button>
+        <section aria-labelledby="results-title"><h2 id="results-title">正式提交</h2><div id="teacher-results" role="status"></div></section>
+        {% endif %}
+      </section>
+      {% endif %}
+    </main>
+  </div>
+</div>
+<script nonce="{{ nonce }}">
+  const teachingView = {{ view | tojson }};
+  const teachingTarget = {{ target | tojson }};
+  const teachingRole = {{ actor.role | tojson }};
+  {% include '_teaching_script.html' %}
+</script>
+</body>
+</html>

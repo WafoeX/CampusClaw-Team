@@ -247,6 +247,7 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     assert status("ready")[0] == 200
 
     verify_retrieval(compose, "delete")
+    verify_teaching_core(compose)
     verify_streaming_proxy(compose, tmp_path / "streaming-proxy")
 
     started = time.monotonic()
@@ -306,6 +307,17 @@ def verify_chapter_api(compose):
         "python",
         "-c",
         Path(__file__).with_name("chapter_api_runtime.py").read_text(),
+    )
+
+
+def verify_teaching_core(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("teaching_runtime.py").read_text(),
     )
 
 

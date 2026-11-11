@@ -1,0 +1,7 @@
+{
+  "method": "GET",
+  "path": "/api/v1/tool-connectors",
+  "pytest": [
+    "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+  ]
+}

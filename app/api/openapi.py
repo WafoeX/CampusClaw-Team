@@ -42,11 +42,17 @@ CONFIG = {
 }
 SCOPE = {"type": "string", "description": "本班章节 UUID 或 uncategorized"}
 MODE = {"type": "string", "enum": ["keyword", "vector", "hybrid"]}
+TOOL_REF = {"type": "string", "pattern": r"^[a-z][a-z0-9_]{0,63}@[a-z][a-z0-9-]{0,62}$"}
 SKILL = {
     "name": CONFIG["name"],
     "conditions": {"type": "array", "items": TEXT, "minItems": 1, "maxItems": 16},
     "enabled": ENABLED,
-    "tools": {"type": "array", "items": {"enum": ["knowledge_search"]}, "maxItems": 1},
+    "tools": {
+        "type": "array",
+        "items": {"oneOf": [{"enum": ["knowledge_search"]}, TOOL_REF]},
+        "maxItems": 17,
+        "uniqueItems": True,
+    },
     "steps": {
         "type": "array",
         "minItems": 1,
@@ -147,11 +153,30 @@ REQUESTS = {
     "create_private_session": obj(
         {"assistant_id": ID, "mode": {"enum": ["material_qa", "problem_guidance"]}}
     ),
+    "register_tool_connector": obj({"alias": TEXT, "key": TEXT}),
+    "connect_tool_connector": obj({}),
+    "review_connector_tool": obj(
+        {
+            "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "enabled": ENABLED,
+        }
+    ),
+    "issue_unit_practice": obj({}),
     "send_private_message": obj(
         {
             "question": {"type": "string", "minLength": 2, "maxLength": 500},
             "chapter_scope": SCOPE,
             "retrieval_mode": MODE,
+            "selected_tools": {
+                "type": "array",
+                "items": TOOL_REF,
+                "maxItems": 3,
+                "uniqueItems": True,
+            },
+            "practice_context": {
+                "type": "string",
+                "description": "当前会话签发的短期单位练习票据",
+            },
         },
         ["question"],
     ),
@@ -183,6 +208,7 @@ KEYED = {
     "create_assistants",
     "create_private_session",
     "send_private_message",
+    "issue_unit_practice",
     "run_ai_app",
 }
 ENDPOINTS = set(REQUESTS) | {
@@ -208,6 +234,13 @@ ENDPOINTS = set(REQUESTS) | {
     "read_private_session",
     "read_history_citation",
     "list_teaching_feedback",
+    "tool_connector_options",
+    "list_tool_connectors",
+    "read_tool_connector",
+    "delete_tool_connector",
+    "disconnect_tool_connector",
+    "list_connector_tools",
+    "tool_call_audit",
 }
 ENVELOPE = obj(
     {"code": {"type": "integer"}, "message": TEXT, "data": {}, "request_id": TEXT}
@@ -247,7 +280,11 @@ def document(app):
                         },
                     }
                 )
-            if endpoint.startswith("list_") or endpoint == "read_private_session":
+            if (
+                endpoint.startswith("list_")
+                and endpoint != "list_connector_tools"
+                or endpoint in {"read_private_session", "tool_call_audit"}
+            ):
                 for name, default, maximum in (
                     ("page", 1, 1_000_000),
                     ("page_size", 20, 100),

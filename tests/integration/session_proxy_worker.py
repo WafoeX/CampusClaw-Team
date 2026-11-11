@@ -25,9 +25,10 @@ from app.config import ChatSettings
 from app.services.auth import utc_now
 
 
-def install(app, engine, class_id, creator_id, material_id):
+def install(
+    app, engine, class_id, creator_id, material_id, *, text="电压为24伏，频率为50赫兹。"
+):
     now = utc_now()
-    text = "电压为24伏，频率为50赫兹。"
     assistant_id = str(uuid4())
     skill_id = str(uuid4())
     with engine.begin() as connection:
@@ -226,3 +227,5 @@ def install(app, engine, class_id, creator_id, material_id):
                     .values(revision=revision)
                 )
         return success({})
+
+    return assistant_id, skill_id

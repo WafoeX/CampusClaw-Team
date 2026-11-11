@@ -113,6 +113,42 @@ def serve_upstream():
                 assert "B班秘密资料" not in json.dumps(payload, ensure_ascii=False)
                 data = json.loads(payload["messages"][1]["content"])
                 identifier = data["question"].split()[-1]
+                if "candidates" in data:
+                    assert (
+                        identifier.startswith("tool-proxy")
+                        and len(data["candidates"]) == 1
+                    )
+                    calls = (
+                        []
+                        if data["tool_data"]
+                        else [
+                            {
+                                "tool": data["candidates"][0]["reference"],
+                                "arguments": {
+                                    "topic": "linear_equation",
+                                    "stage": "start",
+                                },
+                            }
+                        ]
+                    )
+                    encoded = json.dumps(
+                        {
+                            "choices": [
+                                {
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": json.dumps({"calls": calls}),
+                                    },
+                                    "finish_reason": "stop",
+                                }
+                            ]
+                        }
+                    ).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(encoded)))
+                    self.end_headers()
+                    self.wfile.write(encoded)
+                    return
                 second = data["paragraph"] == 2
                 gate = threading.Event()
                 finished = False
@@ -149,6 +185,8 @@ def serve_upstream():
                             else "频率为50赫兹"
                         )
                     ) | {"more": not second}
+                    if identifier.startswith("tool-proxy"):
+                        result["more"] = False
                     if second and identifier.startswith("protected"):
                         result = paragraph("未开放答案731") | {"more": False}
                     if second and identifier.startswith("citation"):
@@ -237,6 +275,20 @@ def load_worker():
                     updated_at=now,
                 )
             )
+        connection.execute(
+            insert(accounts).values(
+                id=str(uuid4()),
+                login_name="sse_tool_teacher",
+                class_id=class_id,
+                role="teacher",
+                enabled=True,
+                password_hash=generate_password_hash(
+                    os.environ["SSE_PROBE_PASSWORD"], method="scrypt"
+                ),
+                created_at=now,
+                updated_at=now,
+            )
+        )
         creator_id = connection.execute(
             select(accounts.c.id).where(accounts.c.class_id == class_id)
         ).first()[0]

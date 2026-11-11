@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ {'console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈'}.get(view, '班级资料') }} · CampusClaw</title>
+  <title>{{ {'console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈','connectors':'班级工具'}.get(view, '班级资料') }} · CampusClaw</title>
   {% include '_page_styles.html' %}
 </head>
 <body>
@@ -22,6 +22,7 @@
       <a href="/swagger">接口试调</a>
       {% if actor.role == 'teacher' %}
       <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
+      <a href="/console/connectors"{% if view == 'connectors' %} aria-current="page"{% endif %}>班级工具</a>
       <a href="/console/skills"{% if view == 'skills' %} aria-current="page"{% endif %}>班级技能</a>
       <a href="/console/feedback"{% if view == 'feedback' %} aria-current="page"{% endif %}>问题反馈</a>
       <a href="/console/questions">题库</a>
@@ -38,10 +39,12 @@
       </div>
     </header>
     <main>
-      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈'}[view] }}</h1>
-      <p class="muted">{% if view == 'feedback' %}查看本班学生主动分享的学习卡点，并记录处理状态。{% elif view == 'runs' %}执行记录仅本人可见，教师无法查看他人的私人记录。{% elif view in ('apps','templates') %}选择本班模板，预览内容后再执行学习应用。{% else %}资料仅向当前班级的已授权成员开放。{% endif %}</p>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈','connectors':'班级工具'}[view] }}</h1>
+      <p class="muted">{% if view == 'connectors' %}连接部署批准的服务，审阅工具定义后启用。{% elif view == 'feedback' %}查看本班学生主动分享的学习卡点，并记录处理状态。{% elif view == 'runs' %}执行记录仅本人可见，教师无法查看他人的私人记录。{% elif view in ('apps','templates') %}选择本班模板，预览内容后再执行学习应用。{% else %}资料仅向当前班级的已授权成员开放。{% endif %}</p>
       <p id="notice" class="status" role="status"></p>
-      {% if view == 'feedback' %}
+      {% if view == 'connectors' %}
+      {% include "_connectors_panel.html" %}
+      {% elif view == 'feedback' %}
       {% include "_feedback_panel.html" %}
       {% elif view == 'sessions' %}
       {% include "_sessions_panel.html" %}
@@ -63,7 +66,7 @@
         <p id="upload-status" class="status" role="status"></p>
       </section>
       {% endif %}
-      {% if view in ('sessions','skills','apps','templates','runs','feedback') %}
+      {% if view in ('sessions','skills','apps','templates','runs','feedback','connectors') %}
       {% elif view in ('search','ask') %}
       <section class="card" aria-labelledby="search-title">
         <h2 id="search-title">{{ '向本班资料提问' if view == 'ask' else '检索本班资料' }}</h2>
@@ -136,7 +139,9 @@
   const view = {{ view | tojson }};
   const target = {{ target | tojson }};
   const indexingEnabled = {{ indexing_enabled | tojson }};
-  {% if view == 'feedback' %}
+  {% if view == 'connectors' %}
+  {% include "_connectors_script.html" %}
+  {% elif view == 'feedback' %}
   {% include "_feedback_script.html" %}
   {% elif view == 'sessions' %}
   {% include "_sessions_script.html" %}

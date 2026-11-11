@@ -18,6 +18,7 @@ SESSION_POLICIES = {
         ("create_private_session", ("POST",)),
         ("read_private_session", ("GET", "HEAD")),
         ("send_private_message", ("POST",)),
+        ("issue_unit_practice", ("POST",)),
         ("read_history_citation", ("GET", "HEAD")),
         ("put_message_feedback", ("PUT",)),
     )
@@ -30,8 +31,8 @@ SESSION_POLICIES.update(
 SESSION_POLICIES[("handle_teaching_feedback", "PATCH")] = AI_CONFIGURE
 
 
-def install_sessions(app, ai_apps, retrieval):
-    service = SessionService(ai_apps, retrieval)
+def install_sessions(app, ai_apps, retrieval, tool_connectors=None, unit_practice=None):
+    service = SessionService(ai_apps, retrieval, tool_connectors, unit_practice)
     app.extensions["private_sessions"] = service
     feedback = FeedbackService(service)
     app.extensions["teaching_feedback"] = feedback
@@ -69,6 +70,15 @@ def install_sessions(app, ai_apps, retrieval):
             g.request_id,
         )
         return stream_response(stream)
+
+    @app.post("/api/v1/sessions/<session_id>/unit-practice")
+    def issue_unit_practice(session_id):
+        body(set())
+        return success(
+            service.issue_practice(
+                g.identity, request.cookies.get(COOKIE), identifier(session_id), key()
+            )
+        )
 
     @app.get("/api/v1/sessions/<session_id>")
     def read_private_session(session_id):

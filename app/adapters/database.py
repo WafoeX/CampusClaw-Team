@@ -1,7 +1,8 @@
 from sqlalchemy import URL, create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError as DatabaseError
 
-__all__ = ["DatabaseError", "mysql_engine"]
+__all__ = ["DatabaseError", "IntegrityError", "mysql_engine"]
 
 
 def mysql_engine(*, host, port, database, user, password):

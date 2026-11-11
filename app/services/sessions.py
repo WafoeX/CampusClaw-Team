@@ -21,6 +21,7 @@ from app.services.answer_validation import (
 from app.services.materials import missing, unavailable
 from app.services.skills import HINTS, render_selection, select_skill
 from app.services.skills import NO_EVIDENCE as NO_GUIDANCE_EVIDENCE
+from app.services.tool_connectors import references
 
 KEY = re.compile(rb"[A-Za-z0-9_-]{1,64}")
 
@@ -28,7 +29,14 @@ KEY = re.compile(rb"[A-Za-z0-9_-]{1,64}")
 def request_input(payload):
     if (
         not isinstance(payload, dict)
-        or payload.keys() - {"question", "chapter_scope", "retrieval_mode"}
+        or payload.keys()
+        - {
+            "question",
+            "chapter_scope",
+            "retrieval_mode",
+            "selected_tools",
+            "practice_context",
+        }
         or "question" not in payload
     ):
         raise bad()
@@ -41,7 +49,17 @@ def request_input(payload):
     mode = payload.get("retrieval_mode", "keyword")
     if not isinstance(mode, str) or mode not in ("keyword", "vector", "hybrid"):
         raise bad()
-    return {"question": question, "chapter_scope": chapter, "retrieval_mode": mode}
+    normalized = {
+        "question": question,
+        "chapter_scope": chapter,
+        "retrieval_mode": mode,
+    }
+    selected = references(payload.get("selected_tools", []))
+    if len(selected) > 3:
+        raise bad("本轮最多选择三个工具")
+    if selected:
+        normalized["selected_tools"] = selected
+    return normalized
 
 
 def session_view(row):
@@ -57,10 +75,26 @@ def valid_key(key):
 
 
 class SessionService:
-    def __init__(self, ai_apps, retrieval):
+    def __init__(self, ai_apps, retrieval, tool_connectors=None, unit_practice=None):
         self.ai = ai_apps
         self.repository = ai_apps.repository
         self.retrieval = retrieval
+        self.tool_connectors = tool_connectors
+        self.unit_practice = unit_practice
+
+    def issue_practice(self, identity, cookie, session_id, key):
+        valid_key(key)
+        try:
+            with self.repository.transaction() as connection:
+                self.ai._actor(connection, identity, cookie)
+                session = self._session(connection, identity, session_id)
+                if session["mode"] != "material_qa":
+                    raise bad("当前会话模式不支持单位练习")
+                if self.unit_practice is None:
+                    raise unavailable()
+                return self.unit_practice.issue(identity, session_id, key)
+        except self.ai.database_error:
+            raise unavailable() from None
 
     def _session(self, connection, identity, session_id):
         row = self.repository.lock_session(connection, identity, session_id)
@@ -213,12 +247,41 @@ class SessionService:
                             created_at=row["created_at"].isoformat() + "Z",
                         )
                     )
-                return session_view(session) | {
+                response = session_view(session) | {
                     "messages": items,
                     "total": total,
                     "page": page,
                     "page_size": size,
                 }
+                if self.tool_connectors is not None and self.tool_connectors.directory:
+                    _, _, skills = self._configuration(connection, identity, session)
+                    refs = sorted(
+                        {
+                            ref
+                            for skill in skills
+                            if skill["enabled"]
+                            for ref in skill["definition"]["tools"]
+                            if ref != "knowledge_search"
+                        }
+                    )
+                    options = self.tool_connectors.candidates(
+                        connection,
+                        identity,
+                        refs,
+                        session["mode"],
+                        practice=self.unit_practice,
+                    )
+                    if options:
+                        response["tool_options"] = [
+                            {
+                                "ref": ref,
+                                "label": item["policy"].definition["description"],
+                                "requires_practice": item["row"]["name"]
+                                == "unit_convert",
+                            }
+                            for ref, item in options.items()
+                        ]
+                return response
         except self.ai.database_error:
             raise unavailable() from None
 
@@ -305,6 +368,16 @@ class SessionService:
         valid_key(key)
         normalized = request_input(payload)
         identifier(session_id)
+        if "practice_context" in payload:
+            if self.unit_practice is None:
+                raise bad("当前环境未启用单位练习")
+            normalized["unit_practice"] = self.unit_practice.verify(
+                identity,
+                session_id,
+                key,
+                normalized["question"],
+                payload["practice_context"],
+            )
         deadline = deadline or time.monotonic() + 35
         try:
             with self.repository.transaction() as connection:
@@ -313,6 +386,10 @@ class SessionService:
                 _, replay = self._prior(connection, identity, session, key, normalized)
                 if replay:
                     return replay
+                if "unit_practice" in normalized:
+                    if session["mode"] != "material_qa":
+                        raise bad("当前会话模式不支持单位练习")
+                    self.unit_practice.check_expiry(normalized["unit_practice"])
                 self._expiry()
                 configuration, prompt, skills = self._configuration(
                     connection, identity, session
@@ -349,6 +426,19 @@ class SessionService:
                 ):
                     raise conflict()
                 selected = select_skill(normalized["question"], skills)
+                requested_tools = normalized.get("selected_tools", [])
+                bound = selected["definition"]["tools"] if selected else []
+                candidates = (
+                    self.tool_connectors.candidates(
+                        connection,
+                        identity,
+                        [ref for ref in requested_tools if ref in bound],
+                        session["mode"],
+                        practice=normalized.get("unit_practice"),
+                    )
+                    if self.tool_connectors and evidence and requested_tools
+                    else {}
+                )
                 now = self.ai.clock()
                 expiry = min(
                     session["expires_at"],
@@ -423,6 +513,7 @@ class SessionService:
                     configuration=configuration,
                     effective_prompt=prompt,
                     selected_skill=selected,
+                    tool_candidates=candidates,
                     evidence=evidence,
                     history=history,
                     normalized=normalized,
@@ -468,7 +559,7 @@ class SessionService:
         except self.ai.database_error:
             raise unavailable() from None
 
-    def finish(self, identity, cookie, ticket, payload, *, segments=None):
+    def finish(self, identity, cookie, ticket, payload, *, segments=None, tools=None):
         """持久成功必须由本服务重验模型结构，不能相信调用方传入自由正文。"""
         steps = []
         if ticket["configuration"]["app_key"] == "problem_guidance":
@@ -536,7 +627,8 @@ class SessionService:
                     connection,
                     ticket,
                     status="succeeded",
-                    details={"text": text, "steps": steps},
+                    details={"text": text, "steps": steps}
+                    | ({"tools": tools} if tools else {}),
                     duration_ms=round((time.monotonic() - ticket["started"]) * 1000),
                     now=now,
                 )

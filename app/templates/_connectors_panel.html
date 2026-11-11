@@ -1,0 +1,26 @@
+<section class="card" aria-labelledby="register-tool">
+  <h2 id="register-tool">登记连接</h2>
+  <form id="connector-form">
+    <label>批准的服务 <select id="connector-option" required disabled></select></label>
+    <label>服务别名 <input id="connector-alias" required maxlength="63" pattern="[a-z][a-z0-9\-]{0,62}" aria-describedby="connector-hint"></label>
+    <p class="muted" id="connector-hint">以小写英文字母开头，可含数字和连字符。登记后别名固定。</p>
+    <button type="submit" class="primary" id="connector-submit" disabled>登记</button>
+  </form>
+</section>
+<section class="card" aria-labelledby="tool-audit-title">
+  <h2 id="tool-audit-title">本班工具运行记录</h2>
+  <p class="status" id="tool-audit-status" role="status">正在加载…</p>
+  <ul id="tool-audit-list"></ul>
+  <button type="button" id="tool-audit-refresh">刷新记录</button>
+  <button type="button" id="tool-audit-prev" disabled>上一页记录</button>
+  <button type="button" id="tool-audit-next" disabled>下一页记录</button>
+</section>
+<section class="card" aria-labelledby="connector-title">
+  <h2 id="connector-title">本班连接</h2>
+  <p id="connector-status" class="status" role="status">正在加载…</p>
+  <button type="button" id="connector-retry" hidden>重新加载</button>
+  <ul id="connector-list"></ul>
+  <button type="button" id="connector-prev" disabled>上一页</button>
+  <span id="connector-page"></span>
+  <button type="button" id="connector-next" disabled>下一页</button>
+</section>

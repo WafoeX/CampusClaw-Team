@@ -22,8 +22,8 @@ SKILL_POLICIES = {
 }
 
 
-def install_skills(app, ai_apps):
-    service = SkillService(ai_apps)
+def install_skills(app, ai_apps, tool_connectors=None):
+    service = SkillService(ai_apps, tool_connectors)
 
     @app.after_request
     def skills_no_cache(response):

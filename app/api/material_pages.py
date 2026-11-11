@@ -22,6 +22,7 @@ PAGE_PERMISSIONS = {
     "templates_page": AI_CONFIGURE,
     "skills_page": AI_CONFIGURE,
     "feedback_page": AI_CONFIGURE,
+    "connectors_page": AI_CONFIGURE,
 }
 PAGE_POLICIES = {
     (endpoint, method): permission
@@ -66,6 +67,10 @@ def install_material_pages(app):
     @app.get("/console/feedback")
     def feedback_page():
         return render("feedback")
+
+    @app.get("/console/connectors")
+    def connectors_page():
+        return render("connectors")
 
     @app.get("/console/skills")
     def skills_page():

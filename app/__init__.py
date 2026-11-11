@@ -1,4 +1,5 @@
 import os
+import time
 from io import BytesIO
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from app.adapters.ai_repository import AIRepository
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.chapter_repository import ChapterRepository
 from app.adapters.chat_client import ChatClient, ChatProtocolError
-from app.adapters.database import DatabaseError, mysql_engine
+from app.adapters.database import DatabaseError, IntegrityError, mysql_engine
 from app.adapters.index_clients import (
     EmbeddingClient,
     IndexDependencyError,
@@ -22,6 +23,9 @@ from app.adapters.probes import check_mysql, check_qdrant
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.adapters.retrieval_repository import RetrievalRepository
 from app.adapters.teaching_repository import TeachingRepository
+from app.adapters.tool_protocol import ToolProtocol
+from app.adapters.tool_repository import ToolRepository
+from app.adapters.tool_transport import ToolDependencyError, ToolTransport
 from app.api.ai_apps import AI_POLICIES, install_ai_apps
 from app.api.answers import ANSWER_POLICIES, install_answers
 from app.api.auth import (
@@ -41,6 +45,7 @@ from app.api.sessions import SESSION_POLICIES, install_sessions
 from app.api.skills import SKILL_POLICIES, install_skills
 from app.api.teaching import TEACHING_POLICIES, install_teaching
 from app.api.teaching_pages import TEACHING_PAGE_POLICIES, install_teaching_pages
+from app.api.tool_connectors import TOOL_POLICIES, install_tool_connectors
 from app.config import Settings
 from app.observability import log_event
 from app.services.ai_apps import AIApplicationService
@@ -55,6 +60,9 @@ from app.services.rate_limits import RequestLimiter
 from app.services.retrieval import RetrievalService
 from app.services.streaming import LongRequestCapacity
 from app.services.teaching import TeachingService
+from app.services.tool_connectors import ToolConnectors
+from app.services.unit_practice import UnitPractice
+from app.tool_config import load_tool_directory
 
 VERSION_FILE = Path(__file__).with_name("BUILD_VERSION")
 
@@ -82,6 +90,7 @@ def create_app(
     answers=None,
     ai_apps=None,
     teaching=None,
+    tool_connectors=None,
 ):
     if settings is None:
         settings = Settings.load(os.environ, VERSION_FILE)
@@ -216,6 +225,25 @@ def create_app(
                 ),
             )
         resolve_identity = resolve_identity or (lambda: resolve_session(auth))
+        if tool_connectors is None:
+            try:
+                directory = load_tool_directory(os.environ)
+            except ValueError:
+                directory = {}
+                log_event(
+                    "tool_config",
+                    settings.version,
+                    level="ERROR",
+                    event="invalid_directory",
+                )
+            tool_connectors = ToolConnectors(
+                ai_apps,
+                ToolRepository(),
+                directory,
+                ToolProtocol(ToolTransport()),
+                ToolDependencyError,
+                IntegrityError,
+            )
         policies = {
             **(policies or {}),
             **AUTH_POLICIES,
@@ -231,6 +259,7 @@ def create_app(
             **DOC_POLICIES,
             **TEACHING_POLICIES,
             **TEACHING_PAGE_POLICIES,
+            **TOOL_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
     install_http(
@@ -252,10 +281,15 @@ def create_app(
         install_retrieval(app, retrieval)
         install_answers(app, answers)
         install_ai_apps(app, ai_apps)
-        install_skills(app, ai_apps)
-        install_sessions(app, ai_apps, retrieval)
+        install_skills(app, ai_apps, tool_connectors)
+        signing_key = os.environ.get("TOOL_PRACTICE_SIGNING_KEY", "").encode()
+        practice = (
+            UnitPractice(signing_key, time.time) if len(signing_key) >= 32 else None
+        )
+        install_sessions(app, ai_apps, retrieval, tool_connectors, practice)
         install_material_pages(app)
         install_openapi(app)
         install_teaching(app, teaching)
         install_teaching_pages(app)
+        install_tool_connectors(app, tool_connectors)
     return app

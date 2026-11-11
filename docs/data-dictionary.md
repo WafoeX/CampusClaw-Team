@@ -148,3 +148,19 @@ MySQL 启动固定 `ngram_token_size=2` 与 `innodb_ft_enable_stopword=OFF`，�
 | `quiz_audits` | 测验、操作者、created/published/submitted、时间 | 去内容审计，随教学数据清理 |
 
 题目及测验记录随所属班级/学期结束后 30 天内清理，隔离备份按现有 14 天轮转；正式生产启用前仍需登记学期、清理日期和责任人。来源资料的删除凭证覆盖备份恢复重放；恢复旧备份后先重放原文删除清单，使题目与发布快照来源指针再次去内容化，再恢复服务。当前验证仅在一次性合成库执行迁移、业务写入、回退与重升，未演练生产备份恢复。
+
+## 受控 MCP 工具（0011）
+
+连接和审批使用同班账号组合外键。连接软删保留稳定 ID 与班内别名，旧别名不复用。数据库保存部署目录键及配置指纹。服务令牌来自运行环境，协议会话标识只在宿主内存中使用。各时间字段为 UTC 微秒。
+
+| 表 | 字段 | 归属、约束与可见性 |
+| --- | --- | --- |
+| `tool_connectors` | `id,class_id,creator_id,alias,directory_key,directory_version,generation,status,created_at,updated_at,deleted_at` | 班内别名唯一；代次自 0 起，建立连接或撤销时推进。状态为 disconnected、connecting、connected。 |
+| `tool_discoveries` | `connector_id,name,class_id,generation,fingerprint,definition,approved,enabled` | 同班连接与工具名唯一；只保留有效发现清单。定义包含展示用说明及参数 schema，未审或部署策略未批准的定义不能执行。 |
+| `tool_approvals` | `id,class_id,connector_id,name,generation,fingerprint,definition,teacher_id,enabled,created_at` | 只增审批与启停历史；定义、代次和指纹用于核对当时审阅的版本。 |
+| `tool_attempts` | `id,class_id,actor_id,session_id,run_id,connector_id,tool_name,generation,fingerprint,round_number,ordinal,send_permitted,request_id,created_at,recover_at,expires_at` | 班级、运行尝试、规划轮次、提议序号唯一；轮次 0 标记宿主拒绝的不可用选择。许可先持久化再出站。仅保存内部归属标识，未知工具不保存模型原名。 |
+| `tool_results` | `attempt_id,class_id,outcome,reason,duration_ms,created_at` | 同班尝试唯一结果；succeeded、rejected、error。结果只增，随到期尝试一并清理。教师投影仅公开工具、结果、时间、耗时和安全类别。 |
+
+去内容尝试和结果保留 90 天。会话、运行和操作者标识用于内部关联，审计不持有会话、运行或账号的删除约束。合规参数与结果正文只进入既有本人执行记录，继承学期到期、来源撤销和备份重放规则。审计没有请求正文、远端响应或其他模型输入副本。超出恢复时限且缺结果的尝试可追加唯一出错结果，外部调用不重发。到期前业务读取过滤过期审计，批量清理删除到期尝试并级联结果。备份依 14 天轮转，恢复接流量前重放撤销与到期清单。上线前需登记学期、期限与实名清理责任。应用回退保留扩展表，物理降级仅在合成隔离库使用。
+
+普通单位练习签名密钥仅由部署注入宿主内存。短期票据绑定班级、本人、会话、题面及消息幂等键，仅由浏览器本轮临时持有。数据库在既有 `ai_operations.input_payload` 保存规范化练习参数、有效期和选中工具，成功结果随 `application_runs.details` 继承本人、来源撤销、学期到期和恢复重放规则。票据及签名不持久化。

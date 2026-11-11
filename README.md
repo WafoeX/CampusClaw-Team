@@ -2,9 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段：开发骨架、Cookie 登录、班级资料、教师工作台、章节、索引、三模式检索和单次资料问答已合入 `main`（PR #23）。** 工作区正在实施流式助手：存储基础、最小 SSE 通路、应用目录/模板/助手配置、三类同步执行与本人记录已通过各自自动化交接，已分批提交至开发分支，尚未合入 main；技能管理与私有会话已接入开发候选；真实代理流式回归已通过；历史出处详情和教学反馈已通过本组自动化交接，已分批提交至开发分支，尚未合入 main。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”均指另一个仓库，其历史证据不代表本仓库成果。
-
-当前异步教学开发分支先交付人工题库、测验发布、学生草稿、一次正式提交与规则评分。AI 候选题、Kafka、错题和看板仍按[后续任务](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md)推进；本组实际验证见[变更记录](docs/changes/2026-11-04-add-async-teaching-workflows.md)。
+**当前阶段**：截至本变更的主干基线 `7d581d5`，开发骨架、班级认证与资料、章节、索引、三模式检索、单次资料问答、流式助手及人工题库和测验评分闭环已合入 `main`（PR #23–25）。当前开发分支接入受控 MCP 教学工具，进度与自动化证据见[受控 MCP 变更](docs/changes/2026-11-04-add-controlled-mcp-tools.md)。异步候选题、Kafka、错题和看板继续按[异步教学任务](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md)推进。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
 
 ## 开发者快速开始
 
@@ -343,3 +341,14 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 学生可对成功助手消息评价，包含无证据固定回复；“未解决”须主动填写1–500字符的卡点说明，“有帮助”可省略。先预览教师可见内容，再确认分享。教师从 `/console/feedback` 按待处理/已处理筛选本班未解决反馈，只看主动分享的说明、允许公开的章节及处理元数据；不能访问私人会话、身份、问题、回答或出处。评价和处理采用期望修订，重复不新增，实质改为未解决后重新待处理。既有 `AI_DATA_EXPIRES_AT` 及清理命令同时覆盖反馈，无新迁移。
 
 验证：真实MySQL/Qdrant与NGINX/Gunicorn回归、学生/教师浏览器键盘主路径、四态和390/1440宽度均已通过。接口字段及失败复测见[第4组证据](docs/changes/2026-11-04-add-streaming-ai-assistant.md)。真人测试与合并前评审仍待实际执行。
+
+
+### 受控 MCP 教学工具（开发分支）
+
+在私有部署环境设置 `MCP_SERVICE_TOKEN`，宿主和独立教学服务使用同一机器令牌。以新应用镜像执行 `docker compose exec app python -m app.auth_admin upgrade` 应用 0011，保留既有 0001–0010 数据。启动内网服务可运行 `docker compose --profile tools up --build -d mcp-server`。独立探针为容器内 `http://127.0.0.1:8090/health`，端口不发布。通过 Docker 网络检查取得该服务与宿主共用的 Compose 网络 IPv4 CIDR，把它设置为 `MCP_SERVICE_NETWORK`，再运行 `docker compose up -d --no-deps app` 重新装配部署目录。容器网络改变后重新核对 CIDR。工具服务故障时主应用探针继续按原有核心依赖判定。
+
+教师从 `/console/connectors` 选择“本地教学工具”，登记班级别名、连接发现、审阅后启用。技能 JSON 的 `tools` 接受 `formula_hint@别名`、`unit_convert@别名` 及原有 `knowledge_search`。把启用技能绑定到当前助手后，师生在本人会话选择本轮工具。换算须设置独立的 `TOOL_PRACTICE_SIGNING_KEY`（至少 32 字节），再在资料问答会话领取服务端生成的题面，使用相同幂等键提交。上下文五分钟内首次有效，换算只发送签发的参数，资料出处仍按原流程校验。私有工具结果随本人执行记录到期清理，教师只读本班工具运行元数据。
+
+可通过私有 `TOOL_CONNECTOR_DIRECTORY` JSON 数组登记其他部署批准的 HTTPS 服务。每项定义 `key/label/protocol/url/tools`，可选 `credential` 指向仅向 app 注入的 `TOOL_TOKEN_*` 环境键；使用 Compose 覆盖文件可注入这些键。每个工具定义 `description/modes/parameters/result`，HTTP 另要求固定 `path`，仅发 GET。参数只允许封闭枚举和有界数值，结果按部署字段校验。内网例外仅用于固定的 `mcp-server:8090/mcp`。教师页面显示批准选项、审核内容和凭据配置标记。
+
+回退前先断开本班连接、停止新外部调用并等待在途请求结束，再清空宿主的工具目录相关配置、停止 `mcp-server` 并恢复上一宿主镜像。保留 0011 表；物理降级只允许合成隔离库。恢复前按[数据字典](docs/data-dictionary.md#受控-mcp-工具0011)执行撤销清单和到期清理，运行 `python -m app.ai_admin cleanup` 直到到期批次为空。审计只增恢复不会重发工具请求。协议、隔离 Compose、真实网关与代理分开取证，见[变更证据](docs/changes/2026-11-04-add-controlled-mcp-tools.md)。

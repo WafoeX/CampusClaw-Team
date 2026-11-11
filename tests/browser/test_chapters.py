@@ -17,6 +17,15 @@ stack = compose_stack
 def test_CH_N01_CH_B01_browser_keyboard_and_two_widths(stack, tmp_path):
     compose, _, status, _ = stack
     assert status("ready")[0] == 200
+    compose("up", "--build", "--wait", "--no-deps", "mcp-server")
+    tool_host = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "import socket; print(socket.gethostbyname('mcp-server'))",
+    )
     password = uuid4().hex
     compose("exec", "-T", "app", "python", "-m", "app.auth_admin", "upgrade")
     compose(
@@ -104,6 +113,8 @@ def test_CH_N01_CH_B01_browser_keyboard_and_two_widths(stack, tmp_path):
             "127.0.0.1::8080",
             "-e",
             f"APP_PUBLIC_ORIGIN={origin}",
+            "-e",
+            f"MCP_SERVICE_NETWORK={tool_host}/32",
             "-e",
             "EMBEDDING_BASE_URL=https://ai-gateway.devops.hello1023.com/v1",
             "-e",

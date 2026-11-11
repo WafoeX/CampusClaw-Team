@@ -348,6 +348,62 @@ try {
   await js('document.getElementById("teaching-status").value="handled";document.getElementById("teaching-reload").focus()');await key("Enter");
   await eventually(()=>js('document.querySelectorAll("#teaching-list li").length===1'));
   await writeFile(output+"/feedback-result.json",JSON.stringify({passed:true,checks:["学生无证据成功轮次反馈","未解决必填","预览后确认分享","教师最小字段","键盘处理","教师列表四态","390/1440宽度"]},null,2));
+  await navigate("/console/connectors");
+  await eventually(()=>js('document.getElementById("connector-status").textContent.includes("暂无连接")'));
+  await js('document.getElementById("connector-alias").value="browser-tools";document.getElementById("connector-submit").focus()');
+  await key("Enter");
+  await eventually(()=>js('document.getElementById("connector-list").textContent.includes("已断开")'));
+  await js('[...document.querySelectorAll("#connector-list button")].find(b=>b.textContent==="连接并发现").focus()');
+  await key("Enter");
+  await eventually(()=>js('document.getElementById("connector-list").textContent.includes("formula_hint")'));
+  await js('[...document.querySelectorAll("#connector-list button")].find(b=>b.textContent==="审阅并启用").focus()');
+  await key("Enter");
+  await eventually(()=>js('document.getElementById("connector-list").textContent.includes("formula_hint · 已启用")'));
+  for (const width of [390,1440]) {
+    await send("Emulation.setDeviceMetricsOverride",{width,height:900,deviceScaleFactor:1,mobile:false});
+    assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'),true);
+  }
+  paused=undefined;
+  await send("Fetch.enable",{patterns:[{urlPattern:origin+"/api/v1/tool-connectors\\?page=1",requestStage:"Request"}]});
+  await js('[...document.querySelectorAll("#connector-list button")].find(b=>b.textContent==="断开").click()');
+  await eventually(async()=>paused);
+  assert.equal(await js('document.getElementById("connector-status").textContent'),"正在加载…");
+  await send("Fetch.fulfillRequest",{requestId:paused,responseCode:503,responseHeaders:[{name:"Content-Type",value:"application/json"}],body:Buffer.from(JSON.stringify({code:1500,message:"连接列表暂不可用，请重新加载",data:null,request_id:"tool-browser-fault"})).toString("base64")});
+  await send("Fetch.disable");
+  await eventually(()=>js('!document.getElementById("connector-retry").hidden'));
+  await js('document.getElementById("connector-retry").focus()');
+  await key("Enter");
+  await eventually(()=>js('document.getElementById("connector-list").textContent.includes("已断开")'));
+  assert.equal(await js('document.getElementById("connector-list").textContent.includes("formula_hint")'),false);
+  await navigate("/swagger");
+  await eventually(()=>js('!document.getElementById("send")?.disabled'));
+  async function swaggerCall(operation, params={}, body={}) {
+    await js(`{const s=document.getElementById('operation');
+      s.selectedIndex=[...s.options].findIndex(option=>option.textContent===${JSON.stringify(operation)});
+      s.dispatchEvent(new Event('change'));
+      for(const [name,value] of Object.entries(${JSON.stringify(params)}))document.getElementById('param-'+name).value=value;
+      document.getElementById('payload').value=${JSON.stringify(JSON.stringify(body))};
+      document.getElementById('send').focus();}`);
+    await key("Enter");
+    await eventually(()=>js('document.getElementById("state").textContent.includes("读取结束")'));
+    const response=JSON.parse(await js('document.getElementById("response").textContent'));
+    assert.equal(response.code,0);
+    return response.data;
+  }
+  const swaggerTool=await swaggerCall("POST /api/v1/tool-connectors",{}, {alias:"swagger-math",key:"teaching"});
+  const toolParams={resource_id:swaggerTool.id};
+  await swaggerCall("POST /api/v1/tool-connectors/{resource_id}/connections",toolParams);
+  const toolList=await swaggerCall("GET /api/v1/tool-connectors/{resource_id}/tools",toolParams);
+  const hint=toolList.items.find(item=>item.name==="formula_hint");
+  assert.ok(hint);
+  await swaggerCall("PATCH /api/v1/tool-connectors/{resource_id}/tools/{name}",{...toolParams,name:hint.name},{fingerprint:hint.fingerprint,enabled:true});
+  const swaggerSkill=await swaggerCall("POST /api/v1/skills",{},{
+    name:"试调工具技能",enabled:true,conditions:["提示"],tools:["formula_hint@swagger-math"],
+    steps:[{type:"model",instruction:"使用合法教学提示。"}]
+  });
+  assert.deepEqual(swaggerSkill.definition.tools,["formula_hint@swagger-math"]);
+  await swaggerCall("DELETE /api/v1/tool-connectors/{resource_id}/connections/current",toolParams);
+  await writeFile(output+"/tools-result.json",JSON.stringify({passed:true,checks:["工具管理四态","键盘登记与审阅","390/1440宽度","Swagger登记连接","发现审阅","技能保存","断开"]},null,2));
   await writeFile(output + "/result.json", JSON.stringify({passed:true,widths:[1440,390],checks:["登录返回","四态与故障重试","键盘创建与浏览","选中状态","真实资料归类","学生只读与原文","教师改名与删章归回未分类","索引空状态与键盘构建","缺模型密钥保留关键词","失败后新键重试","检索四态与503重试","码点出处高亮","问答默认混合与当前问题","显式HTTP回答夹具及授权出处","真实后端无证据拒答","模型故障不显示旧回答"]},null,2));
   console.log("章节浏览器主路径通过：键盘、四态、归类、学生原文和两档宽度");
 } finally {

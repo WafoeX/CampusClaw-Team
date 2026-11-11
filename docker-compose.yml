@@ -22,6 +22,10 @@ services:
       CHAT_API_KEY: ${CHAT_API_KEY:-}
       CHAT_MODEL: ${CHAT_MODEL:-}
       AI_DATA_EXPIRES_AT: ${AI_DATA_EXPIRES_AT:-}
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-}
+      MCP_SERVICE_NETWORK: ${MCP_SERVICE_NETWORK:-}
+      TOOL_CONNECTOR_DIRECTORY: ${TOOL_CONNECTOR_DIRECTORY:-}
+      TOOL_PRACTICE_SIGNING_KEY: ${TOOL_PRACTICE_SIGNING_KEY:-}
       RETRIEVAL_MIN_SCORE: ${RETRIEVAL_MIN_SCORE:-}
     ports:
       - "127.0.0.1:${APP_HOST_PORT:-8000}:8080"
@@ -31,6 +35,22 @@ services:
       timeout: 3s
       retries: 5
     stop_grace_period: 30s
+
+  mcp-server:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: mcp-service
+      args:
+        APP_BUILD_REVISION: ${APP_BUILD_REVISION:?请设置源码提交号}
+    image: campusclaw-mcp:${APP_BUILD_REVISION:?请设置源码提交号}
+    environment:
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/health', timeout=2).close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   mysql:
     image: public.ecr.aws/docker/library/mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902

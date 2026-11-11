@@ -123,6 +123,15 @@ def verify_streaming_proxy(compose, folder):
             .rsplit(":", 1)[1]
         )
         origin = f"https://localhost:{port}"
+        compose("up", "--build", "--wait", "--no-deps", "mcp-server")
+        tool_address = compose(
+            "exec",
+            "-T",
+            "app",
+            "python",
+            "-c",
+            "import socket; print(socket.gethostbyname('mcp-server'))",
+        )
         compose(
             "exec",
             "-d",
@@ -140,6 +149,8 @@ def verify_streaming_proxy(compose, folder):
             f"SSE_PROBE_ORIGIN={origin}",
             "-e",
             f"SSE_PROBE_PASSWORD={password}",
+            "-e",
+            f"MCP_SERVICE_NETWORK={tool_address}/32",
             "-e",
             "PYTHONPATH=/srv/campusclaw:/tmp",
             "app",
@@ -278,6 +289,9 @@ def verify_streaming_proxy(compose, folder):
             return connection, response, started
 
         from tests.integration.session_proxy_check import verify_sessions
+        from tests.integration.tool_proxy_check import verify_tools
+
+        verify_tools(request, json_request, frame, cookies, compose, password)
 
         verify_sessions(
             request,

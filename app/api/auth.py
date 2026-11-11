@@ -92,6 +92,7 @@ def _return_path(app, path):
             "/console/templates",
             "/sessions",
             "/console/feedback",
+            "/console/connectors",
             "/console/questions",
             "/quizzes",
         }

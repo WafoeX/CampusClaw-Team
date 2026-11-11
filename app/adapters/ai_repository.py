@@ -20,6 +20,7 @@ from app.adapters.material_repository import MaterialRepository
 from app.adapters.material_schema_v2 import materials
 from app.adapters.session_repository import SessionRepositoryMixin
 from app.adapters.skill_repository import SkillRepositoryMixin
+from app.adapters.tool_audit import cleanup_tool_audit
 
 CONFIGS = {
     "template": (templates, template_revisions, "template_id"),
@@ -441,8 +442,10 @@ class AIRepository(
                 ),
                 {"now": now},
             )
+            tool_audit = cleanup_tool_audit(connection, now)
         return {
             "operations": len(ids),
             "sessions": session_count,
             "configuration_requests": result.rowcount,
+            **tool_audit,
         }

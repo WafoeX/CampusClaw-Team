@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/api/v1/sessions/{session_id}/unit-practice",
+  "pytest": [
+    "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+  ]
+}

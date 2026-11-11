@@ -78,6 +78,11 @@ expected = {
     "quiz_submissions",
     "quiz_results",
     "quiz_audits",
+    "tool_connectors",
+    "tool_discoveries",
+    "tool_approvals",
+    "tool_attempts",
+    "tool_results",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

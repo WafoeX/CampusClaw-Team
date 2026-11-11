@@ -9,6 +9,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from app.services.access import AccessDenied
 from app.services.ai_contracts import bad, clean_text, conflict, revision
 from app.services.materials import missing, unavailable
+from app.services.tool_connectors import references
 
 VERSION = "bounded-skills-v1"
 FIELDS = {"name", "conditions", "enabled", "tools", "steps"}
@@ -67,9 +68,12 @@ def definition(value):
         or not isinstance(steps, list)
         or not 1 <= len(steps) <= 3
         or not isinstance(tools, list)
-        or tools not in ([], ["knowledge_search"])
     ):
         raise bad("技能条件、步骤或工具不合法")
+    external = [tool for tool in tools if tool != "knowledge_search"]
+    references(external)
+    if tools.count("knowledge_search") > 1:
+        raise bad("知识库工具不得重复")
     terms = [clean_text(term, 64) for term in terms]
     if len({normalize(term) for term in terms}) != len(terms):
         raise bad("条件词归一后不得重复")
@@ -193,9 +197,10 @@ def view(row):
 
 
 class SkillService:
-    def __init__(self, ai_apps):
+    def __init__(self, ai_apps, tool_connectors=None):
         self.ai_apps = ai_apps
         self.repository = ai_apps.repository
+        self.tool_connectors = tool_connectors
 
     def list(self, identity, cookie, page, size):
         try:
@@ -279,6 +284,15 @@ class SkillService:
                         }
                     )
                 name_key = normalize(fields["name"]).encode()
+                external = sorted(
+                    tool for tool in fields["tools"] if tool != "knowledge_search"
+                )
+                if external:
+                    if self.tool_connectors is None:
+                        raise missing()
+                    self.tool_connectors.validate_binding(
+                        connection, identity, external
+                    )
                 if self.repository.skill_name_exists(
                     connection, identity.class_id, name_key, resource_id
                 ):

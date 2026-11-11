@@ -1,0 +1,171 @@
+(() => {
+  const get = id => document.getElementById(id);
+  const base = '/api/v1/tool-connectors';
+  const labels = {disconnected: '已断开', connecting: '正在连接', connected: '已连接', unavailable: '不可用'};
+  let page = 1;
+  let auditPage = 1;
+  let selected = null;
+
+  function tell(text, failed = false) {
+    get('connector-status').textContent = text;
+    get('connector-retry').hidden = !failed;
+  }
+
+  async function api(path, method = 'GET', payload) {
+    const response = await fetch(path, {
+      method,
+      credentials: 'same-origin',
+      headers: method === 'GET' ? {} : {
+        'Content-Type': 'application/json',
+        'X-CampusClaw-Request': 'same-origin'
+      },
+      body: payload === undefined ? undefined : JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (!response.ok || result.code !== 0) throw new Error(result.message || '操作失败，请重试');
+    return result.data;
+  }
+
+  function action(text, run) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = text;
+    button.onclick = async () => {
+      button.disabled = true;
+      try { await run(); }
+      catch (error) { tell(error.message, true); }
+      finally { button.disabled = false; }
+    };
+    return button;
+  }
+
+  function renderTool(connector, tool) {
+    const line = document.createElement('li');
+    const title = document.createElement('strong');
+    title.textContent = tool.name + ' · ' + (tool.enabled ? '已启用' : tool.approved ? '已停用' : '待审阅');
+    const description = document.createElement('p');
+    description.textContent = tool.description;
+    const schema = document.createElement('pre');
+    schema.textContent = JSON.stringify(tool.inputSchema, null, 2);
+    line.append(title, description, schema);
+    if (tool.allowed) {
+      line.append(action(tool.enabled ? '停用' : tool.approved ? '启用' : '审阅并启用', async () => {
+        await api(base + '/' + connector.id + '/tools/' + encodeURIComponent(tool.name), 'PATCH', {
+          fingerprint: tool.fingerprint, enabled: !tool.enabled
+        });
+        await load();
+      }));
+    } else {
+      const note = document.createElement('p');
+      note.textContent = '部署未批准此定义。';
+      line.append(note);
+    }
+    return line;
+  }
+
+  async function load() {
+    tell('正在加载…');
+    const {items, total} = await api(base + '?page=' + page);
+    const list = get('connector-list');
+    list.replaceChildren();
+    for (const row of items) {
+      const line = document.createElement('li');
+      const title = document.createElement('strong');
+      title.textContent = row.alias + ' · ' + labels[row.status];
+      const credential = document.createElement('p');
+      credential.textContent = row.credential_configured ? '凭据已配置' : '未配置凭据';
+      line.append(title, credential);
+      const path = base + '/' + row.id;
+      line.append(action(row.status === 'connected' ? '重新发现' : '连接并发现', async () => {
+        await api(path + '/connections', 'POST', {});
+        selected = row.id;
+        await load();
+      }));
+      if (row.status !== 'disconnected') {
+        line.append(action('断开', async () => {
+          await api(path + '/connections/current', 'DELETE');
+          await load();
+        }));
+      }
+      line.append(action('移除', async () => {
+        if (!confirm('移除此连接并停用它的工具？')) return;
+        await api(path, 'DELETE');
+        if (items.length === 1 && page > 1) page--;
+        await load();
+      }));
+      if (row.status === 'connected' && selected !== row.id) {
+        line.append(action('查看工具', async () => { selected = row.id; await load(); }));
+      }
+      if (row.status === 'connected' && selected === row.id) {
+        const tools = document.createElement('ul');
+        const response = await api(path + '/tools');
+        for (const tool of response.items) tools.append(renderTool(row, tool));
+        if (response.items.length) line.append(tools);
+        else line.append('服务没有公布工具。');
+      }
+      list.append(line);
+    }
+    get('connector-page').textContent = '第 ' + page + ' 页';
+    get('connector-prev').disabled = page === 1;
+    get('connector-next').disabled = page * 20 >= total;
+    tell(total ? '已加载本班连接。' : '本班暂无连接。');
+  }
+
+  async function refresh() {
+    const {items} = await api('/api/v1/tool-connector-options');
+    const options = get('connector-option');
+    options.replaceChildren();
+    for (const item of items) options.add(new Option(item.label, item.key));
+    if (!items.length) options.add(new Option('暂无批准的服务', ''));
+    options.disabled = get('connector-submit').disabled = items.length === 0;
+    await load();
+  }
+
+  async function loadAudit() {
+    const status = get('tool-audit-status');
+    const list = get('tool-audit-list');
+    status.textContent = '正在加载…';
+    list.replaceChildren();
+    try {
+      const {items, total} = await api('/api/v1/tool-call-audit?page=' + auditPage);
+      const outcomes = {succeeded: '成功', rejected: '被拒', error: '出错'};
+      const reasons = {unavailable:'不可用',arguments:'参数未通过',budget:'超限',duplicate:'重复提议',upstream:'依赖异常',interrupted:'已中断'};
+      for (const row of items) {
+        const item = document.createElement('li');
+        item.textContent = [row.tool || '未知工具', new Date(row.created_at).toLocaleString(),
+          outcomes[row.outcome], row.duration_ms + ' 毫秒', reasons[row.reason]].filter(Boolean).join(' · ');
+        list.append(item);
+      }
+      get('tool-audit-prev').disabled = auditPage === 1;
+      get('tool-audit-next').disabled = auditPage * 20 >= total;
+      status.textContent = items.length ? '已加载本班运行记录。' : '本班暂无工具运行记录。';
+    } catch (error) {
+      status.textContent = error.message + ' 请刷新记录。';
+    }
+  }
+
+  const fail = error => tell(error.message, true);
+  get('connector-form').onsubmit = async event => {
+    event.preventDefault();
+    event.submitter.disabled = true;
+    try {
+      await api(base, 'POST', {alias: get('connector-alias').value, key: get('connector-option').value});
+      get('connector-alias').value = '';
+      page = 1;
+      await load();
+    } catch (error) { fail(error); }
+    finally { event.submitter.disabled = false; }
+  };
+  get('connector-retry').onclick = () => refresh().catch(fail);
+  get('connector-prev').onclick = () => { page--; load().catch(fail); };
+  get('connector-next').onclick = () => { page++; load().catch(fail); };
+  get('tool-audit-refresh').onclick = loadAudit;
+  get('tool-audit-prev').onclick = () => { auditPage--; loadAudit(); };
+  get('tool-audit-next').onclick = () => { auditPage++; loadAudit(); };
+  get('logout').onclick = async () => {
+    try { await api('/api/v1/auth/sessions/current', 'DELETE'); location.assign('/login'); }
+    catch (error) { fail(error); }
+  };
+  refresh().catch(fail);
+  loadAudit();
+})();

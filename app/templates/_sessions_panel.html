@@ -19,6 +19,8 @@
 <p id="session-question-help" class="muted">请输入2至500个字符；仅使用当前问题检索。</p>
 <label>章节范围 <select id="session-chapter"><option value="">全部章节</option><option value="uncategorized">未分类</option></select></label>
 <label>检索方式 <select id="session-retrieval"><option value="keyword">关键词</option><option value="vector">向量</option><option value="hybrid">混合</option></select></label>
+<fieldset id="session-tools" hidden><legend>本轮工具</legend><div id="session-tool-list"></div><button id="session-practice" type="button" hidden>领取普通单位练习</button></fieldset>
+<p id="session-tool-status" class="status" aria-live="polite" hidden></p>
 <div class="row"><button type="submit">发送问题</button><button id="session-cancel" type="button" disabled>取消生成</button></div>
 </form>
 <pre id="session-preview" aria-live="polite" hidden></pre>

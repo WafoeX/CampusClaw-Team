@@ -136,6 +136,7 @@ class ValidatedStream:
         on_abort=lambda: None,
         clock=time.monotonic,
         deadline=None,
+        prepare_metadata=None,
     ):
         self.reservation = reservation
         self.produce = produce
@@ -143,6 +144,7 @@ class ValidatedStream:
         self.recheck = recheck
         self.commit = commit
         self.metadata = metadata
+        self.prepare_metadata = prepare_metadata
         self.request_id = request_id
         self.validate_final = validate_final
         self.on_abort = on_abort
@@ -192,6 +194,8 @@ class ValidatedStream:
     def _work(self):
         source = None
         try:
+            if self.prepare_metadata is not None:
+                self._put(("meta", self.metadata | self.prepare_metadata(self.context)))
             source = iter(self.produce(self.context))
             for payload in source:
                 self.context.check()
@@ -222,6 +226,7 @@ class ValidatedStream:
 
     def _events(self):
         paragraphs, raw, length = [], [], 0
+        metadata_sent = False
         try:
             self.context.check()
             self.recheck()
@@ -235,7 +240,9 @@ class ValidatedStream:
                     self._worker_done = True
                     raise
             self.recheck()
-            yield self._frame("meta", self.metadata)
+            if self.prepare_metadata is None:
+                yield self._frame("meta", self.metadata)
+                metadata_sent = True
             while True:
                 self.context.check()
                 try:
@@ -246,9 +253,15 @@ class ValidatedStream:
                     yield b": keepalive\n\n"
                     continue
                 if event == "error":
+                    if not metadata_sent:
+                        yield self._frame("meta", self.metadata)
                     raise value
                 self.recheck()
                 self.context.check()
+                if event == "meta":
+                    yield self._frame("meta", value)
+                    metadata_sent = True
+                    continue
                 if event == "complete":
                     if not paragraphs:
                         raise invalid_output()

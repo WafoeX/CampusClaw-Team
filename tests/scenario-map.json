@@ -979,16 +979,148 @@
         "runner": "verify_teaching_core",
         "assertion": "assert same_student[1].status_code == 409 and same_student[1].json[\"code\"] == 1401"
       }
+    },
+    "2026-11-04-add-controlled-mcp-tools/specs/mcp-teaching-service/spec.md": {
+      "MP-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_MP_N01_MP_B01_isolated_compose_teaching_service"
+      },
+      "MP-B01": {
+        "test": "tests/api/test_mcp_teaching_service.py",
+        "function": "test_MP_N01_MP_B01_teaching_catalog_and_transport"
+      },
+      "MP-F01": {
+        "test": "tests/api/test_mcp_teaching_service.py",
+        "function": "test_MP_F01_bad_messages_and_arguments"
+      },
+      "MP-F02": {
+        "test": "tests/api/test_mcp_teaching_service.py",
+        "function": "test_MP_F02_MP_F03_auth_origin_and_expiry"
+      },
+      "MP-F03": {
+        "test": "tests/api/test_mcp_teaching_service.py",
+        "function": "test_MP_F02_MP_F03_auth_origin_and_expiry"
+      },
+      "MP-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+      },
+      "MP-F05": {
+        "test": "tests/unit/test_tool_protocol.py",
+        "function": "test_MP_F05_unrecognized_version_capability_or_response_id"
+      }
+    },
+    "2026-11-04-add-controlled-mcp-tools/specs/class-tool-connectors/spec.md": {
+      "CN-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management"
+      },
+      "CN-F05": {
+        "test": "tests/unit/test_tool_protocol.py",
+        "function": "test_CN_F05_transport_requires_all_candidates_to_be_approved"
+      }
+    },
+    "2026-11-04-add-controlled-mcp-tools/specs/guarded-tool-dialogue/spec.md": {
+      "TD-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "TD-F07": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      }
+    },
+    "2026-11-04-add-controlled-mcp-tools/specs/tool-call-audit/spec.md": {
+      "AU-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "AU-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "AU-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "AU-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "AU-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
+      },
+      "AU-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_B02_AU_B01_AU_F04_AU_F05_tool_storage"
+      },
+      "AU-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_CN_B02_AU_B01_AU_F04_AU_F05_tool_storage"
+      }
     }
   },
   "planned": {
     "2026-11-04-add-async-teaching-workflows/specs/class-learning-insights/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-async-teaching-workflows/specs/durable-teaching-jobs/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-controlled-mcp-tools/specs/class-tool-connectors/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-controlled-mcp-tools/specs/guarded-tool-dialogue/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-controlled-mcp-tools/specs/mcp-teaching-service/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-controlled-mcp-tools/specs/tool-call-audit/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"

@@ -96,7 +96,7 @@ def assert_project_clean(project, env):
         assert not remaining, f"隔离项目 {project} 清理后仍有资源：{remaining}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def stack(tmp_path_factory):
     overrides = sorted(key for key in COMPOSE_OVERRIDES if os.environ.get(key))
     if overrides:
@@ -114,6 +114,7 @@ def stack(tmp_path_factory):
                 f"MYSQL_PASSWORD={uuid.uuid4().hex}",
                 f"MYSQL_ROOT_PASSWORD={uuid.uuid4().hex}",
                 f"QDRANT_API_KEY={uuid.uuid4().hex}",
+                f"MCP_SERVICE_TOKEN={uuid.uuid4().hex}",
                 "APP_HOST_PORT=0",
                 f"APP_BUILD_REVISION={version}",
             )
@@ -178,24 +179,134 @@ def stack(tmp_path_factory):
         yield compose, request, status, version
     finally:
         try:
-            compose("down", "--volumes", "--remove-orphans")
+            compose("--profile", "tools", "down", "--volumes", "--remove-orphans")
             assert_project_clean(project, env)
         finally:
-            image = f"campusclaw-skeleton:{version}"
-            present = (
-                subprocess.run(
-                    ["docker", "image", "inspect", image],
-                    env=env,
-                    capture_output=True,
-                    timeout=30,
-                    check=False,
-                ).returncode
-                == 0
-            )
-            if present:
-                subprocess.run(
-                    ["docker", "image", "rm", image], env=env, timeout=60, check=True
+            for repository in ("campusclaw-skeleton", "campusclaw-mcp"):
+                image = f"{repository}:{version}"
+                present = (
+                    subprocess.run(
+                        ["docker", "image", "inspect", image],
+                        env=env,
+                        capture_output=True,
+                        timeout=30,
+                        check=False,
+                    ).returncode
+                    == 0
                 )
+                if present:
+                    subprocess.run(
+                        ["docker", "image", "rm", image],
+                        env=env,
+                        timeout=60,
+                        check=True,
+                    )
+
+
+def test_MP_N01_MP_B01_isolated_compose_teaching_service(stack, tmp_path):
+    compose, _, status, version = stack
+    compose("start", "app")
+    status("ready")
+    try:
+        compose("up", "--build", "--wait", "--no-deps", "mcp-server")
+        scanner = os.environ.get("CAMPUSCLAW_IMAGE_SCANNER")
+        if scanner:
+            scan_image(scanner, f"campusclaw-mcp:{version}", tmp_path, os.environ)
+        container = json.loads(compose("ps", "--format", "json", "mcp-server"))
+        assert container["Health"] == "healthy"
+        assert not any(
+            port.get("PublishedPort") for port in container["Publishers"] or []
+        )
+        assert status("ready")[0] == 200
+        smoke = Path(__file__).with_name("mcp_compose_check.py").read_text()
+        assert (
+            compose("exec", "-T", "app", "python", "-c", smoke)
+            == "教学服务内网调用通过"
+        )
+        assert (
+            compose(
+                "exec",
+                "-T",
+                "app",
+                "python",
+                "-c",
+                Path(__file__).with_name("mcp_post_sse_runtime.py").read_text(),
+            )
+            == "独立 POST SSE 夹具互操作通过"
+        )
+        assert (
+            compose(
+                "exec",
+                "-T",
+                "mcp-server",
+                "python",
+                "-c",
+                "import os; assert not any(k.startswith(('MYSQL_', 'QDRANT_', 'CHAT_')) for k in os.environ)",
+            )
+            == ""
+        )
+        compose("stop", "mcp-server")
+        assert status("ready")[0] == 200
+    finally:
+        compose("rm", "--stop", "--force", "mcp-server")
+
+
+def test_CN_B02_AU_B01_AU_F04_AU_F05_tool_storage(stack):
+    compose, _, status, _ = stack
+    compose("start", "app")
+    assert status("ready")[0] == 200
+    assert (
+        compose(
+            "exec",
+            "-T",
+            "app",
+            "python",
+            "-c",
+            Path(__file__).with_name("tool_storage_runtime.py").read_text(),
+        )
+        == "受控工具迁移、约束、恢复与清理通过"
+    )
+
+
+def test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management(stack):
+    compose, _, status, _ = stack
+    assert status("ready")[0] == 200
+    output = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("tool_connectors_runtime.py").read_text(),
+    )
+    assert output.splitlines()[-1] == "班级连接登记、发现、审阅、断开及并发边界通过"
+    assert "synthetic-private-token" not in output and "MCP_SERVICE_TOKEN" not in output
+
+
+def test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue(stack):
+    compose, _, status, _ = stack
+    assert status("ready")[0] == 200
+    compose("up", "--build", "--wait", "--no-deps", "mcp-server")
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/session_proxy_worker.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("session_proxy_worker.py").read_text(),
+    )
+    output = compose(
+        "exec",
+        "-T",
+        "-e",
+        "PYTHONPATH=/srv/campusclaw:/tmp",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("tool_dialogue_runtime.py").read_text(),
+    )
+    assert output.splitlines()[-1] == "真实 MCP、会话练习、SSE 顺序和审计投影通过"
 
 
 def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):

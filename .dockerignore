@@ -5,3 +5,5 @@
 !app/templates/*.html
 !pyproject.toml
 !uv.lock
+!mcp-server/
+!mcp-server/*.py

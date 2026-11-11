@@ -23,7 +23,7 @@ function recordText(record){
  ...(record.session_id?['生效助手修订：'+config.assistant_revision]:['生效模板修订：'+config.template_revision]),'模型：'+(config.model||'未登记'),
  '生成设置：温度 '+config.temperature+'，输出上限 '+config.max_output_tokens+' token',
  ...(input?['','学习内容：',input.input,'面向：'+(input.audience||'未填写')]:record.input?.question?['','当前问题：',record.input.question]:[]),
- ...(result?['','本次模板预览：',(result.rendered_prompt||'本轮使用当前助手与授权资料'),'','执行结果：',result.text]:['','执行未完成，未保存生成正文。错误码：'+(record.error_code||'无')])].join('\n');
+ ...(result?['','本次模板预览：',(result.rendered_prompt||'本轮使用当前助手与授权资料'),'','执行结果：',result.text,...(result.tools||[]).flatMap(tool=>['','工具：'+(tool.tool||'未知工具')+' · '+({succeeded:'成功',rejected:'被拒',error:'出错'}[tool.status]||'不可用'),...(tool.data?[JSON.stringify(tool.arguments),JSON.stringify(tool.data)]:[])])]:['','执行未完成，未保存生成正文。错误码：'+(record.error_code||'无')])].join('\n');
 }
 function option(value,text){const node=document.createElement('option');node.value=value;node.textContent=text;return node;}
 function action(label,fn){const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(fn()).catch(fail));return button;}

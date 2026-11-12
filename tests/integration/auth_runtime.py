@@ -82,6 +82,12 @@ expected = {
     "tool_discoveries",
     "tool_approvals",
     "tool_attempts",
+    "teaching_question_sources",
+    "teaching_jobs",
+    "teaching_outbox",
+    "teaching_job_results",
+    "teaching_generated_questions",
+    "teaching_job_quarantine",
     "tool_results",
 }
 assert set(inspect(engine).get_table_names()) == expected

@@ -60,18 +60,27 @@ with engine.connect() as connection:
         .one()
     )
 second_id = str(uuid4())
+teacher_name = "teaching_a_core_teacher"
+created_at = datetime.now(UTC).replace(tzinfo=None)
 with engine.begin() as connection:
     connection.execute(
-        insert(accounts).values(
-            id=second_id,
-            login_name="teaching_a_student_2",
-            password_hash=first_student["password_hash"],
-            enabled=True,
-            class_id=first_student["class_id"],
-            role="student",
-            created_at=datetime.now(UTC).replace(tzinfo=None),
-            updated_at=datetime.now(UTC).replace(tzinfo=None),
-        )
+        insert(accounts),
+        [
+            {
+                "id": account_id,
+                "login_name": login_name,
+                "password_hash": first_student["password_hash"],
+                "enabled": True,
+                "class_id": first_student["class_id"],
+                "role": role,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+            for account_id, login_name, role in (
+                (str(uuid4()), teacher_name, "teacher"),
+                (second_id, "teaching_a_student_2", "student"),
+            )
+        ],
     )
 
 app = create_app(
@@ -107,7 +116,7 @@ def request(client, method, path, payload=None, *, key=None):
     return client.open(path, method=method, **options)
 
 
-teacher = login("demo_a_teacher")
+teacher = login(teacher_name)
 student = login("demo_a_student")
 student2 = login("teaching_a_student_2")
 outsider = login("demo_b_teacher")
@@ -685,12 +694,14 @@ assert (
     ).status_code
     == 200
 )
-source_quiz = request(
+source_quiz_response = request(
     teacher,
     "POST",
     "/api/v1/quizzes",
     {**quiz_payload, "items": [{"question_id": source_question, "points": 10}]},
-).json["data"]["id"]
+)
+assert source_quiz_response.status_code == 201, source_quiz_response.json
+source_quiz = source_quiz_response.json["data"]["id"]
 source_item = request(
     teacher, "POST", f"/api/v1/quizzes/{source_quiz}/publications", {}
 ).json["data"]["items"][0]["id"]

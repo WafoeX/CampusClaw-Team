@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段**：截至本变更的主干基线 `7d581d5`，开发骨架、班级认证与资料、章节、索引、三模式检索、单次资料问答、流式助手及人工题库和测验评分闭环已合入 `main`（PR #23–25）。当前开发分支接入受控 MCP 教学工具，进度与自动化证据见[受控 MCP 变更](docs/changes/2026-11-04-add-controlled-mcp-tools.md)。异步候选题、Kafka、错题和看板继续按[异步教学任务](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md)推进。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
+**当前阶段**：截至本分支基线 `2c916db`，流式助手、人工题库、测验评分和受控 MCP 教学工具已合入 `main`（PR #23–26）。本分支接通异步候选题、Kafka、错题和看板。真实课程模型验证待配置，详见[异步教学任务](openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md)。课程验收进度见[验收收尾](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
 
 ## 开发者快速开始
 
@@ -98,7 +98,7 @@ uv run --locked pytest -q tests/browser
 
 进程中断后执行 `docker compose exec app python -m app.index_admin recover`，每批处理最多 100 条过期构建、登记精确清理凭证，可重复运行。本地 Task 2.3 候选已接入退役切片去内容映射及 `docker compose exec app python -m app.index_admin cleanup` 精确补偿，每批最多 100 条，失败或待人工项非零退出，完成凭证仍重查迟到写入；三种检索模式删除不可见性已通过真实双库回归。模型 key 缺失会明确失败，不生成替代向量；确定性工程回归与已通过的真实课程网关烟测分别留证。
 
-本机私有 `.env` 已登记合成演示库 `campusclaw_test_demo` 和 HTTPS 源 `https://localhost:8443`。演示覆盖已提供到应用的容器内 HTTPS 代理，并实际验证登录及检索问答。本机密码只留在被忽略的 `.env` 中，不属于提交内容；本机展示不等于正式公开部署。
+演示脚本使用合成演示库 `campusclaw_test_demo` 和 HTTPS 源 `https://localhost:8443`。演示覆盖提供容器内 HTTPS 代理，已有登录及检索问答验证记录。本机密码保存在被忽略的 `.env` 中。
 
 ## 项目价值与用户场景
 
@@ -127,11 +127,9 @@ uv run --locked pytest -q tests/browser
 | 资料与知识库 | 文字、UTF-8 TXT/Markdown 上传，原文预览/下载/删除，自动/自定义/标题切片、索引重建 | 原文管理已接入；已有三种切片与索引结构；本地候选已接入有界构建、发布与向量核验，精确删除补偿已接入 |
 | 检索与问答 | 关键词/向量/RRF 混合检索，有限证据、编号出处和引用/数值校验 | 本地候选已实现，自动化和真实网关烟测通过；语义支持与课程效果待最终人工裁决 |
 | AI 平台 | 写作润色、学习规划、练习生成、资料问答，班级模板与变量预览 | 工作区已接入四类目录、三类同步执行、班级模板/变量预览、助手绑定与持久会话 |
-| 技能与工具 | 内置技能、JSON 技能校验及顺序模型步骤、受控 HTTP/MCP 接入与结果回填 | 内置/JSON技能与有界顺序执行已接入；受控HTTP/MCP待后续变更，上传脚本不执行 |
-| 私有记录 | 模型参数与响应、技能步骤及工具结果，仅执行者可读 | 同步应用、会话与技能本人记录、到期隐藏和清理已接入；工具记录待后续变更 |
-| 教学业务 | 章节组织、持久问答与来源快照、反馈及教师未解决问题处理 | 章节组织、持久问答、历史出处与最小教学反馈已接入 |
-| 教学业务 | 单选/判断题库、人工编辑、AI 候选题与教师审核、测验发布及不可变快照 | 人工题目、审核和发布已在开发分支实现；AI 候选题待实现 |
-| 教学业务 | 作答草稿、一次正式提交、客观评分、截止后答案开放、错题与学习看板 | 草稿、正式提交、规则评分和答案开放已在开发分支实现；错题与看板待实现 |
+| 技能与工具 | 内置技能、JSON 技能校验及顺序模型步骤、受控 HTTP/MCP 接入与结果回填 | 内置与 JSON 技能、有界顺序执行及受控 HTTP/MCP 已合入 |
+| 私有记录 | 模型参数与响应、技能步骤及工具结果，仅执行者可读 | 同步应用、会话、技能及工具的本人记录已接入，支持到期隐藏和清理 |
+| 教学业务 | 题库审核、测验与评分、错题看板、反馈及异步候选题 | 人工教学和 Kafka 候选流程已接入，课程真实模型烟测待配置 |
 | 可选提高 | 文本 PDF 导入、后台索引、检索效果实验页面 | 核心验收后择项，均未实现 |
 | 效果评价 | 不少于 30 题的检索对照、依据充分率、无答案处理和耗时 | 34题确定性工程评测已运行；真实模型全量效果与人工标注留最终验收 |
 
@@ -343,7 +341,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 验证：真实MySQL/Qdrant与NGINX/Gunicorn回归、学生/教师浏览器键盘主路径、四态和390/1440宽度均已通过。接口字段及失败复测见[第4组证据](docs/changes/2026-11-04-add-streaming-ai-assistant.md)。真人测试与合并前评审仍待实际执行。
 
 
-### 受控 MCP 教学工具（开发分支）
+### 受控 MCP 教学工具
 
 在私有部署环境设置 `MCP_SERVICE_TOKEN`，宿主和独立教学服务使用同一机器令牌。以新应用镜像执行 `docker compose exec app python -m app.auth_admin upgrade` 应用 0011，保留既有 0001–0010 数据。启动内网服务可运行 `docker compose --profile tools up --build -d mcp-server`。独立探针为容器内 `http://127.0.0.1:8090/health`，端口不发布。通过 Docker 网络检查取得该服务与宿主共用的 Compose 网络 IPv4 CIDR，把它设置为 `MCP_SERVICE_NETWORK`，再运行 `docker compose up -d --no-deps app` 重新装配部署目录。容器网络改变后重新核对 CIDR。工具服务故障时主应用探针继续按原有核心依赖判定。
 
@@ -352,3 +350,23 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 可通过私有 `TOOL_CONNECTOR_DIRECTORY` JSON 数组登记其他部署批准的 HTTPS 服务。每项定义 `key/label/protocol/url/tools`，可选 `credential` 指向仅向 app 注入的 `TOOL_TOKEN_*` 环境键；使用 Compose 覆盖文件可注入这些键。每个工具定义 `description/modes/parameters/result`，HTTP 另要求固定 `path`，仅发 GET。参数只允许封闭枚举和有界数值，结果按部署字段校验。内网例外仅用于固定的 `mcp-server:8090/mcp`。教师页面显示批准选项、审核内容和凭据配置标记。
 
 回退前先断开本班连接、停止新外部调用并等待在途请求结束，再清空宿主的工具目录相关配置、停止 `mcp-server` 并恢复上一宿主镜像。保留 0011 表；物理降级只允许合成隔离库。恢复前按[数据字典](docs/data-dictionary.md#受控-mcp-工具0011)执行撤销清单和到期清理，运行 `python -m app.ai_admin cleanup` 直到到期批次为空。审计只增恢复不会重发工具请求。协议、隔离 Compose、真实网关与代理分开取证，见[变更证据](docs/changes/2026-11-04-add-controlled-mcp-tools.md)。
+
+## 异步教学
+
+教师在 `/console/questions` 建题、审核，组卷后同步发布。学生在 `/quizzes` 恢复草稿和正式交卷，MySQL 在同一事务完成规则评分并返回 201。答案开放后可进入 `/mistakes`，教师从 `/console/dashboard` 查看冻结名单、提交率、平均分、逐题正确率和章节未解决反馈。资料重建后仍可查看有权限的历史出处。资料删除会清除出处，评分保持原值。
+
+AI 候选题使用 Compose 的 `teaching` 扩展。先按本页认证配置准备私有 `.env`，在应用镜像中执行 0012 迁移，再启动 Kafka、投递器和 worker。课程聊天网关通过私有 `CHAT_BASE_URL`、`CHAT_MODEL`、`CHAT_API_KEY` 配置。
+
+```sh
+export APP_BUILD_REVISION="$(git rev-parse HEAD)"
+docker compose build app
+docker compose up -d --wait mysql qdrant
+docker compose run --rm --no-deps app python -m app.auth_admin upgrade
+docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile teaching up -d
+```
+
+在题库选择本班资料或章节并提交 1–10 道候选题。受理返回 202 和任务地址，页面轮询至终态。成功的草稿须经教师审核才能发布。Kafka 单节点使用持久卷，broker 不发布宿主端口。候选与死信 topic 各 3 分区、单副本，broker 容器上限 1 GiB、JVM 堆 512 MiB，每班最多 20 个在途候选任务。候选用已发布的关系证据，最多 8 片。人工建题、草稿、交卷与规则评分使用 MySQL。
+
+暂停新候选受理时设置 `TEACHING_JOBS_ENABLED=0` 并重新创建应用，保留投递器与 worker 排空已受理任务。检查 `teaching_backlog`、`teaching_lag` 和死信后按数据字典回退。后台索引继续走同步构建接口。
+
+运行 `make check` 执行合成资料和替身模型的真实 Kafka/MySQL 回归。将三项课程聊天配置填入工作树的私有 `.env`，或一次性通过当前进程环境提供，再运行 `CAMPUSCLAW_REAL_CANDIDATES=1 uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k real_kafka`。隔离测试额外请求一次真实模型，核对保存的待审草稿和出处，仅记录脱敏的模型配置、耗时和可用的 token 用量。工程证据见[变更记录](docs/changes/2026-11-04-add-async-teaching-workflows.md)和[数据字典](docs/data-dictionary.md#异步教学出处和实时指标0012)。

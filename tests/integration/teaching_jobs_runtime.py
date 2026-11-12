@@ -26,7 +26,7 @@ from app.adapters.migrations.runner import migrate
 from app.adapters.retrieval_repository import RetrievalRepository
 from app.adapters.teaching_jobs import TeachingJobs
 from app.adapters.teaching_kafka import commit, consumer, producer, publish
-from app.adapters.teaching_schema_v10 import quizzes
+from app.adapters.teaching_schema_v10 import quiz_results, quizzes
 from app.adapters.teaching_schema_v12 import (
     generated_questions,
     job_results,
@@ -589,6 +589,63 @@ for attempt in range(len(RETRY_SECONDS) + 1):
         assert not relay_once(repository, tx, event_log)
         due(job_event(failed_job).event_id)
 assert state["state"] == "dead_letter" and state["error_code"] == 1500
+assert state["result"] is None
+
+# QB-F04: the model remains unavailable while a teacher creates and publishes
+# a manual question and a student receives a committed deterministic score.
+calls_after_failure = model.complete_once.call_count
+manual_fields = ("kind", "stem", "options", "answer", "explanation")
+manual = request(
+    teacher, "POST", "/api/v1/questions", {key: sample[key] for key in manual_fields}
+)
+assert manual.status_code == 201 and manual.json["code"] == 0
+manual_id = manual.json["data"]["id"]
+assert (
+    request(
+        teacher,
+        "POST",
+        f"/api/v1/questions/{manual_id}/reviews",
+        {"expected_version": 1},
+    ).status_code
+    == 200
+)
+deadline = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
+manual_quiz = request(
+    teacher,
+    "POST",
+    "/api/v1/quizzes",
+    {
+        "title": "模型停机时的人工测验",
+        "chapter_id": None,
+        "deadline_at": deadline,
+        "answers_open_at": deadline,
+        "items": [{"question_id": manual_id, "points": 10}],
+    },
+)
+assert manual_quiz.status_code == 201
+manual_path = "/api/v1/quizzes/" + manual_quiz.json["data"]["id"]
+published = request(teacher, "POST", manual_path + "/publications", {})
+assert published.status_code == 200
+item = published.json["data"]["items"][0]["id"]
+submitted = request(
+    student,
+    "POST",
+    manual_path + "/submissions",
+    {"draft_revision": 0, "answers": {item: "true"}},
+    key="manual-during-model-outage",
+)
+assert submitted.status_code == 201 and submitted.json["code"] == 0
+with engine.connect() as connection:
+    assert (
+        connection.scalar(
+            select(quiz_results.c.score).where(
+                quiz_results.c.submission_id == submitted.json["data"]["submission_id"]
+            )
+        )
+        == 10
+    )
+assert model.complete_once.call_count == calls_after_failure
+
 with engine.connect() as connection:
     dead = (
         connection.execute(

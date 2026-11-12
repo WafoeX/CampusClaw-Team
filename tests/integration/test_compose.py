@@ -481,7 +481,7 @@ def verify_teaching_core(compose):
 
 
 def test_JB_QB_real_kafka_and_candidate_recovery(stack):
-    compose, _, _, _ = stack
+    compose, _, status, _ = stack
     compose("up", "-d", "kafka-topics", teaching=True)
     eventually(
         lambda: (
@@ -538,6 +538,12 @@ def test_JB_QB_real_kafka_and_candidate_recovery(stack):
     )
     assert len(workers) == 2
     assert all(row["ExitCode"] == 0 for row in workers)
+
+    # 5.3: stop only the broker while the core services remain ready.
+    compose("stop", "kafka", teaching=True)
+    assert compose("ps", "--status", "exited", "-q", "kafka", teaching=True)
+    assert status("ready")[0] == 200
+    verify_teaching_core(compose)
 
 
 def verify_teaching_jobs(compose):

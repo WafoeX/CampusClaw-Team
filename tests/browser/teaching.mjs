@@ -86,6 +86,10 @@ try {
   await wait(() => js('location.pathname.startsWith("/quizzes/") && document.getElementById("notice")?.textContent === "已加载。" && !!document.querySelector("#quiz-items input[type=radio]:checked")'));
   const draft = await api(`/api/v1/quizzes/${quiz.id}/draft`);
   assert.deepEqual(Object.values(draft.answers), ["A"]);
+  await js('document.querySelectorAll("#quiz-items input[type=radio]")[1].click(); document.getElementById("submit-quiz").click()');
+  await wait(() => js('document.getElementById("notice")?.textContent === "正式提交成功。"'));
+  assert.equal(await js('document.getElementById("submit-quiz").disabled'), true, "正式提交后按钮应保持禁用");
+  assert.equal(await js('document.getElementById("save-draft").disabled'), true, "正式提交后草稿应只读");
   await navigate("/mistakes");
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("答案尚未开放")'), true);
@@ -94,8 +98,8 @@ try {
   await login("demo_a_teacher");
   await navigate("/console/dashboard");
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
-  assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 0 / 1")'), true);
-  console.log("TEACHING_BROWSER_OK: 刷新和重新登录后草稿恢复");
+  assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 1 / 1")'), true);
+  console.log("TEACHING_BROWSER_OK: 草稿恢复、正式提交、答案门控和看板统计");
 } finally {
   socket.close();
 }

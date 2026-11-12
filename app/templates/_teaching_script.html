@@ -21,12 +21,12 @@
   function operation(method, payload, key) {
     return { method, headers: { ...writing, ...(key ? { 'Idempotency-Key': key } : {}) }, body: JSON.stringify(payload) };
   }
-  async function act(button, work) {
+  async function act(button, work, staysDisabled = () => false) {
     button.disabled = true;
     say('正在处理…');
     try { const message = await work(); say(message || '操作完成。'); }
     catch (error) { say(error.message, true); }
-    finally { button.disabled = false; }
+    finally { button.disabled = staysDisabled(); }
   }
   async function load() {
     retry.hidden = true;
@@ -223,6 +223,7 @@
   } else {
     const itemsContainer = $('quiz-items');
     let quiz = null, draft = null, requestKey = null;
+    let closed = false;
     function currentAnswers() {
       const answers = {};
       for (const item of quiz.items) {
@@ -248,7 +249,7 @@
           for (const detail of result.details) panel.append(element('p', (detail.correct ? '正确' : '错误') + ' · 正确答案：' + detail.answer + ' · ' + detail.explanation));
         }
       }
-      const closed = result.submitted || new Date(draft.server_time) >= new Date(draft.deadline_at);
+      closed = result.submitted || new Date(draft.server_time) >= new Date(draft.deadline_at);
       $('save-draft').disabled = closed; $('submit-quiz').disabled = closed;
       const mistakes = await api('/api/v1/quizzes/' + teachingTarget + '/my-mistakes');
       const mistakePanel = $('my-mistakes'); mistakePanel.replaceChildren();
@@ -257,13 +258,15 @@
     $('save-draft')?.addEventListener('click', event => act(event.currentTarget, async () => {
       draft = await api('/api/v1/quizzes/' + teachingTarget + '/draft', operation('PUT', { draft_revision: draft.revision, answers: currentAnswers() }));
       return '草稿已保存。';
-    }));
+    }, () => closed));
     $('submit-quiz')?.addEventListener('click', event => act(event.currentTarget, async () => {
       if (!confirm('正式提交后不能修改，确定提交吗？')) return '';
       requestKey ||= crypto.randomUUID();
       await api('/api/v1/quizzes/' + teachingTarget + '/submissions', operation('POST', { draft_revision: draft.revision, answers: currentAnswers() }, requestKey));
+      closed = true;
+      $('save-draft').disabled = true;
       await renderStudent(); return '正式提交成功。';
-    }));
+    }, () => closed));
     $('publish-quiz')?.addEventListener('click', event => act(event.currentTarget, async () => {
       await api('/api/v1/quizzes/' + teachingTarget + '/publications', operation('POST', {}));
       await reload(); return '测验已发布，题目与名单已冻结。';

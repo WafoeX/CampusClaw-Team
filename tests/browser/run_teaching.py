@@ -9,12 +9,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def run(*args, capture=False, **options):
+def run(*args, capture=False, timeout=420, **options):
     result = subprocess.run(
         args,
         cwd=ROOT,
         check=True,
-        timeout=420,
+        timeout=timeout,
         text=True,
         capture_output=capture,
         **options,
@@ -27,7 +27,15 @@ def main():
     project = f"campusclaw-teaching-browser-{token}"
     version = secrets.token_hex(20)
     image = f"campusclaw-skeleton:{version}"
+    browser_image = "campusclaw-teaching-browser:local"
+    app_name = f"{project}-app"
+    browser_name = f"{project}-chromium"
+    origin = f"https://{app_name}:8443"
     password = "Synthetic" + secrets.token_hex(12)
+    # BuildKit caches Chromium between runs. Finish downloads before starting MySQL.
+    run(
+        "docker", "build", "-t", browser_image, str(ROOT / "tests/browser"), timeout=900
+    )
     with tempfile.TemporaryDirectory(prefix=project + "-") as folder:
         config = Path(folder) / "compose.env"
         config.write_text(
@@ -54,7 +62,6 @@ def main():
             "--file",
             str(ROOT / "docker-compose.yml"),
         )
-        app_container = None
         try:
             run(*base, "up", "-d", "mysql", capture=True)
             for _ in range(60):
@@ -94,25 +101,27 @@ def main():
                 "seed",
                 capture=True,
             )
-            app_container = run(
+            run(
                 *base,
                 "run",
                 "-d",
                 "--no-deps",
                 "--name",
-                "teaching-ui-app",
+                app_name,
                 "-e",
-                "APP_PUBLIC_ORIGIN=https://teaching-ui-app:8443",
+                f"APP_PUBLIC_ORIGIN={origin}",
                 "app",
                 "python",
                 "-c",
                 "from app import create_app; create_app().run(host='0.0.0.0', port=8443, ssl_context='adhoc')",
                 capture=True,
-            ).splitlines()[-1]
+            )
             browser = (
                 "docker",
                 "run",
                 "--rm",
+                "--name",
+                browser_name,
                 "--network",
                 project + "_default",
                 "-v",
@@ -121,23 +130,20 @@ def main():
                 f"CAMPUS_BROWSER_PASSWORD={password}",
                 "--entrypoint",
                 "sh",
-                "node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202",
+                browser_image,
                 "-c",
-                "apk add --no-cache chromium >/dev/null\n"
                 "mkdir -p /tmp/teaching-browser\n"
                 "chromium --headless --no-sandbox --ignore-certificate-errors --remote-debugging-port=0 --user-data-dir=/tmp/teaching-browser about:blank >/tmp/chrome.log 2>&1 &\n"
-                "node /workspace/tests/browser/teaching.mjs https://teaching-ui-app:8443",
+                f"node /workspace/tests/browser/teaching.mjs {origin}",
             )
-            # 浏览器容器的包安装和启动在同一个隔离网络内完成。
-            run(*browser)
+            run(*browser, timeout=90)
             print("TEACHING_BROWSER_RUNTIME_OK")
         finally:
-            if app_container:
-                subprocess.run(
-                    ["docker", "rm", "-f", app_container],
-                    capture_output=True,
-                    check=False,
-                )
+            subprocess.run(
+                ["docker", "rm", "-f", browser_name, app_name],
+                capture_output=True,
+                check=False,
+            )
             subprocess.run(
                 [*base, "down", "-v", "--remove-orphans"],
                 capture_output=True,

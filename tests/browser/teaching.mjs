@@ -86,6 +86,15 @@ try {
   await wait(() => js('location.pathname.startsWith("/quizzes/") && document.getElementById("notice")?.textContent === "已加载。" && !!document.querySelector("#quiz-items input[type=radio]:checked")'));
   const draft = await api(`/api/v1/quizzes/${quiz.id}/draft`);
   assert.deepEqual(Object.values(draft.answers), ["A"]);
+  await navigate("/mistakes");
+  await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
+  assert.equal(await js('document.getElementById("summary-list").textContent.includes("答案尚未开放")'), true);
+  await api("/api/v1/auth/sessions/current", "DELETE");
+  await navigate("/login");
+  await login("demo_a_teacher");
+  await navigate("/console/dashboard");
+  await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
+  assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 0 / 1")'), true);
   console.log("TEACHING_BROWSER_OK: 刷新和重新登录后草稿恢复");
 } finally {
   socket.close();

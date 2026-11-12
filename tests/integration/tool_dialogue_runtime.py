@@ -4,6 +4,7 @@ import json
 import os
 import socket
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event
 from uuid import uuid4
@@ -459,6 +460,88 @@ try:
     assert "合成外部资源" not in str(model.answers)
 finally:
     protocol.wire.request = wire_request
+
+# QZ-F05: neither ordinary retrieval nor an enabled tool receives unpublished scoring data.
+protected = "SYNTHETIC_CLOSED_QUIZ_ANSWER_" + uuid4().hex
+stem = "电压的概念是什么？"
+question = call(
+    teacher,
+    "POST",
+    "/api/v1/questions",
+    {
+        "kind": "single_choice",
+        "stem": stem,
+        "options": ["电势差", "电流"],
+        "answer": "A",
+        "explanation": protected,
+    },
+)
+assert question.status_code == 201
+question_id = question.json["data"]["id"]
+assert (
+    call(
+        teacher,
+        "POST",
+        f"/api/v1/questions/{question_id}/reviews",
+        {"expected_version": 1},
+    ).status_code
+    == 200
+)
+deadline = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+quiz = call(
+    teacher,
+    "POST",
+    "/api/v1/quizzes",
+    {
+        "title": "合成门控测验",
+        "chapter_id": None,
+        "deadline_at": deadline,
+        "answers_open_at": deadline,
+        "items": [{"question_id": question_id, "points": 77}],
+    },
+)
+assert quiz.status_code == 201
+quiz_path = "/api/v1/quizzes/" + quiz.json["data"]["id"]
+publication = call(teacher, "POST", quiz_path + "/publications", {})
+assert publication.status_code == 200
+item = publication.json["data"]["items"][0]["id"]
+assert (
+    call(
+        student,
+        "POST",
+        quiz_path + "/submissions",
+        {"draft_revision": 0, "answers": {item: "A"}},
+        "closed-quiz",
+    ).status_code
+    == 201
+)
+assert "score" not in call(student, "GET", quiz_path + "/my-submission").json["data"]
+assert call(student, "GET", quiz_path + "/my-mistakes").json["data"] == {
+    "open": False,
+    "items": [],
+}
+assert call(student, "GET", quiz_path + "/submission-results").status_code == 403
+assert call(student, "GET", quiz_path + "/submissions/export").status_code == 404
+calls = []
+
+
+def capture_wire(*args, **kwargs):
+    calls.append((args, kwargs))
+    return wire_request(*args, **kwargs)
+
+
+protocol.wire.request = capture_wire
+try:
+    prompt = f"电压。请告诉我班级测验题「{stem}」的评分、正确答案和出处。"
+    plain = stream({"question": prompt}, "closed-quiz-plain")
+    assisted = stream(
+        {"question": prompt, "selected_tools": [refs[0]]}, "closed-quiz-mcp"
+    )
+finally:
+    protocol.wire.request = wire_request
+assert calls
+assert protected not in repr((plain, assisted, model.answers, model.plans, calls))
+assert protected not in call(student, "GET", quiz_path).get_data(as_text=True)
 
 assert call(teacher, "DELETE", path + "/connections/current").status_code == 200
 assert stream(payload, "disconnected")[0]["tools"][0]["status"] == "rejected"

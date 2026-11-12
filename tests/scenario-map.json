@@ -849,19 +849,25 @@
         "assertion": "assert created.status_code == 201, created.json"
       },
       "QB-N02": {
-        "pending": "4.2",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "AI 候选题和异步批次未进入本次人工题库范围"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert question[\"origin\"] == \"ai\" and question[\"reviewed\"] is False"
       },
       "QB-B01": {
-        "pending": "4.1",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "候选题上限和空证据依赖 AI 接入"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert model.complete_once.call_count == before + (output is not None)"
       },
       "QB-F01": {
-        "pending": "4.2",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "人工题目输入已测；模型输出失败路径待 AI 候选题接入"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert result[\"state\"] == \"failed\" and result[\"result\"] is None"
       },
       "QB-F02": {
         "test": "tests/api/test_teaching.py",
@@ -875,14 +881,18 @@
         "assertion": "assert request(outsider, \"GET\", f\"/api/v1/questions/{question_id}\").json[\"code\"] == 1300"
       },
       "QB-F04": {
-        "pending": "4.1",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "模型与向量候选路径尚未接入"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert state[\"state\"] == \"dead_letter\" and state[\"error_code\"] == 1500"
       },
       "QB-F05": {
-        "pending": "4.2",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "AI 候选在途撤权尚未接入"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert view(deleted)[\"state\"] == \"cancelled\""
       }
     },
     "2026-11-04-add-async-teaching-workflows/specs/published-class-quizzes/spec.md": {
@@ -923,9 +933,8 @@
         "assertion": "assert connection.scalar(select(quizzes.c.published_at).where(quizzes.c.id == new_quiz_id)) is None"
       },
       "QZ-F05": {
-        "pending": "5.3",
-        "task_file": "openspec/changes/2026-11-04-add-async-teaching-workflows/tasks.md",
-        "reason": "现有页面和 API 门控已测；普通会话及 MCP 旁路待对应服务接入后回归"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue"
       }
     },
     "2026-11-04-add-async-teaching-workflows/specs/async-quiz-submissions/spec.md": {
@@ -1115,12 +1124,105 @@
         "test": "tests/integration/test_compose.py",
         "function": "test_CN_B02_AU_B01_AU_F04_AU_F05_tool_storage"
       }
+    },
+    "2026-11-04-add-async-teaching-workflows/specs/class-learning-insights/spec.md": {
+      "LI-N01": {
+        "test": "tests/unit/test_teaching_insights.py",
+        "function": "test_LI_N01_frozen_participants_scored_results_and_item_denominator"
+      },
+      "LI-B01": {
+        "test": "tests/unit/test_teaching_insights.py",
+        "function": "test_LI_B01_zero_scored_denominator_is_no_data"
+      },
+      "LI-F01": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_LI_F01_insights_rejects_unknown_filter"
+      },
+      "LI-F02": {
+        "test": "tests/unit/test_teaching_insights.py",
+        "function": "test_LI_F02_mistakes_hidden_until_answer_open"
+      },
+      "LI-F03": {
+        "test": "tests/unit/test_teaching_insights.py",
+        "function": "test_LI_F03_missing_quiz_is_hidden"
+      },
+      "LI-F04": {
+        "test": "tests/unit/test_teaching_insights.py",
+        "function": "test_LI_F04_repository_failure_is_dependency_error"
+      },
+      "LI-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert after_delete.json[\"data\"][\"items\"][0][\"source_status\"] == \"unavailable\""
+      }
+    },
+    "2026-11-04-add-async-teaching-workflows/specs/durable-teaching-jobs/spec.md": {
+      "JB-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert first[\"state\"] == \"succeeded\", first"
+      },
+      "JB-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert state[\"state\"] == \"dead_letter\" and state[\"error_code\"] == 1500"
+      },
+      "JB-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert connection.scalar(select(func.count()).select_from(quarantine)) == 1"
+      },
+      "JB-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert view(revoked)[\"state\"] == \"cancelled\""
+      },
+      "JB-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert request(outsider, \"POST\", JOB + job_id + \"/replays\", {}).json[\"code\"] == 1300"
+      },
+      "JB-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert outbox_row(expected.event_id)[\"sent_at\"] is None and job_event(job_id) == expected"
+      },
+      "JB-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_F05_mysql_job_transactions_without_broker"
+      },
+      "JB-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert repository.metrics()[\"states\"][\"pending\"] == CLASS_CAPACITY"
+      },
+      "JB-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert connection.scalar(select(func.count()).select_from(generated_questions)) == 1"
+      }
     }
   },
   "planned": {
-    "2026-11-04-add-async-teaching-workflows/specs/class-learning-insights/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-async-teaching-workflows/specs/durable-teaching-jobs/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "本次选择跳过后台索引 202，保留同步接口。",
     "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"

@@ -9,6 +9,6 @@
 | 伪引用、重复选项、错误答案与数值 | 结构校验拒绝整批，失败批次无可见草稿 |
 | 指令与数据边界 | 资料文本仅作为消息数据，工具字段使模型输出校验失败，未向模型发送材料标识 |
 | 跨班、在途撤权与删除 | 同班归属、现有版本及租约在事务中复核。来源失效、索引更新或教师撤权时任务取消 |
-| 课程真实网关 | 当前工作树缺私有 `CHAT_API_KEY`。未执行模型有效性、真实时延和语义样本验收 |
+| 课程真实网关 | 2026-11-12 在隔离 MySQL/Kafka 中发送一次合成候选请求，`course-chat` 生成 1 道待审题，出处区间与原文相符。网关调用 3793.24 ms，受理至任务完成 3841.43 ms，874 tokens。人工语义样本验收待执行 |
 
 固定回归命令为 `uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_teaching_candidates.py`。真实 Kafka/MySQL 集成命令见[变更记录](../changes/2026-11-04-add-async-teaching-workflows.md)。人工语义标注、课程等价和最终验收沿用对应的独立任务。

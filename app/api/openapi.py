@@ -201,6 +201,13 @@ REQUESTS = {
     "handle_teaching_feedback": obj(
         {"expected_revision": REV, "status": {"enum": ["handled"]}}
     ),
+    "create_generation_job": {
+        "oneOf": [
+            obj({scope: ID, "count": {"type": "integer", "minimum": 1, "maximum": 10}})
+            for scope in ("chapter_id", "material_id")
+        ]
+    },
+    "replay_teaching_job": obj({}),
 }
 KEYED = {
     "submit_quiz",
@@ -219,6 +226,11 @@ ENDPOINTS = set(REQUESTS) | {
     "read_quiz_draft",
     "read_my_submission",
     "list_submission_results",
+    "read_my_mistakes",
+    "read_quiz_insights",
+    "list_mistakes",
+    "list_learning_insights",
+    "read_teaching_job",
     "current_session",
     "logout",
     "ai_catalogue",
@@ -327,6 +339,11 @@ def document(app):
                         },
                     }
                 )
+            if endpoint in {"list_mistakes", "list_learning_insights"}:
+                parameters.extend(
+                    {"in": "query", "name": name, "schema": ID}
+                    for name in ("chapter_id", "quiz_id")
+                )
             operation = {
                 "operationId": endpoint,
                 "summary": endpoint,
@@ -351,7 +368,14 @@ def document(app):
             }
             if endpoint == "login":
                 operation["security"] = []
-            if endpoint.startswith("create_") or endpoint in {
+            if endpoint in {"create_generation_job", "replay_teaching_job"}:
+                operation["responses"]["202"] = {
+                    "description": "任务与发件箱已提交，可按 Location 轮询。",
+                    "headers": {"Location": {"schema": {"type": "string"}}},
+                    "content": {"application/json": {"schema": ENVELOPE}},
+                }
+                del operation["responses"]["200"]
+            elif endpoint.startswith("create_") or endpoint in {
                 "run_ai_app",
                 "submit_quiz",
             }:

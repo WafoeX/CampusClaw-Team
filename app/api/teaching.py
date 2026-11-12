@@ -8,8 +8,9 @@ from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 from app.api.auth import COOKIE
 from app.api.http import success
 from app.api.materials import REQUEST_KEY, _json, _positive, _query, material_id
-from app.services.materials import READ_MATERIALS
+from app.services.materials import READ_MATERIALS, unavailable
 from app.services.teaching import TEACHING_ANSWER, TEACHING_WRITE, invalid
+from app.services.teaching_question_fields import question_fields
 
 TEACHING_POLICIES = {
     (endpoint, method): permission
@@ -28,6 +29,13 @@ TEACHING_POLICIES = {
         ("submit_quiz", ("POST",), TEACHING_ANSWER),
         ("read_my_submission", ("GET", "HEAD"), TEACHING_ANSWER),
         ("list_submission_results", ("GET", "HEAD"), TEACHING_WRITE),
+        ("read_my_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
+        ("read_quiz_insights", ("GET", "HEAD"), TEACHING_WRITE),
+        ("list_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
+        ("list_learning_insights", ("GET", "HEAD"), TEACHING_WRITE),
+        ("create_generation_job", ("POST",), TEACHING_WRITE),
+        ("read_teaching_job", ("GET", "HEAD"), TEACHING_WRITE),
+        ("replay_teaching_job", ("POST",), TEACHING_WRITE),
     )
     for method in methods
 }
@@ -49,59 +57,6 @@ def revision(value, *, zero=False):
     if type(value) is not int or not (0 if zero else 1) <= value <= 2_000_000_000:
         raise invalid("修订号无效")
     return value
-
-
-def question_fields(payload):
-    required = {"kind", "stem", "options", "answer", "explanation"}
-    exact(payload, required, {"source_material_id"})
-    kind, stem, options, answer, explanation = (
-        payload[key] for key in ("kind", "stem", "options", "answer", "explanation")
-    )
-    if (
-        not isinstance(kind, str)
-        or kind not in {"single_choice", "true_false"}
-        or not isinstance(stem, str)
-        or not isinstance(explanation, str)
-    ):
-        raise invalid()
-    stem, explanation = stem.strip(), explanation.strip()
-    if (
-        not 1 <= len(stem) <= 2000
-        or not 1 <= len(explanation) <= 2000
-        or "\0" in stem + explanation
-    ):
-        raise invalid("题干或解析长度无效")
-    if not isinstance(options, list) or any(
-        not isinstance(option, str) for option in options
-    ):
-        raise invalid()
-    options = [option.strip() for option in options]
-    if kind == "single_choice":
-        if (
-            not 2 <= len(options) <= 6
-            or any(
-                not option or len(option) > 500 or "\0" in option for option in options
-            )
-            or len(set(options)) != len(options)
-        ):
-            raise invalid("单选题须有 2 至 6 个互异选项")
-        if answer not in [chr(65 + index) for index in range(len(options))]:
-            raise invalid("正确选项无效")
-    elif options != ["正确", "错误"] or answer not in {"true", "false"}:
-        raise invalid("判断题须使用固定选项和答案")
-    source = payload.get("source_material_id")
-    if source is not None:
-        if not isinstance(source, str):
-            raise invalid()
-        source = material_id(source)
-    return {
-        "kind": kind,
-        "stem": stem,
-        "options": options,
-        "answer": answer,
-        "explanation": explanation,
-        "source_material_id": source,
-    }
 
 
 def timestamp(value):
@@ -181,14 +136,93 @@ def submit_key():
     return value.encode("ascii")
 
 
-def install_teaching(app, service):
+def install_teaching(app, service, candidate_jobs=None):
     @app.after_request
     def teaching_response(response):
-        if request.path.startswith("/api/v1/questions") or request.path.startswith(
-            "/api/v1/quizzes"
+        if request.path.startswith(
+            (
+                "/api/v1/questions",
+                "/api/v1/quizzes",
+                "/api/v1/teaching-jobs",
+                "/api/v1/question-generation-jobs",
+                "/api/v1/mistakes",
+                "/api/v1/learning-insights",
+            )
         ):
             response.headers["Cache-Control"] = "no-store"
         return response
+
+    def generation():
+        if candidate_jobs is None:
+            raise unavailable()
+        return candidate_jobs
+
+    @app.post("/api/v1/question-generation-jobs")
+    def create_generation_job():
+        _query()
+        data = body()
+        exact(data, {"count"}, {"chapter_id", "material_id"})
+        keys = data.keys() & {"chapter_id", "material_id"}
+        if (
+            len(keys) != 1
+            or type(data["count"]) is not int
+            or not 1 <= data["count"] <= 10
+        ):
+            raise invalid()
+        scope = {"chapter_id": None, "material_id": None, "count": data["count"]}
+        key = keys.pop()
+        if not isinstance(data[key], str):
+            raise invalid()
+        scope[key] = material_id(data[key])
+        job = generation().admit(g.identity, request.cookies.get(COOKIE), scope)
+        return (
+            success(job),
+            202,
+            {"Location": f"/api/v1/teaching-jobs/{job['task_id']}"},
+        )
+
+    @app.get("/api/v1/teaching-jobs/<value>")
+    def read_teaching_job(value):
+        _query()
+        return success(generation().read(g.identity, material_id(value)))
+
+    def summaries(*, teacher):
+        _query(("page", "page_size", "chapter_id", "quiz_id"))
+        filters = {
+            key: material_id(request.args[key])
+            for key in ("chapter_id", "quiz_id")
+            if key in request.args
+        }
+        return success(
+            service.summaries(
+                g.identity,
+                teacher=teacher,
+                page=_positive("page", 1, 1_000_000),
+                page_size=_positive("page_size", 20, 100),
+                **filters,
+            )
+        )
+
+    @app.get("/api/v1/mistakes")
+    def list_mistakes():
+        return summaries(teacher=False)
+
+    @app.get("/api/v1/learning-insights")
+    def list_learning_insights():
+        return summaries(teacher=True)
+
+    @app.post("/api/v1/teaching-jobs/<value>/replays")
+    def replay_teaching_job(value):
+        _query()
+        exact(body(), set())
+        job = generation().replay(
+            g.identity, request.cookies.get(COOKIE), material_id(value)
+        )
+        return (
+            success(job),
+            202,
+            {"Location": f"/api/v1/teaching-jobs/{job['task_id']}"},
+        )
 
     @app.get("/api/v1/questions")
     def list_questions():
@@ -335,3 +369,13 @@ def install_teaching(app, service):
                 _positive("page_size", 20, 100),
             )
         )
+
+    @app.get("/api/v1/quizzes/<value>/my-mistakes")
+    def read_my_mistakes(value):
+        _query()
+        return success(service.my_mistakes(g.identity, material_id(value)))
+
+    @app.get("/api/v1/quizzes/<value>/insights")
+    def read_quiz_insights(value):
+        _query()
+        return success(service.insights(g.identity, material_id(value)))

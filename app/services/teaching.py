@@ -36,6 +36,7 @@ def question_view(row, version):
         "answer": version["answer"],
         "explanation": version["explanation"],
         "source_material_id": version["source_material_id"],
+        "origin": "ai" if row.get("job_id") else "manual",
     }
 
 
@@ -106,15 +107,26 @@ class TeachingService:
             raise missing()
         return row
 
+    def _manual_source(self, connection, identity, fields):
+        source = fields.get("source_material_id")
+        if source is None:
+            return None
+        material = self.repository.source_material(
+            connection, identity.class_id, source, lock=True
+        )
+        if material is None:
+            raise missing()
+        return {
+            "title": material["title"],
+            "source_version": material["content_version"],
+            "index_version": material["active_index_version"],
+        }
+
     def create_question(self, identity, cookie, fields):
         try:
             with self.repository.transaction() as connection:
                 self._actor(connection, identity, cookie, "teacher")
-                source = fields.get("source_material_id")
-                if source is not None and not self.repository.material_exists(
-                    connection, identity.class_id, source
-                ):
-                    raise missing()
+                snapshot = self._manual_source(connection, identity, fields)
                 now = self.repository.now(connection)
                 question = {
                     "id": str(uuid4()),
@@ -135,6 +147,8 @@ class TeachingService:
                 self.repository.add_question(
                     connection, question, version, identity.subject_id, now
                 )
+                if snapshot is not None:
+                    self.repository.save_source(connection, version, snapshot)
                 return question_view(question, version)
         except self.database_error:
             raise unavailable() from None
@@ -146,11 +160,7 @@ class TeachingService:
                 row = self._question(connection, identity, question_id, lock=True)
                 if row["current_version"] != expected_version:
                     raise conflict()
-                source = fields.get("source_material_id")
-                if source is not None and not self.repository.material_exists(
-                    connection, identity.class_id, source
-                ):
-                    raise missing()
+                snapshot = self._manual_source(connection, identity, fields)
                 now = self.repository.now(connection)
                 version = {
                     "question_id": question_id,
@@ -167,6 +177,8 @@ class TeachingService:
                     identity.subject_id,
                     now,
                 )
+                if snapshot is not None:
+                    self.repository.save_source(connection, version, snapshot)
                 return question_view(
                     {
                         **row,
@@ -213,7 +225,16 @@ class TeachingService:
                 version = self.repository.version(
                     connection, identity.class_id, question_id, row["current_version"]
                 )
-                return question_view(row, version)
+                view = question_view(row, version)
+                if version["source_material_id"] is not None:
+                    view["source_snapshot"] = self.repository.source_snapshot(
+                        connection,
+                        identity.class_id,
+                        question_id,
+                        row["current_version"],
+                        version["source_material_id"],
+                    )
+                return view
         except self.database_error:
             raise unavailable() from None
 
@@ -232,6 +253,7 @@ class TeachingService:
                     "reviewed": row["reviewed_version"] == row["current_version"],
                     "kind": row["kind"],
                     "stem": row["stem"],
+                    "origin": "ai" if row.get("job_id") else "manual",
                 }
                 for row in rows
             ],
@@ -632,5 +654,150 @@ class TeachingService:
                     "page": page,
                     "page_size": page_size,
                 }
+        except self.database_error:
+            raise unavailable() from None
+
+    def my_mistakes(self, identity, quiz_id):
+        result = self.my_submission(identity, quiz_id)
+        if "details" not in result:
+            return {"open": False, "items": []}
+        try:
+            with self.repository.engine.connect() as connection:
+                items = {
+                    row["id"]: row
+                    for row in self.repository.items(
+                        connection, identity.class_id, quiz_id
+                    )
+                }
+                mistakes = []
+                for detail in result["details"]:
+                    if detail["correct"]:
+                        continue
+                    item = items[detail["item_id"]]
+                    source = item["source_material_id"]
+                    snapshot = (
+                        self.repository.source_snapshot(
+                            connection,
+                            identity.class_id,
+                            item["question_id"],
+                            item["question_version"],
+                            source,
+                        )
+                        if source is not None
+                        else None
+                    )
+                    mistakes.append(
+                        {
+                            "item_id": item["id"],
+                            "stem": item["stem"],
+                            "options": item["options"],
+                            "submitted_answer": result["answers"].get(item["id"]),
+                            "answer": detail["answer"],
+                            "explanation": detail["explanation"],
+                            "source_material_id": source,
+                            "source_status": "available" if snapshot else "unavailable",
+                            "source_snapshot": snapshot,
+                        }
+                    )
+                return {"open": True, "items": mistakes}
+        except self.database_error:
+            raise unavailable() from None
+
+    def insights(self, identity, quiz_id):
+        try:
+            with self.repository.engine.connect() as connection:
+                quiz = self._quiz(connection, identity, quiz_id, teacher=True)
+                if quiz["published_at"] is None:
+                    raise conflict("测验尚未发布")
+                items = self.repository.items(connection, identity.class_id, quiz_id)
+                participants, rows = self.repository.insight_rows(
+                    connection, identity.class_id, quiz_id
+                )
+                count = len(rows)
+                correct = {item["id"]: 0 for item in items}
+                for row in rows:
+                    for detail in row["details"]:
+                        if detail["item_id"] in correct and detail["correct"]:
+                            correct[detail["item_id"]] += 1
+                now = self.repository.now(connection)
+                unresolved = (
+                    self.repository.unresolved_count(
+                        connection, identity.class_id, quiz["chapter_id"], now
+                    )
+                    if quiz["chapter_id"] is not None
+                    else None
+                )
+                return {
+                    "quiz_id": quiz_id,
+                    "participants": participants,
+                    "submissions": count,
+                    "submission_rate": round(100 * count / participants, 2)
+                    if participants
+                    else None,
+                    "average_score": round(sum(row["score"] for row in rows) / count, 2)
+                    if count
+                    else None,
+                    "item_accuracy": [
+                        {
+                            "item_id": item["id"],
+                            "position": item["position"],
+                            "correct_rate": round(100 * correct[item["id"]] / count, 2)
+                            if count
+                            else None,
+                        }
+                        for item in items
+                    ],
+                    "unresolved_count": unresolved,
+                    "feedback_status": "available"
+                    if quiz["chapter_id"] is not None
+                    else "no_chapter",
+                }
+        except self.database_error:
+            raise unavailable() from None
+
+    def summaries(
+        self, identity, *, teacher, page, page_size, chapter_id=None, quiz_id=None
+    ):
+        try:
+            if chapter_id is not None or quiz_id is not None:
+                with self.repository.engine.connect() as connection:
+                    if chapter_id is not None and not self.repository.chapter_exists(
+                        connection, identity.class_id, chapter_id
+                    ):
+                        raise invalid("章节筛选无效")
+                    if quiz_id is not None:
+                        quiz = self._quiz(
+                            connection, identity, quiz_id, teacher=teacher
+                        )
+                        if chapter_id is not None and quiz["chapter_id"] != chapter_id:
+                            raise invalid("章节与测验筛选不一致")
+                        if quiz["published_at"] is None:
+                            raise invalid("测验尚未发布")
+            if quiz_id is not None:
+                rows, total = ([quiz] if page == 1 else []), 1
+            else:
+                rows, total = self.repository.list_quizzes(
+                    identity.class_id,
+                    identity.subject_id,
+                    teacher,
+                    page,
+                    page_size,
+                    published_only=True,
+                    chapter_id=chapter_id,
+                )
+            get_summary = self.insights if teacher else self.my_mistakes
+            return {
+                "items": [
+                    {
+                        "quiz_id": row["id"],
+                        "title": row["title"],
+                        **get_summary(identity, row["id"]),
+                    }
+                    for row in rows
+                ],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
         except self.database_error:
             raise unavailable() from None

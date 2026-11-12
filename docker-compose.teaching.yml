@@ -1,0 +1,81 @@
+x-kafka-image: &kafka-image apache/kafka:4.1.2@sha256:5cc2a2fd93fa2687b44015eee04fb2c3edd9e526bd64bf8bec5ff1e268772e0e
+
+x-teaching-worker: &teaching-worker
+  image: campusclaw-skeleton:${APP_BUILD_REVISION:?请设置源码提交号}
+  profiles: ["teaching"]
+  environment:
+    MYSQL_HOST: mysql
+    MYSQL_PORT: "3306"
+    MYSQL_DATABASE: ${MYSQL_DATABASE:?请设置应用库名}
+    MYSQL_USER: ${MYSQL_USER:?请设置应用账号}
+    MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请设置应用口令}
+    QDRANT_URL: http://qdrant:6333
+    QDRANT_API_KEY: ${QDRANT_API_KEY:?请设置 Qdrant 密钥}
+    CHAT_BASE_URL: ${CHAT_BASE_URL:-}
+    CHAT_API_KEY: ${CHAT_API_KEY:-}
+    CHAT_MODEL: ${CHAT_MODEL:-}
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  depends_on:
+    mysql:
+      condition: service_healthy
+    kafka-topics:
+      condition: service_completed_successfully
+  stop_grace_period: 70s
+
+services:
+  app:
+    environment:
+      TEACHING_JOBS_ENABLED: ${TEACHING_JOBS_ENABLED:-1}
+
+  kafka:
+    image: *kafka-image
+    profiles: ["teaching"]
+    mem_limit: 1g
+    environment:
+      CLUSTER_ID: 18N0kL4ZQeeYcSeQNz9fRA
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - teaching-kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "kafka:9092"]
+      interval: 10s
+      timeout: 8s
+      retries: 8
+
+  kafka-topics:
+    image: *kafka-image
+    profiles: ["teaching"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for topic in campusclaw.teaching.candidates.v1 campusclaw.teaching.candidates.dead.v1; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1 --config retention.ms=604800000 --config retention.bytes=67108864
+        done
+
+  teaching-relay:
+    <<: *teaching-worker
+    command: ["python", "-m", "app.teaching_worker", "relay"]
+
+  teaching-worker:
+    <<: *teaching-worker
+    command: ["python", "-m", "app.teaching_worker", "consumer"]
+
+volumes:
+  teaching-kafka-data:

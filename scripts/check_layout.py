@@ -10,11 +10,11 @@ CHANGE = "2026-11-04-add-skeleton"
 CHANGE_ROOT = ROOT / "openspec" / "changes"
 LAYERS = {
     "api": {"api", "services", "observability"},
-    "services": {"services"},
-    "adapters": {"adapters", "config"},
+    "services": {"services", "teaching_job_contract"},
+    "adapters": {"adapters", "config", "teaching_job_contract"},
 }
 API_DEPENDENCIES = {"flask", "werkzeug"}
-ADAPTER_DEPENDENCIES = {"pymysql", "sqlalchemy"}
+ADAPTER_DEPENDENCIES = {"pymysql", "sqlalchemy", "kafka"}
 
 
 def check_layers():

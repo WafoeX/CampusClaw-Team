@@ -36,11 +36,90 @@
   }
   retry.addEventListener('click', load);
 
+  function renderMistakes(panel, data) {
+    if (!data.open) panel.append(element('p', '答案尚未开放或尚未提交。'));
+    else if (!data.items.length) panel.append(element('p', '暂无错题。'));
+    else for (const item of data.items) {
+      const row = element('section'); row.className = 'card';
+      row.append(element('h3', item.stem), element('p', '你的答案：' + (item.submitted_answer || '未作答') + ' · 正确答案：' + item.answer), element('p', item.explanation));
+      if (item.source_status === 'available') {
+        const source = item.source_snapshot;
+        row.append(element('p', '出处：' + source.title + '（原文版本 ' + source.source_version + '）'));
+        if (source.text) row.append(element('blockquote', source.text));
+      } else row.append(element('p', '来源不可用。'));
+      panel.append(row);
+    }
+  }
+  function renderInsights(panel, data) {
+    const percent = value => value === null ? '无数据' : value + '%';
+    panel.append(element('p', '正式提交 ' + data.submissions + ' / ' + data.participants + ' · 提交率 ' + percent(data.submission_rate)));
+    panel.append(element('p', '平均分：' + (data.average_score === null ? '无数据' : data.average_score)));
+    for (const item of data.item_accuracy) panel.append(element('p', '第 ' + item.position + ' 题正确率：' + percent(item.correct_rate)));
+    const feedback = {available: data.unresolved_count, no_chapter: '未关联章节', unavailable: '未接入'};
+    panel.append(element('p', '章节未解决反馈：' + feedback[data.feedback_status]));
+  }
+
   if (teachingView === 'questions') {
     const form = $('question-form');
     const list = $('question-list');
+    const generation = $('generation-form');
+    if (generation) {
+      const status = $('generation-status');
+      const refresh = $('generation-refresh');
+      const replay = $('generation-replay');
+      const states = {pending: '等待处理', running: '正在生成', retry_wait: '等待重试', succeeded: '候选题已加入题库，等待审核', failed: '生成失败', dead_letter: '重试次数已用完', cancelled: '任务已取消'};
+      let current = new URL(location.href).searchParams.get('task');
+      let timer;
+      const path = () => '/api/v1/teaching-jobs/' + encodeURIComponent(current);
+      const track = id => {
+        current = id;
+        const url = new URL(location.href);
+        url.searchParams.set('task', id);
+        history.replaceState(null, '', url);
+      };
+      async function poll() {
+        clearTimeout(timer);
+        if (!current) return;
+        const tracked = current;
+        refresh.hidden = true;
+        replay.hidden = true;
+        try {
+          const job = await api(path());
+          if (tracked !== current) return;
+          const reason = {no_evidence: '出处没有可用证据', insufficient_evidence: '资料不足以生成所需题数'}[job.error_reason];
+          status.textContent = states[job.state] + (reason ? '：' + reason : '。');
+          if (['pending', 'running', 'retry_wait'].includes(job.state)) timer = setTimeout(poll, 2000);
+          if (job.state === 'succeeded') await reload();
+          replay.hidden = !(['failed', 'dead_letter'].includes(job.state) && job.error_code === 1500);
+        } catch (error) {
+          if (tracked !== current) return;
+          status.textContent = error.message;
+          refresh.hidden = false;
+        }
+      }
+      refresh.addEventListener('click', poll);
+      replay.addEventListener('click', () => act(replay, async () => {
+        await api(path() + '/replays', operation('POST', {}));
+        await poll();
+        return '已受理重试。';
+      }));
+      generation.addEventListener('submit', event => {
+        event.preventDefault();
+        act(generation.querySelector('button[type=submit]'), async () => {
+          const data = new FormData(generation);
+          const job = await api('/api/v1/question-generation-jobs', operation('POST', {
+            [data.get('scope')]: data.get('source_id').trim(),
+            count: Number(data.get('count'))
+          }));
+          track(job.task_id);
+          await poll();
+          return '候选题任务已受理。';
+        });
+      });
+      if (current) timer = setTimeout(poll, 0);
+    }
     let editing = null;
-    const reset = () => { editing = null; form.reset(); form.querySelector('button[type=submit]').textContent = '保存题目'; };
+    const reset = () => { editing = null; form.reset(); $('question-source').textContent = ''; form.querySelector('button[type=submit]').textContent = '保存题目'; };
     $('question-reset').addEventListener('click', reset);
     const fields = () => {
       const data = new FormData(form);
@@ -60,6 +139,7 @@
       for (const item of data.items) {
         const row = element('li');
         row.append(element('strong', item.stem), element('span', item.reviewed ? '已审核' : '待审核'));
+        if (item.origin === 'ai') row.append(element('span', 'AI 候选'));
         const controls = element('div'); controls.className = 'row';
         const edit = element('button', '修改'); edit.type = 'button';
         edit.addEventListener('click', () => act(edit, async () => {
@@ -67,6 +147,8 @@
           editing = full;
           for (const name of ['kind','stem','answer','explanation','source_material_id']) form.elements[name].value = full[name] || '';
           form.elements.options.value = full.kind === 'true_false' ? '' : full.options.join('\n');
+          const source = full.source_snapshot;
+          $('question-source').textContent = source ? source.title + (source.text ? '：' + source.text : '') : '';
           form.querySelector('button[type=submit]').textContent = '保存新修订';
           form.scrollIntoView({ behavior: 'smooth' }); return '已载入题目。';
         })); controls.append(edit);
@@ -115,6 +197,29 @@
         }
       }
     };
+  } else if (teachingView === 'mistakes' || teachingView === 'dashboard') {
+    let page = 1;
+    const previous = $('summary-prev');
+    const next = $('summary-next');
+    const route = teachingView === 'mistakes' ? '/api/v1/mistakes' : '/api/v1/learning-insights';
+    const render = teachingView === 'mistakes' ? renderMistakes : renderInsights;
+    previous.addEventListener('click', () => { page--; load(); });
+    next.addEventListener('click', () => { page++; load(); });
+    reload = async () => {
+      const list = $('summary-list'); list.replaceChildren();
+      previous.disabled = next.disabled = true;
+      const data = await api(route + '?page=' + page);
+      if (!data.items.length) list.append(element('p', '暂无已发布测验。'));
+      for (const quiz of data.items) {
+        const section = element('section'); section.className = 'card';
+        const link = element('a', quiz.title); link.href = '/quizzes/' + quiz.quiz_id;
+        section.append(link);
+        render(section, quiz);
+        list.append(section);
+      }
+      previous.disabled = page === 1;
+      next.disabled = page * data.page_size >= data.total;
+    };
   } else {
     const itemsContainer = $('quiz-items');
     let quiz = null, draft = null, requestKey = null;
@@ -145,6 +250,9 @@
       }
       const closed = result.submitted || new Date(draft.server_time) >= new Date(draft.deadline_at);
       $('save-draft').disabled = closed; $('submit-quiz').disabled = closed;
+      const mistakes = await api('/api/v1/quizzes/' + teachingTarget + '/my-mistakes');
+      const mistakePanel = $('my-mistakes'); mistakePanel.replaceChildren();
+      renderMistakes(mistakePanel, mistakes);
     };
     $('save-draft')?.addEventListener('click', event => act(event.currentTarget, async () => {
       draft = await api('/api/v1/quizzes/' + teachingTarget + '/draft', operation('PUT', { draft_revision: draft.revision, answers: currentAnswers() }));
@@ -185,6 +293,9 @@
           const data = await api('/api/v1/quizzes/' + teachingTarget + '/submission-results');
           if (!data.items.length) results.append(element('p', '暂无正式提交。'));
           for (const item of data.items) results.append(element('p', item.student_id + ' · ' + item.score + ' / ' + item.max_score));
+          const insights = await api('/api/v1/quizzes/' + teachingTarget + '/insights');
+          const panel = $('quiz-insights'); panel.replaceChildren();
+          renderInsights(panel, insights);
         } else results.append(element('p', '发布后显示提交情况。'));
       }
     };

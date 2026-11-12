@@ -28,19 +28,19 @@
 
 ### Requirement: RT-02 独立存活和就绪契约
 
-公开探针 SHALL 允许匿名 GET 和 HEAD，HEAD 保留对应状态与响应头且无正文。两者均返回 `X-Request-ID`、`Cache-Control: no-store`。GET `/live` 仅确认进程可响应，返回 HTTP 200 与 `{"status":"alive","request_id":"…"}`。GET `/health` 返回 JSON 顶层 `status`、`version`、`time`、`dependencies`、`request_id`，`time` 为 UTC RFC 3339（`Z`）。`dependencies` 固定为 `mysql` 和 `qdrant` 两项，各项只有 `ready` 或 `unavailable`。MySQL 为核心，Qdrant 为可降级依赖。探针每项截止 1 秒，无重试，达到截止即视为超时。就绪为 HTTP 200、`status=ready`，核心失败或进入排空为 HTTP 503、`status=not_ready`，仅 Qdrant 失败仍为 200、`status=degraded`。探针使用固定字段与安全枚举，响应不含连接细节、凭据、业务数据、堆栈。部署入口按就绪结果决定是否接入流量。业务请求不主动采样全局探针，各业务使用的依赖故障按对应契约处理。应用进入排空后，已登记的公开业务入口和通过授权的受保护入口拒绝新业务请求；收到停止信号先撤就绪，再有界排空，最多 30 秒。
+公开探针 SHALL 允许匿名 GET 和 HEAD，HEAD 保留状态与响应头且无正文。响应 MUST 含 `X-Request-ID`、`Cache-Control: no-store`，使用固定安全字段，不泄露连接细节、凭据、业务数据或堆栈。`/live` 只确认进程可响应；`/health` 以 MySQL 为核心就绪依赖、Qdrant 为可降级依赖，每项探测截止 1 秒且无重试。部署入口按就绪结果撤流；普通业务不主动采样全局探针，按自身依赖契约处理故障。停止时先撤就绪并拒绝新业务，再于最多 30 秒内有界排空。
 
 #### Scenario: RT-N02 两个探针正常
 
 - **GIVEN** 应用在运行，两项依赖通过连通检查
 - **WHEN** 匿名 GET 两个探针
-- **THEN** 两端均为 200，`/live` 不探测依赖，`/health` 返回 `ready`、构建版本、UTC 时间、两项 `ready`，响应头请求标识与正文一致
+- **THEN** 两端均为 200；`/live` 返回 `{"status":"alive","request_id":"…"}` 且不探测依赖；`/health` 顶层包含 `status=ready`、`version`、UTC RFC 3339 `time`（`Z`）、`dependencies` 和 `request_id`，依赖仅有 `mysql`、`qdrant`，值均为 `ready`，响应头请求标识与正文一致
 
 #### Scenario: RT-F03 MySQL 连接被拒
 
 - **GIVEN** 应用已就绪、Qdrant 可用，且在专用 Compose 项目内
 - **WHEN** 停止真实 MySQL 后访问两个探针，再启动 MySQL 并等待恢复
-- **THEN** 故障时 `/live` 保持 200，`/health` 为 503、`mysql=unavailable`、`qdrant=ready`，不泄露连接细节；恢复后无需重启应用即可重新就绪
+- **THEN** 故障时 `/live` 保持 200，`/health` 为 503、`status=not_ready`、`mysql=unavailable`、`qdrant=ready`，不泄露连接细节；恢复后无需重启应用即可重新就绪
 
 #### Scenario: RT-F04 核心探测超时
 

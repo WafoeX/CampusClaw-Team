@@ -22,6 +22,7 @@ from app.adapters.model_lease_repository import ModelLeaseRepository
 from app.adapters.probes import check_mysql, check_qdrant
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.adapters.retrieval_repository import RetrievalRepository
+from app.adapters.teaching_jobs import TeachingJobs
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.tool_protocol import ToolProtocol
 from app.adapters.tool_repository import ToolRepository
@@ -60,6 +61,7 @@ from app.services.rate_limits import RequestLimiter
 from app.services.retrieval import RetrievalService
 from app.services.streaming import LongRequestCapacity
 from app.services.teaching import TeachingService
+from app.services.teaching_candidates import CandidateJobs
 from app.services.tool_connectors import ToolConnectors
 from app.services.unit_practice import UnitPractice
 from app.tool_config import load_tool_directory
@@ -90,6 +92,7 @@ def create_app(
     answers=None,
     ai_apps=None,
     teaching=None,
+    candidate_jobs=None,
     tool_connectors=None,
 ):
     if settings is None:
@@ -108,6 +111,7 @@ def create_app(
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     origin = settings.public_origin
     if origin is not None:
+        engine = None
         if (
             auth is None
             or materials is None
@@ -118,6 +122,7 @@ def create_app(
             or answers is None
             or ai_apps is None
             or teaching is None
+            or (settings.teaching_jobs_enabled and candidate_jobs is None)
         ):
             engine = mysql_engine(
                 host=settings.mysql_host,
@@ -141,6 +146,14 @@ def create_app(
             chapters = ChapterService(ChapterRepository(engine), DatabaseError)
         if teaching is None:
             teaching = TeachingService(TeachingRepository(engine), DatabaseError)
+        if candidate_jobs is None and engine is not None:
+            candidate_jobs = CandidateJobs(
+                TeachingJobs(engine),
+                DatabaseError,
+                RetrievalRepository(engine),
+                settings.chat.version if settings.chat else None,
+                enabled=settings.teaching_jobs_enabled,
+            )
 
         def model_event(**details):
             log_event(
@@ -289,7 +302,7 @@ def create_app(
         install_sessions(app, ai_apps, retrieval, tool_connectors, practice)
         install_material_pages(app)
         install_openapi(app)
-        install_teaching(app, teaching)
-        install_teaching_pages(app)
+        install_teaching(app, teaching, candidate_jobs)
+        install_teaching_pages(app, generation_enabled=settings.teaching_jobs_enabled)
         install_tool_connectors(app, tool_connectors)
     return app

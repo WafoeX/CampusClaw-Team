@@ -19,6 +19,7 @@
       <a href="/sessions"{% if view == 'sessions' %} aria-current="page"{% endif %}>本人会话</a>
       <a href="/runs"{% if view == 'runs' %} aria-current="page"{% endif %}>执行记录</a>
       <a href="/quizzes">班级测验</a>
+      {% if actor.role == 'student' %}<a href="/mistakes">我的错题</a>{% endif %}
       <a href="/swagger">接口试调</a>
       {% if actor.role == 'teacher' %}
       <a href="/console"{% if view == 'console' %} aria-current="page"{% endif %}>教师工作台</a>
@@ -26,6 +27,7 @@
       <a href="/console/skills"{% if view == 'skills' %} aria-current="page"{% endif %}>班级技能</a>
       <a href="/console/feedback"{% if view == 'feedback' %} aria-current="page"{% endif %}>问题反馈</a>
       <a href="/console/questions">题库</a>
+      <a href="/console/dashboard">学习看板</a>
       <a href="/console/templates"{% if view == 'templates' %} aria-current="page"{% endif %}>班级模板</a>
       {% endif %}
     </nav>

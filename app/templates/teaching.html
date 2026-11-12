@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情'}[view] }} · CampusClaw</title>
+  <title>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情','mistakes':'我的错题','dashboard':'学习看板'}[view] }} · CampusClaw</title>
   {% include '_page_styles.html' %}
 </head>
 <body>
@@ -14,16 +14,18 @@
       <a href="/materials">班级资料</a>
       <a href="/chapters">班级章节</a>
       <a href="/quizzes"{% if view in ('quizzes','quiz') %} aria-current="page"{% endif %}>班级测验</a>
+      {% if actor.role == 'student' %}<a href="/mistakes"{% if view == 'mistakes' %} aria-current="page"{% endif %}>我的错题</a>{% endif %}
       {% if actor.role == 'teacher' %}
       <a href="/console">教师工作台</a>
       <a href="/console/questions"{% if view == 'questions' %} aria-current="page"{% endif %}>题库</a>
+      <a href="/console/dashboard"{% if view == 'dashboard' %} aria-current="page"{% endif %}>学习看板</a>
       {% endif %}
     </nav>
   </aside>
   <div>
     <header><strong>{{ actor.class_name }}</strong><span>{{ actor.login_name }} · {{ '教师' if actor.role == 'teacher' else '学生' }}</span></header>
     <main>
-      <h1>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情'}[view] }}</h1>
+      <h1>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情','mistakes':'我的错题','dashboard':'学习看板'}[view] }}</h1>
       <p class="muted">{% if view == 'questions' %}人工建题、修改与审核；未审核修订不能发布。{% elif actor.role == 'student' %}仅展示你在发布时已列入名单的测验；成绩和答案在开放后显示。{% else %}发布后题目和参与名单保持不变。{% endif %}</p>
       <p id="notice" class="status" role="status">正在加载…</p>
       <button id="retry" type="button" hidden>重试加载</button>
@@ -37,9 +39,26 @@
           <label>正确答案（单选填 A–F，判断填 true 或 false）<input name="answer" maxlength="8" required></label>
           <label>解析 <textarea name="explanation" maxlength="2000" required></textarea></label>
           <label>本班资料 ID（可选）<input name="source_material_id" maxlength="36"></label>
+          <p id="question-source" class="muted"></p>
           <div class="row"><button class="primary" type="submit">保存题目</button><button id="question-reset" type="button">取消修改</button></div>
         </form>
       </section>
+      {% if generation_enabled %}
+      <section class="card" aria-labelledby="generation-title">
+        <h2 id="generation-title">AI 候选题</h2>
+        <form id="generation-form">
+          <label>出处范围 <select name="scope"><option value="material_id">本班资料</option><option value="chapter_id">本班章节</option></select></label>
+          <label>资料或章节 ID <input name="source_id" required maxlength="36"></label>
+          <label>题数 <input name="count" type="number" required min="1" max="10" value="2"></label>
+          <button type="submit">生成待审核题目</button>
+        </form>
+        <p id="generation-status" role="status"></p>
+        <div class="row">
+          <button type="button" id="generation-refresh" hidden>查询任务</button>
+          <button type="button" id="generation-replay" hidden>重试生成</button>
+        </div>
+      </section>
+      {% endif %}
       <section class="card" aria-labelledby="question-list-title"><h2 id="question-list-title">本班题目</h2><ul id="question-list"></ul></section>
       {% elif view == 'quizzes' %}
       {% if actor.role == 'teacher' %}
@@ -56,6 +75,9 @@
       </section>
       {% endif %}
       <section class="card" aria-labelledby="quiz-list-title"><h2 id="quiz-list-title">{{ '本班测验' if actor.role == 'teacher' else '我的测验' }}</h2><ul id="quiz-list"></ul></section>
+      {% elif view in ('mistakes', 'dashboard') %}
+      <section class="card" aria-labelledby="summary-title"><h2 id="summary-title">{{ '已开放错题' if view == 'mistakes' else '本班测验统计' }}</h2><div id="summary-list" role="status"></div></section>
+      <div class="row"><button id="summary-prev" type="button" disabled>上一页</button><button id="summary-next" type="button" disabled>下一页</button></div>
       {% else %}
       <section class="card" aria-labelledby="quiz-detail-title">
         <h2 id="quiz-detail-title">测验内容</h2>
@@ -64,9 +86,11 @@
         {% if actor.role == 'student' %}
         <div class="row"><button id="save-draft" type="button">保存草稿</button><button id="submit-quiz" class="primary" type="button">正式提交</button></div>
         <section aria-labelledby="my-result-title"><h2 id="my-result-title">我的提交</h2><div id="my-result" role="status"></div></section>
+        <section aria-labelledby="my-mistakes-title"><h2 id="my-mistakes-title">我的错题</h2><div id="my-mistakes" role="status"></div></section>
         {% else %}
         <button id="publish-quiz" class="primary" type="button" hidden>发布测验</button>
         <section aria-labelledby="results-title"><h2 id="results-title">正式提交</h2><div id="teacher-results" role="status"></div></section>
+        <section aria-labelledby="insights-title"><h2 id="insights-title">学习看板</h2><div id="quiz-insights" role="status"></div></section>
         {% endif %}
       </section>
       {% endif %}

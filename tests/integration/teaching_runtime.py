@@ -1,9 +1,11 @@
 """真实 MySQL：人工建题、发布快照、草稿和一次正式评分。"""
 
+import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from statistics import quantiles
 from threading import Barrier
 from time import monotonic
 from uuid import uuid4
@@ -187,6 +189,15 @@ assert (
 published = request(teacher, "POST", f"/api/v1/quizzes/{quiz_id}/publications", {})
 assert published.status_code == 200, published.json
 assert len(published.json["data"]["items"]) == 2
+empty_insights = request(teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights")
+assert empty_insights.status_code == 200
+assert empty_insights.json["data"]["participants"] == 2
+assert empty_insights.json["data"]["submissions"] == 0
+assert empty_insights.json["data"]["average_score"] is None
+assert request(student, "GET", f"/api/v1/quizzes/{quiz_id}/insights").status_code == 403
+assert (
+    request(outsider, "GET", f"/api/v1/quizzes/{quiz_id}/insights").status_code == 404
+)
 item_one, item_two = (row["id"] for row in published.json["data"]["items"])
 student_quiz = request(student, "GET", f"/api/v1/quizzes/{quiz_id}")
 assert student_quiz.status_code == 200
@@ -286,6 +297,12 @@ with engine.connect() as connection:
         is None
     )
 
+after_failed_score = request(
+    teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights"
+).json["data"]
+assert after_failed_score["submissions"] == 0
+assert after_failed_score["average_score"] is None
+
 submission_payload = {
     "draft_revision": 1,
     "answers": {item_one: "A", item_two: "false"},
@@ -367,6 +384,18 @@ with engine.begin() as connection:
 opened = request(again, "GET", f"/api/v1/quizzes/{quiz_id}/my-submission")
 assert opened.status_code == 200 and opened.json["data"]["score"] == 15
 assert opened.json["data"]["details"][0]["answer"] == "A"
+mistakes = request(again, "GET", f"/api/v1/quizzes/{quiz_id}/my-mistakes")
+assert mistakes.status_code == 200 and mistakes.json["data"] == {
+    "open": True,
+    "items": [],
+}
+insights = request(teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights")
+assert insights.status_code == 200
+assert insights.json["data"]["submission_rate"] == 50
+assert insights.json["data"]["average_score"] == 15
+assert all(
+    item["correct_rate"] == 100 for item in insights.json["data"]["item_accuracy"]
+)
 
 # 新草稿包含未审核新修订时不得发布；重新审核后注入名单写失败，发布必须整笔回滚。
 new_quiz = request(teacher, "POST", "/api/v1/quizzes", quiz_payload)
@@ -472,6 +501,30 @@ with engine.connect() as connection:
         )
         == 0
     )
+with engine.begin() as connection:
+    connection.execute(
+        update(quizzes)
+        .where(quizzes.c.id == new_quiz_id)
+        .values(
+            answers_open_at=connection.scalar(select(func.utc_timestamp(6)))
+            - timedelta(seconds=1)
+        )
+    )
+wrong = request(student2, "GET", f"/api/v1/quizzes/{new_quiz_id}/my-mistakes")
+assert wrong.status_code == 200
+assert wrong.json["data"]["open"] is True
+assert {item["item_id"] for item in wrong.json["data"]["items"]} == {
+    item["id"]
+    for item in request(student2, "GET", f"/api/v1/quizzes/{new_quiz_id}").json["data"][
+        "items"
+    ]
+}
+new_insights = request(teacher, "GET", f"/api/v1/quizzes/{new_quiz_id}/insights")
+assert new_insights.status_code == 200
+assert new_insights.json["data"]["participants"] == 3
+assert new_insights.json["data"]["submissions"] == 2
+assert new_insights.json["data"]["average_score"] == 5
+assert new_insights.json["data"]["item_accuracy"][0]["correct_rate"] == 50
 
 # 截止判定使用锁内数据库时钟，恰到截止时拒绝新提交。
 cutoff_quiz = request(teacher, "POST", "/api/v1/quizzes", quiz_payload).json["data"][
@@ -559,17 +612,21 @@ barrier = Barrier(len(burst_clients))
 
 def burst_submit(index, client):
     barrier.wait(timeout=10)
-    return request(
+    started = monotonic()
+    response = request(
         client,
         "POST",
         f"/api/v1/quizzes/{burst_quiz}/submissions",
         {"draft_revision": 0, "answers": {burst_item: "B"}},
         key=f"burst-{index}",
     )
+    return response, (monotonic() - started) * 1000
 
 
 with ThreadPoolExecutor(max_workers=len(burst_clients)) as pool:
-    burst_responses = list(pool.map(burst_submit, range(8), burst_clients))
+    burst_responses, burst_ms = zip(
+        *pool.map(burst_submit, range(8), burst_clients), strict=True
+    )
 assert all(response.status_code == 201 for response in burst_responses), [
     response.json for response in burst_responses
 ]
@@ -605,6 +662,78 @@ with engine.connect() as connection:
         .where(quiz_submissions.c.quiz_id == burst_quiz, quiz_results.c.score == 10)
     ) == len(burst_clients)
 
+# LI-F05：删除资料只撤销错题出处，不改变已冻结的评分。
+source = request(
+    teacher,
+    "POST",
+    "/api/v1/materials",
+    {"title": "错题来源", "text": "仅供合成测试的资料正文"},
+    key="source-material",
+).json["data"]["id"]
+source_question = request(
+    teacher,
+    "POST",
+    "/api/v1/questions",
+    {**choice, "source_material_id": source},
+).json["data"]["id"]
+assert (
+    request(
+        teacher,
+        "POST",
+        f"/api/v1/questions/{source_question}/reviews",
+        {"expected_version": 1},
+    ).status_code
+    == 200
+)
+source_quiz = request(
+    teacher,
+    "POST",
+    "/api/v1/quizzes",
+    {**quiz_payload, "items": [{"question_id": source_question, "points": 10}]},
+).json["data"]["id"]
+source_item = request(
+    teacher, "POST", f"/api/v1/quizzes/{source_quiz}/publications", {}
+).json["data"]["items"][0]["id"]
+assert (
+    request(
+        again,
+        "POST",
+        f"/api/v1/quizzes/{source_quiz}/submissions",
+        {"draft_revision": 0, "answers": {source_item: "B"}},
+        key="wrong-with-source",
+    ).status_code
+    == 201
+)
+with engine.begin() as connection:
+    connection.execute(
+        update(quizzes)
+        .where(quizzes.c.id == source_quiz)
+        .values(
+            answers_open_at=connection.scalar(select(func.utc_timestamp(6)))
+            - timedelta(seconds=1)
+        )
+    )
+before_delete = request(again, "GET", f"/api/v1/quizzes/{source_quiz}/my-mistakes")
+assert before_delete.json["data"]["items"][0]["source_material_id"] == source
+assert before_delete.json["data"]["items"][0]["source_snapshot"]["title"] == "错题来源"
+summary = request(again, "GET", f"/api/v1/mistakes?quiz_id={source_quiz}&page_size=1")
+assert summary.status_code == 200 and summary.json["data"]["total"] == 1
+assert summary.json["data"]["items"][0]["items"] == before_delete.json["data"]["items"]
+cross = request(outsider, "GET", f"/api/v1/learning-insights?quiz_id={source_quiz}")
+missing = request(outsider, "GET", f"/api/v1/learning-insights?quiz_id={uuid4()}")
+assert cross.status_code == missing.status_code == 404
+assert cross.json["code"] == missing.json["code"] == 1300
+assert request(teacher, "DELETE", f"/api/v1/materials/{source}").status_code == 200
+after_delete = request(again, "GET", f"/api/v1/quizzes/{source_quiz}/my-mistakes")
+assert after_delete.json["data"]["items"][0]["source_status"] == "unavailable"
+assert after_delete.json["data"]["items"][0]["source_material_id"] is None
+assert (
+    request(again, "GET", f"/api/v1/quizzes/{source_quiz}/my-submission").json["data"][
+        "score"
+    ]
+    == 0
+)
+
 # 合成库物理回退只移除本组结构，保留上游账号，再重升到 head。
 with engine.connect() as connection:
     account_count = connection.scalar(select(func.count()).select_from(accounts))
@@ -624,4 +753,14 @@ with engine.connect() as connection:
 migrate(engine)
 migrate(engine)
 assert "quizzes" in inspect(engine).get_table_names()
+print(
+    "teaching_submit_evidence",
+    json.dumps(
+        {
+            "samples": len(burst_ms),
+            "p95_ms": round(quantiles(burst_ms, n=20, method="inclusive")[-1], 2),
+            "committed_submissions": len(burst_clients),
+        }
+    ),
+)
 print("TEACHING_RUNTIME_OK")

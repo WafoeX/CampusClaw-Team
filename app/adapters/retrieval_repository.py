@@ -122,6 +122,30 @@ class RetrievalRepository(MaterialRepository):
                 .all()
             )
 
+    def teaching_evidence(
+        self,
+        connection,
+        class_id,
+        chapter_id,
+        *,
+        material_id=None,
+        ids=None,
+        lock=False,
+    ):
+        statement = (
+            select(chunks, materials.c.title)
+            .join(materials, chunks.c.material_id == materials.c.id)
+            .where(*self.scope(class_id, chapter_id), *self.visible())
+        )
+        if material_id is not None:
+            statement = statement.where(materials.c.id == material_id)
+        if ids is not None:
+            statement = statement.where(chunks.c.id.in_(ids))
+        statement = statement.order_by(chunks.c.ordinal, chunks.c.material_id).limit(8)
+        if lock:
+            statement = statement.with_for_update()
+        return connection.execute(statement).mappings().all()
+
     def old_citation(
         self, class_id, material_id, chunk_id, source_version, index_version
     ):

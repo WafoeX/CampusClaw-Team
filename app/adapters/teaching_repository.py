@@ -4,6 +4,8 @@ from sqlalchemy import func, insert, select, text, update
 
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.chapter_schema_v4 import chapters, materials
+from app.adapters.feedback_repository import FeedbackRepositoryMixin
+from app.adapters.index_schema_v5 import materials as indexed_materials
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.teaching_schema_v10 import (
     question_audits,
@@ -18,6 +20,7 @@ from app.adapters.teaching_schema_v10 import (
     quiz_submissions,
     quizzes,
 )
+from app.adapters.teaching_schema_v12 import generated_questions, question_sources
 
 
 class TeachingRepository(MaterialRepository):
@@ -25,8 +28,12 @@ class TeachingRepository(MaterialRepository):
         return connection.scalar(text("SELECT UTC_TIMESTAMP(6)"))
 
     def question(self, connection, class_id, question_id, *, lock=False):
-        statement = select(questions).where(
-            questions.c.class_id == class_id, questions.c.id == question_id
+        statement = (
+            select(questions, generated_questions.c.job_id)
+            .outerjoin(
+                generated_questions, generated_questions.c.question_id == questions.c.id
+            )
+            .where(questions.c.class_id == class_id, questions.c.id == question_id)
         )
         if lock:
             statement = statement.with_for_update()
@@ -54,12 +61,19 @@ class TeachingRepository(MaterialRepository):
             rows = (
                 connection.execute(
                     select(
-                        questions, question_versions.c.kind, question_versions.c.stem
+                        questions,
+                        question_versions.c.kind,
+                        question_versions.c.stem,
+                        generated_questions.c.job_id,
                     )
                     .join(
                         question_versions,
                         (question_versions.c.question_id == questions.c.id)
                         & (question_versions.c.version == questions.c.current_version),
+                    )
+                    .outerjoin(
+                        generated_questions,
+                        generated_questions.c.question_id == questions.c.id,
                     )
                     .where(scope)
                     .order_by(questions.c.created_at.desc(), questions.c.id)
@@ -82,13 +96,44 @@ class TeachingRepository(MaterialRepository):
             is not None
         )
 
-    def chapter_exists(self, connection, class_id, chapter_id):
-        return (
-            connection.scalar(
-                select(chapters.c.id).where(
-                    chapters.c.class_id == class_id, chapters.c.id == chapter_id
-                )
+    def source_material(self, connection, class_id, material_id, *, lock=False):
+        statement = select(indexed_materials).where(
+            indexed_materials.c.class_id == class_id,
+            indexed_materials.c.id == material_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return connection.execute(statement).mappings().one_or_none()
+
+    def save_source(self, connection, version, snapshot):
+        connection.execute(
+            insert(question_sources).values(
+                question_id=version["question_id"],
+                version=version["version"],
+                class_id=version["class_id"],
+                material_id=version["source_material_id"],
+                snapshot=snapshot,
             )
+        )
+
+    def source_snapshot(self, connection, class_id, question_id, version, material_id):
+        if material_id is None:
+            return None
+        return connection.scalar(
+            select(question_sources.c.snapshot).where(
+                question_sources.c.class_id == class_id,
+                question_sources.c.question_id == question_id,
+                question_sources.c.version == version,
+                question_sources.c.material_id == material_id,
+            )
+        )
+
+    def chapter_exists(self, connection, class_id, chapter_id, *, lock=False):
+        statement = select(chapters.c.id).where(
+            chapters.c.class_id == class_id, chapters.c.id == chapter_id
+        )
+        return (
+            connection.scalar(statement.with_for_update() if lock else statement)
             is not None
         )
 
@@ -163,9 +208,23 @@ class TeachingRepository(MaterialRepository):
             statement = statement.with_for_update()
         return connection.execute(statement).mappings().one_or_none()
 
-    def list_quizzes(self, class_id, actor_id, teacher, page, page_size):
+    def list_quizzes(
+        self,
+        class_id,
+        actor_id,
+        teacher,
+        page,
+        page_size,
+        *,
+        published_only=False,
+        chapter_id=None,
+    ):
         with self.engine.connect() as connection:
             scope = quizzes.c.class_id == class_id
+            if chapter_id is not None:
+                scope &= quizzes.c.chapter_id == chapter_id
+            if published_only:
+                scope &= quizzes.c.published_at.is_not(None)
             statement = select(quizzes).where(scope)
             count = select(func.count()).select_from(quizzes).where(scope)
             if not teacher:
@@ -372,6 +431,42 @@ class TeachingRepository(MaterialRepository):
             .all()
         )
         return rows, total
+
+    def insight_rows(self, connection, class_id, quiz_id):
+        participants = connection.scalar(
+            select(func.count())
+            .select_from(quiz_participants)
+            .where(
+                quiz_participants.c.class_id == class_id,
+                quiz_participants.c.quiz_id == quiz_id,
+            )
+        )
+        rows = (
+            connection.execute(
+                select(quiz_results.c.score, quiz_results.c.details)
+                .join(
+                    quiz_submissions,
+                    quiz_submissions.c.id == quiz_results.c.submission_id,
+                )
+                .where(
+                    quiz_submissions.c.class_id == class_id,
+                    quiz_submissions.c.quiz_id == quiz_id,
+                )
+            )
+            .mappings()
+            .all()
+        )
+        return participants, rows
+
+    def unresolved_count(self, connection, class_id, chapter_id, now):
+        from app.adapters.assistant_schema_v8 import feedback
+
+        query = FeedbackRepositoryMixin.feedback_query(class_id, now).where(
+            feedback.c.chapter_id == chapter_id,
+            feedback.c.rating == "unresolved",
+            feedback.c.status == "pending",
+        )
+        return connection.scalar(select(func.count()).select_from(query.subquery()))
 
     def audit_quiz(self, connection, class_id, quiz_id, actor_id, event, now):
         from uuid import uuid4

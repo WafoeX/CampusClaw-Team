@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from app.config import ChatSettings, ConfigError
 from scripts.verify_runtime import inspect_probes
 from tests.integration.streaming_proxy_check import verify_streaming_proxy
 
@@ -106,6 +107,30 @@ def stack(tmp_path_factory):
     project = f"campusclaw-check-{run_id}"
     version = "00000000" + run_id
     config = folder / "compose.env"
+    config.touch(mode=0o600)
+    real_gateway = {}
+    if os.environ.get("CAMPUSCLAW_REAL_CANDIDATES") == "1":
+        keys = ("CHAT_BASE_URL", "CHAT_MODEL", "CHAT_API_KEY")
+        try:
+            if all(key in os.environ for key in keys):
+                real_gateway = {key: os.environ[key] for key in keys}
+            else:
+                real_gateway = {
+                    key: value
+                    for key, equals, value in (
+                        line.partition("=")
+                        for line in (ROOT / ".env").read_text().splitlines()
+                    )
+                    if equals and key in keys
+                }
+            chat = ChatSettings.load(real_gateway)
+            if chat is None or not chat.api_key:
+                raise ConfigError("CHAT_API_KEY")
+        except (OSError, ConfigError):
+            pytest.fail(
+                "真实候选题验证需要在环境或私有 .env 中配置有效的三项 CHAT 设置",
+                pytrace=False,
+            )
     config.write_text(
         "\n".join(
             (
@@ -140,11 +165,21 @@ def stack(tmp_path_factory):
         str(ROOT / "docker-compose.yml"),
     ]
 
-    def compose(*args, check=True):
+    def compose(*args, check=True, teaching=False):
+        extension = (
+            [
+                "--file",
+                str(ROOT / "docker-compose.teaching.yml"),
+                "--profile",
+                "teaching",
+            ]
+            if teaching
+            else []
+        )
         return subprocess.run(
-            [*command, *args],
+            [*command, *extension, *args],
             cwd=ROOT,
-            env=env,
+            env=env | real_gateway,
             check=check,
             stdout=subprocess.PIPE,
             text=True,
@@ -179,7 +214,14 @@ def stack(tmp_path_factory):
         yield compose, request, status, version
     finally:
         try:
-            compose("--profile", "tools", "down", "--volumes", "--remove-orphans")
+            compose(
+                "--profile",
+                "tools",
+                "down",
+                "--volumes",
+                "--remove-orphans",
+                teaching=True,
+            )
             assert_project_clean(project, env)
         finally:
             for repository in ("campusclaw-skeleton", "campusclaw-mcp"):
@@ -358,7 +400,11 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     assert status("ready")[0] == 200
 
     verify_retrieval(compose, "delete")
+    compose("stop", "qdrant")
+    assert status("degraded")[0] == 200
     verify_teaching_core(compose)
+    compose("start", "qdrant")
+    assert status("ready")[0] == 200
     verify_streaming_proxy(compose, tmp_path / "streaming-proxy")
 
     started = time.monotonic()
@@ -422,7 +468,7 @@ def verify_chapter_api(compose):
 
 
 def verify_teaching_core(compose):
-    compose(
+    evidence = compose(
         "exec",
         "-T",
         "app",
@@ -430,6 +476,93 @@ def verify_teaching_core(compose):
         "-c",
         Path(__file__).with_name("teaching_runtime.py").read_text(),
     )
+    assert "TEACHING_RUNTIME_OK" in evidence
+    print(evidence)
+
+
+def test_JB_QB_real_kafka_and_candidate_recovery(stack):
+    compose, _, _, _ = stack
+    compose("up", "-d", "kafka-topics", teaching=True)
+    eventually(
+        lambda: (
+            compose("logs", "--no-log-prefix", "kafka-topics", teaching=True).count(
+                "Created topic"
+            )
+            == 2
+        )
+    )
+    evidence = verify_teaching_jobs(compose)
+    assert "teaching_job_evidence" in evidence
+    if os.environ.get("CAMPUSCLAW_REAL_CANDIDATES") == "1":
+        assert "teaching_real_gateway_evidence" in evidence
+    print(evidence)
+    compose("restart", "kafka", teaching=True)
+    eventually(
+        lambda: (
+            compose(
+                "exec",
+                "-T",
+                "kafka",
+                "/opt/kafka/bin/kafka-topics.sh",
+                "--bootstrap-server",
+                "kafka:9092",
+                "--list",
+                teaching=True,
+            ).count("campusclaw.teaching.candidates")
+            == 2
+        )
+    )
+    compose("up", "-d", "teaching-relay", "teaching-worker", teaching=True)
+    eventually(
+        lambda: (
+            compose("logs", "--no-log-prefix", "teaching-worker", teaching=True).count(
+                '"module": "teaching_processed"'
+            )
+            >= 20
+        )
+    )
+    compose("stop", "teaching-worker", "teaching-relay", teaching=True)
+    workers = list(
+        map(
+            json.loads,
+            compose(
+                "ps",
+                "-a",
+                "--format",
+                "json",
+                "teaching-worker",
+                "teaching-relay",
+                teaching=True,
+            ).splitlines(),
+        )
+    )
+    assert len(workers) == 2
+    assert all(row["ExitCode"] == 0 for row in workers)
+
+
+def verify_teaching_jobs(compose):
+    return compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("teaching_jobs_runtime.py").read_text(),
+    )
+
+
+def test_JB_F05_mysql_job_transactions_without_broker(stack):
+    compose, _, _, _ = stack
+    evidence = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("teaching_jobs_runtime.py").read_text(),
+        "storage",
+    )
+    assert evidence.splitlines()[-1] == "teaching_job_storage_ok"
 
 
 def verify_index_foundation(compose):

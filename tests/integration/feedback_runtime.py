@@ -24,6 +24,7 @@ from app.adapters.index_schema_v5 import materials as indexed_materials
 from app.adapters.index_schema_v7 import builds as fb_builds
 from app.adapters.index_schema_v7 import cleanups
 from app.adapters.material_schema_v2 import bodies
+from app.adapters.teaching_repository import TeachingRepository
 from app.config import EmbeddingSettings
 from app.services.index_cleanup import IndexCleanupService
 from app.services.index_scope import IndexScope
@@ -251,6 +252,13 @@ def verify_feedback(
     }
     assert fb_item["note"] == "不理解引用步骤"
     assert fb_item["chapter"] == "反馈章节"
+    with engine.connect() as connection:
+        assert (
+            TeachingRepository(engine).unresolved_count(
+                connection, class_ids["a"], fb_chapter, now
+            )
+            == 1
+        )
     assert (
         request("session", "GET", fb_path).json["data"]["messages"][-1][
             "feedback_chapter"
@@ -291,6 +299,13 @@ def verify_feedback(
         "a_teacher", "PATCH", fb_handle, {"status": "handled", "expected_revision": 1}
     )
     assert fb_handled.json["data"]["revision"] == 2, fb_handled.json
+    with engine.connect() as connection:
+        assert (
+            TeachingRepository(engine).unresolved_count(
+                connection, class_ids["a"], fb_chapter, now
+            )
+            == 0
+        )
     assert (
         request(
             "a_teacher",

@@ -150,3 +150,35 @@ def test_SB_N01_submission_contract_is_201_and_no_score(candidate):
     assert result.status_code == 201 and result.json["code"] == 0
     assert result.json["data"] == teaching.submit.return_value
     assert result.headers["Cache-Control"] == "no-store"
+
+
+def test_LI_F02_student_cannot_read_insights(candidate):
+    client, auth, teaching = candidate
+    auth.current.return_value.role = "student"
+    result = client.get(f"/api/v1/quizzes/{ID}/insights", base_url=ORIGIN)
+    assert result.status_code == 403 and result.json["code"] == 1200
+    teaching.insights.assert_not_called()
+
+
+def test_LI_F02_teacher_cannot_read_student_mistakes(candidate):
+    client, _, teaching = candidate
+    result = client.get(f"/api/v1/quizzes/{ID}/my-mistakes", base_url=ORIGIN)
+    assert result.status_code == 403 and result.json["code"] == 1200
+    teaching.my_mistakes.assert_not_called()
+
+
+def test_LI_F01_insights_rejects_unknown_filter(candidate):
+    client, _, teaching = candidate
+    result = client.get(
+        f"/api/v1/quizzes/{ID}/insights?class_id=other", base_url=ORIGIN
+    )
+    assert result.status_code == 400 and result.json["code"] == 1000
+    teaching.insights.assert_not_called()
+
+
+def test_LI_F02_summary_pages_are_role_scoped(candidate):
+    client, auth, _ = candidate
+    assert client.get("/mistakes", base_url=ORIGIN).status_code == 403
+    auth.current.return_value.role = "student"
+    assert client.get("/console/dashboard", base_url=ORIGIN).status_code == 403
+    assert client.get("/mistakes", base_url=ORIGIN).status_code == 200

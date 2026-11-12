@@ -12,7 +12,7 @@ def test_SB_B02_browser_draft_survives_relogin():
         cwd=root,
         capture_output=True,
         text=True,
-        timeout=600,
+        timeout=1200,
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr

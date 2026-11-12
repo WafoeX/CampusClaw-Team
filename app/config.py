@@ -91,6 +91,7 @@ class Settings:
     retrieval_min_score: float | None = None
     chat: ChatSettings | None = None
     ai_data_expires_at: datetime | None = None
+    teaching_jobs_enabled: bool = False
 
     @classmethod
     def load(cls, env, version_file: Path):
@@ -170,8 +171,12 @@ class Settings:
                 expiry = expiry.replace(tzinfo=None)
         except ValueError:
             raise ConfigError("AI_DATA_EXPIRES_AT") from None
+        teaching_jobs = env.get("TEACHING_JOBS_ENABLED", "0")
+        if teaching_jobs not in ("0", "1"):
+            raise ConfigError("TEACHING_JOBS_ENABLED")
         return cls(
             ai_data_expires_at=expiry,
+            teaching_jobs_enabled=teaching_jobs == "1",
             mysql_host=required("MYSQL_HOST"),
             mysql_port=port,
             mysql_database=required("MYSQL_DATABASE"),

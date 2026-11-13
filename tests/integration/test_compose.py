@@ -105,7 +105,25 @@ def stack(tmp_path_factory):
     folder = tmp_path_factory.mktemp("skeleton-compose")
     run_id = uuid.uuid4().hex
     project = f"campusclaw-check-{run_id}"
-    version = "00000000" + run_id
+    image_tag = "00000000" + run_id
+    version = image_tag
+    overlay = []
+    if os.environ.get("CAMPUSCLAW_SECURITY_ASSETS"):
+        version = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, timeout=15
+        ).strip()
+        override = folder / "security-compose.json"
+        override.write_text(
+            json.dumps(
+                {
+                    "services": {
+                        "app": {"image": f"campusclaw-skeleton:{image_tag}"},
+                        "mcp-server": {"image": f"campusclaw-mcp:{image_tag}"},
+                    }
+                }
+            )
+        )
+        overlay = ["--file", str(override)]
     config = folder / "compose.env"
     config.touch(mode=0o600)
     real_gateway = {}
@@ -163,6 +181,7 @@ def stack(tmp_path_factory):
         str(config),
         "--file",
         str(ROOT / "docker-compose.yml"),
+        *overlay,
     ]
 
     def compose(*args, check=True, teaching=False):
@@ -190,7 +209,7 @@ def stack(tmp_path_factory):
         compose("up", "--build", "-d")
         scanner = os.environ.get("CAMPUSCLAW_IMAGE_SCANNER")
         if scanner:
-            scan_image(scanner, f"campusclaw-skeleton:{version}", folder, env)
+            scan_image(scanner, f"campusclaw-skeleton:{image_tag}", folder, env)
         port = compose("port", "app", "8080").rsplit(":", 1)[1]
 
         def request(path):
@@ -225,7 +244,7 @@ def stack(tmp_path_factory):
             assert_project_clean(project, env)
         finally:
             for repository in ("campusclaw-skeleton", "campusclaw-mcp"):
-                image = f"{repository}:{version}"
+                image = f"{repository}:{image_tag}"
                 present = (
                     subprocess.run(
                         ["docker", "image", "inspect", image],
@@ -291,6 +310,120 @@ def test_MP_N01_MP_B01_isolated_compose_teaching_service(stack, tmp_path):
         assert status("ready")[0] == 200
     finally:
         compose("rm", "--stop", "--force", "mcp-server")
+
+
+def verify_security_precheck(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/session_proxy_worker.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("session_proxy_worker.py").read_text(),
+    )
+    return compose(
+        "exec",
+        "-T",
+        "-e",
+        "PYTHONPATH=/srv/campusclaw:/tmp",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("security_precheck_runtime.py").read_text(),
+    )
+
+
+def test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck(stack):
+    compose, request, status, version = stack
+    assert status("ready")[1]["version"] == version and request("/live")[0] == 200
+    output = verify_security_precheck(compose)
+    evidence = json.loads(
+        next(
+            line.removeprefix("SECURITY_PRECHECK ")
+            for line in output.splitlines()
+            if line.startswith("SECURITY_PRECHECK ")
+        )
+    )
+    logs = [json.loads(line) for line in output.splitlines() if line.startswith("{")]
+    audit = evidence["skill_audit"]
+    http_rows = [
+        row
+        for row in logs
+        if row.get("module") == "http" and row.get("request_id") == audit["request_id"]
+    ]
+    assert len(http_rows) == 1 and http_rows[0]["status"] == 200
+    model_rows = [row for row in logs if row.get("module") == "model"]
+    assert len(model_rows) == 1 and model_rows[0]["total_tokens"] == 30
+    audit["usage_linked_by_request"] = (
+        model_rows[0]["request_id"] == audit["request_id"]
+    )
+    audit["model_total_tokens"] = model_rows[0]["total_tokens"]
+    print(json.dumps(evidence, ensure_ascii=False))
+    assets = os.environ.get("CAMPUSCLAW_SECURITY_ASSETS")
+    if assets:
+        candidate = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+        tracked = subprocess.check_output(
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=all",
+                "--",
+                "app",
+                "mcp-server",
+                "Dockerfile",
+                "uv.lock",
+                "pyproject.toml",
+                "docker-compose.yml",
+            ],
+            cwd=ROOT,
+        )
+        assert not tracked, "候选的应用、镜像或依赖输入存在未提交改动"
+        folder = Path(assets).resolve()
+        assert folder.is_relative_to(ROOT / "reports")
+        folder.mkdir(parents=True, mode=0o700)
+        (folder / "logs").mkdir(mode=0o700)
+        compose("up", "--build", "--wait", "--no-deps", "mcp-server")
+        compose("cp", "app:/tmp/campusclaw-security-frontend", str(folder / "frontend"))
+        (folder / "logs" / "compose.log").write_text(compose("logs", "--no-color"))
+        (folder / "logs" / "precheck.log").write_text(output)
+        for name in ("app", "mcp-server"):
+            image = json.loads(compose("ps", "--format", "json", name))["Image"]
+            image_revision = subprocess.check_output(
+                [
+                    "docker",
+                    "image",
+                    "inspect",
+                    "--format",
+                    '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+                    image,
+                ],
+                text=True,
+                timeout=30,
+            ).strip()
+            assert image_revision == version == candidate
+            subprocess.run(
+                ["docker", "save", "--output", str(folder / f"{name}.tar"), image],
+                check=True,
+                timeout=180,
+            )
+        (folder / "revision").write_text(candidate + "\n")
+        (folder / "observations.json").write_text(
+            json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
+        )
+    assert all(row[2:] == [401, 1100, True] for row in evidence["anonymous"])
+    assert evidence["cross"] == evidence["missing"] and evidence["cross"][:2] == [
+        404,
+        1300,
+    ]
+    assert evidence["search_counts"] == [1, 1, 0]
+    assert all(row[1:] == [403, 1200, True] for row in evidence["configuration"])
+    assert (
+        evidence["grading"]["http"] in (404, 405) and evidence["grading"]["unchanged"]
+    )
 
 
 def test_CN_B02_AU_B01_AU_F04_AU_F05_tool_storage(stack):

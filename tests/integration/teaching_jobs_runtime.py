@@ -467,6 +467,57 @@ assert question["source_snapshot"]["text"] == quote
 assert model.complete_once.call_count == 0
 assert request(teacher, "POST", JOB + job_id + "/replays", {}).status_code == 409
 
+# 课末预检：消费者尚未开始处理的新任务，正常路径只投递一次。
+clean_job, _, _ = task(source)
+clean_event = job_event(clean_job)
+assert outbox_row(clean_event.event_id)["sent_at"] is None
+assert relay_once(repository, tx, event_log)
+clean_record = find_record(
+    rx, lambda record: record.key == clean_job.encode(), process_others=False
+)
+assert json.loads(clean_record.value)["event_id"] == clean_event.event_id
+claim = repository.claim_job(clean_event)
+assert view(clean_job)["state"] == "running"
+assert service.complete(claim, drafts=service.generate(claim))
+commit(rx, clean_record)
+assert view(clean_job)["state"] == "succeeded"
+with engine.connect() as connection:
+    assert (
+        connection.scalar(
+            select(func.count()).select_from(outbox).where(outbox.c.job_id == clean_job)
+        )
+        == 1
+    )
+    assert (
+        connection.scalar(
+            select(func.count())
+            .select_from(job_results)
+            .where(job_results.c.job_id == clean_job)
+        )
+        == 1
+    )
+    assert (
+        connection.scalar(
+            select(func.count())
+            .select_from(jobs.outerjoin(outbox, jobs.c.event_id == outbox.c.id))
+            .where(outbox.c.id.is_(None))
+        )
+        == 0
+    )
+assert not relay_once(repository, tx, event_log)
+print(
+    "security_normal_delivery",
+    json.dumps(
+        {
+            "http": 202,
+            "states": ["pending", "running", "succeeded"],
+            "outbox": 1,
+            "results": 1,
+            "orphan_jobs": 0,
+        }
+    ),
+)
+
 # Expired jobs may be claimed again. The old executor cannot publish.
 stale_job, _, _ = task(source)
 stale_event = job_event(stale_job)

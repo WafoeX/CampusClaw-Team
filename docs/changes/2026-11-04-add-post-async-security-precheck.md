@@ -61,3 +61,15 @@ PR #29 合入后在 `d50e91b` 复跑真实 MySQL、Kafka 和课程网关，隔�
 六份报告均在 Git 版本中可打开。通过 `git check-ignore` 验证私有配置、原始日志、漏洞库和镜像归档仍忽略。已核对评审规范并将复跑入口及 SEC-07 红项写入[安全修复交接](2026-11-04-remediate-security-findings.md#第-8-课预检移交)。课程等价保留在最终验收 1.5，独立真人复验保留在最终验收 4.1，见[复验记录](../../reports/review-01.md)。PR #30 的人工代码评审待执行。
 
 3.4 已交接现有技术证据。1.3 的出站防御测试已通过，授权与发布规则破坏演练仍缺证据，保留未完成。课程与人工验收状态见[预检报告](../../reports/security-precheck.md#13-专项检查复核)。
+
+### PR #31 漏洞库下载复验
+
+提交 `314955a` 的推送检查在仓库门禁步骤退出 2，同一文件树的 PR 合并候选检查通过。公开的作业注释只有退出码。本地运行 `make check CHANGE=2026-11-04-add-post-async-security-precheck`，在 `check-dependencies` 复现 GHCR 漏洞库下载超时及退出 2，命令未进入集成步骤。远端推送检查的原始日志未取得。见[推送检查](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43421763431/job/131873214949)和[PR 检查](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43422033863/job/131874116395)。
+
+三个扫描入口恢复固定版本 Trivy 的默认漏洞库来源顺序。`trivy fs --help` 确认先使用 `mirror.gcr.io/aquasec/trivy-db:2`，再以 `ghcr.io/aquasecurity/trivy-db:2` 为备用。依赖审计仍包含开发依赖，依赖和镜像仍按 High/Critical 阻断，工具错误仍使门禁非零退出。见 [Trivy 0.76 文档](https://trivy.dev/docs/v0.76/guide/configuration/db/#default-locations)。
+
+空缓存复跑确认 Trivy 改从 Google Container Registry 镜像下载。本机容器内下载仍超时，命令退出 2。使用 2.2 复验中按 OCI 摘要校验的有效缓存，`make check-security TRIVY_CACHE="$PWD/reports/trivy-cache-import" SECURITY_ASSETS=reports/security-release-4aa4953 SECURITY_CANDIDATE=4aa4953bd08cf0bb397ecce6416300a41c7c2ad5` 退出 0，六个凭据范围零命中，依赖 High 0、Critical 0。
+
+`make check CHANGE=2026-11-04-add-post-async-security-precheck TRIVY_CACHE="$PWD/reports/trivy-cache-import"` 退出 0。全仓严格 OpenSpec 12 项、静态与场景追溯、467 项单元/API、4 项启动、凭据及锁定依赖扫描和 8 项隔离 Compose 集成均通过。
+
+使用 `project-review` 按 PSC-N02、PSC-F09、SEC-16、TEST-08 和 REV-08 对照三个扫描入口、固定制品、原始失败及 README。接口、业务逻辑、数据库结构和应用性能无变更。扫描工具与门禁差异待小组人工复核。

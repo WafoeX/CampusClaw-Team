@@ -381,6 +381,6 @@ CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets \
 make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="$(git rev-parse HEAD)"
 ```
 
-第一条命令验证冷启动、五个受保护接口、两班检索、学生写入前后的记录和技能调用。输出目录内含页面、OpenAPI、隔离日志、应用与 MCP 镜像归档。第二条命令用固定镜像扫描本地引用可达历史、工作区候选文件、页面、日志、镜像文件和镜像配置，并用 Trivy 审计候选的 `uv.lock`。Trivy 需要取得可用的漏洞库。每个范围独立报告，`0` 为通过，`1` 为命中阻断项，`2` 为缺少输入或扫描工具故障。任一分项未通过时 Make 非零退出。若在同一工作区换了预检工具提交，传入资产采集时的候选提交号。原始文件保留在本地报告目录。
+第一条命令验证冷启动、五个受保护接口、两班检索、学生写入前后的记录和技能调用。输出目录内含页面、OpenAPI、隔离日志、应用与 MCP 镜像归档。第二条命令用固定镜像扫描本地引用可达历史、工作区候选文件、页面、日志、镜像文件和镜像配置，并用 Trivy 审计候选的 `uv.lock`。漏洞库更新使用固定版本 Trivy 自带的来源顺序，先访问 Google Container Registry 镜像，符合回退条件时尝试 GHCR。每个范围独立报告，`0` 为通过，`1` 为命中阻断项，`2` 为缺少输入或扫描工具故障。任一分项未通过时 Make 非零退出。若在同一工作区换了预检工具提交，传入资产采集时的候选提交号。原始文件保留在本地报告目录。
 
 要复跑教学事务与 Kafka 恢复，用 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'`。课程等价、红项和独立人工复验状态见[预检报告](reports/security-precheck.md)。

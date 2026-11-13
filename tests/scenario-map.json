@@ -1287,9 +1287,9 @@
         "reason": "本课未选注入实验，待后续课次素材与实测。"
       },
       "PSC-N04": {
-        "pending": "3.1",
-        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
-        "reason": "候选题异步实测通过，作业 202 等价待确认。"
+        "pending": "1.5",
+        "task_file": "openspec/changes/2026-11-04-project-final-acceptance/tasks.md",
+        "reason": "预检 3.1 的候选题异步实测已完成，课程作业 202 等价仍待确认。"
       }
     }
   },

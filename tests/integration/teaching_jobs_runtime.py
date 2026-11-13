@@ -505,12 +505,22 @@ with engine.connect() as connection:
         == 0
     )
 assert not relay_once(repository, tx, event_log)
+deliveries = [
+    record
+    for name, record in observed
+    if name == "teaching_delivery" and record["event_id"] == clean_event.event_id
+]
+assert deliveries == [
+    {"task_id": clean_job, "event_id": clean_event.event_id, "delivered": True}
+]
 print(
     "security_normal_delivery",
     json.dumps(
         {
             "http": 202,
+            "task_id": clean_job,
             "states": ["pending", "running", "succeeded"],
+            "deliveries": len(deliveries),
             "outbox": 1,
             "results": 1,
             "orphan_jobs": 0,

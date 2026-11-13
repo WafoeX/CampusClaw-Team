@@ -1,11 +1,14 @@
 import json
+import socket
 import time
+from contextlib import nullcontext
 from dataclasses import replace
+from unittest.mock import Mock
 
 import pytest
 
 from app.adapters.tool_protocol import PROTOCOL, ToolProtocol
-from app.adapters.tool_transport import ToolDependencyError
+from app.adapters.tool_transport import ToolDependencyError, ToolTransport
 from app.tool_config import load_tool_directory
 
 
@@ -186,10 +189,6 @@ def test_CN_F01_TD_F01_TD_F04_read_only_http_fields_and_media():
 
 
 def test_CN_F05_transport_requires_all_candidates_to_be_approved(teaching):
-    import socket
-
-    from app.adapters.tool_transport import ToolTransport
-
     def resolve(host, port, *_):
         assert host == "mcp-server" and port == 8090
         return [
@@ -200,3 +199,57 @@ def test_CN_F05_transport_requires_all_candidates_to_be_approved(teaching):
     wire = ToolTransport(resolve=resolve)
     with pytest.raises(ToolDependencyError, match="address"):
         wire.addresses(teaching, time.monotonic() + 1)
+
+
+@pytest.mark.parametrize(
+    ("case", "error", "requests"),
+    (
+        ("changed_resolution", "address", 0),
+        ("unexpected_peer", "address", 0),
+        ("redirect", "upstream", 1),
+    ),
+)
+def test_CN_F05_transport_denies_changed_destination(
+    teaching, monkeypatch, case, error, requests
+):
+    approved = ("172.20.0.3", 8090)
+    different = ("172.21.0.3", 8090)
+
+    def rows(address):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", address)]
+
+    resolve = Mock(
+        side_effect=[
+            rows(approved),
+            rows(different if case == "changed_resolution" else approved),
+        ]
+    )
+    wire = ToolTransport(resolve=resolve)
+    assert wire.addresses(teaching, time.monotonic() + 1) == [
+        (socket.AF_INET, approved)
+    ]
+    stream = Mock()
+    stream.getpeername.return_value = (
+        different if case == "unexpected_peer" else approved
+    )
+    connection = Mock()
+    response = Mock(status=302)
+    response.getheader.return_value = "https://unapproved.example.test/"
+    connection.getresponse.return_value = nullcontext(response)
+    socket_factory = Mock(return_value=stream)
+    monkeypatch.setattr("app.adapters.tool_transport.socket.socket", socket_factory)
+    monkeypatch.setattr(
+        "app.adapters.tool_transport.HTTPConnection", Mock(return_value=connection)
+    )
+
+    with pytest.raises(ToolDependencyError, match=error):
+        wire.request(teaching, "POST", "/mcp", time.monotonic() + 1, headers={})
+
+    assert resolve.call_count == 2
+    assert connection.request.call_count == requests
+    if case == "changed_resolution":
+        socket_factory.assert_not_called()
+    else:
+        stream.connect.assert_called_once_with(approved)
+        stream.close.assert_called_once()
+    response.read1.assert_not_called()

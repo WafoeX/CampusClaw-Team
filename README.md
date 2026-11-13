@@ -370,3 +370,17 @@ docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile te
 暂停新候选受理时设置 `TEACHING_JOBS_ENABLED=0` 并重新创建应用，保留投递器与 worker 排空已受理任务。检查 `teaching_backlog`、`teaching_lag` 和死信后按数据字典回退。后台索引继续走同步构建接口。
 
 运行 `make check` 执行合成资料和替身模型的真实 Kafka/MySQL 回归。将三项课程聊天配置填入工作树的私有 `.env`，或一次性通过当前进程环境提供，再运行 `CAMPUSCLAW_REAL_CANDIDATES=1 uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k real_kafka`。隔离测试额外请求一次真实模型，核对保存的待审草稿和出处，仅记录脱敏的模型配置、耗时和可用的 token 用量。工程证据见[变更记录](docs/changes/2026-11-04-add-async-teaching-workflows.md)和[数据字典](docs/data-dictionary.md#异步教学出处和实时指标0012)。
+
+## 课末安全预检
+
+先用本机 Docker Desktop、Python 3.13、uv 和完整 Git 克隆，在隔离项目中收集候选资产。运行命令前将待查的应用源码、依赖和 Compose 文件检出到同一提交。环境使用两班合成数据，模型请求由测试替身处理。每轮选择一个尚未创建的报告目录。
+
+```bash
+CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets \
+  uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck
+make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="$(git rev-parse HEAD)"
+```
+
+第一条命令验证冷启动、五个受保护接口、两班检索、学生写入前后的记录和技能调用。输出目录内含页面、OpenAPI、隔离日志、应用与 MCP 镜像归档。第二条命令用固定镜像扫描本地引用可达历史、工作区候选文件、页面、日志、镜像文件和镜像配置，并用 Trivy 审计候选的 `uv.lock`。Trivy 需要取得可用的漏洞库。每个范围独立报告，`0` 为通过，`1` 为命中阻断项，`2` 为缺少输入或扫描工具故障。任一分项未通过时 Make 非零退出。若在同一工作区换了预检工具提交，传入资产采集时的候选提交号。原始文件保留在本地报告目录。
+
+要复跑教学事务与 Kafka 恢复，用 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'`。课程等价、红项和独立人工复验状态见[预检报告](reports/security-precheck.md)。

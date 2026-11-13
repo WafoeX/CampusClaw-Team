@@ -1219,11 +1219,82 @@
         "runner": "verify_teaching_jobs",
         "assertion": "assert connection.scalar(select(func.count()).select_from(generated_questions)) == 1"
       }
+    },
+    "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": {
+      "PSC-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-F08": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+      },
+      "PSC-N02": {
+        "test": "tests/unit/test_security_gate.py",
+        "function": "test_PSC_N02_PSC_F06_PSC_F07_PSC_F09_scans_continue_and_redact"
+      },
+      "PSC-F06": {
+        "test": "tests/unit/test_security_gate.py",
+        "function": "test_PSC_N02_PSC_F06_PSC_F07_PSC_F09_scans_continue_and_redact"
+      },
+      "PSC-F07": {
+        "test": "tests/unit/test_security_gate.py",
+        "function": "test_PSC_N02_PSC_F06_PSC_F07_PSC_F09_scans_continue_and_redact"
+      },
+      "PSC-F09": {
+        "test": "tests/unit/test_security_gate.py",
+        "function": "test_PSC_N02_PSC_F06_PSC_F07_PSC_F09_scans_continue_and_redact"
+      },
+      "PSC-F05": {
+        "pending": "1.3",
+        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
+        "reason": "实际正向请求返回 400 已修正，专项矩阵尚待交接。"
+      },
+      "PSC-N03": {
+        "pending": "4.1",
+        "task_file": "openspec/changes/2026-11-04-project-final-acceptance/tasks.md",
+        "reason": "实际独立真人复验留待最终验收。"
+      },
+      "PSC-F10": {
+        "pending": "4.1",
+        "task_file": "openspec/changes/2026-11-04-project-final-acceptance/tasks.md",
+        "reason": "实际独立真人复验留待最终验收。"
+      },
+      "PSC-B01": {
+        "pending": "3.4",
+        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
+        "reason": "本次确认 SEC-07 红项，全绿分支不适用。"
+      },
+      "PSC-B02": {
+        "pending": "3.4",
+        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
+        "reason": "本课未选注入实验，待后续课次素材与实测。"
+      },
+      "PSC-N04": {
+        "pending": "3.1",
+        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
+        "reason": "候选题异步实测通过，作业 202 等价待确认。"
+      }
     }
   },
   "planned": {
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "本次选择跳过后台索引 202，保留同步接口。",
-    "2026-11-04-add-post-async-security-precheck/specs/post-async-security-precheck/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
   }

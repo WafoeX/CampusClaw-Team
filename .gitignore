@@ -38,7 +38,13 @@ htmlcov/
 *.bak
 
 # 生成制品与原始运行报告；脱敏结论进入 docs/changes
-/reports/
+/reports/*
+!/reports/security-precheck.md
+!/reports/security-baseline.md
+!/reports/risk-authz.md
+!/reports/risk-concurrency.md
+!/reports/risk-transaction.md
+!/reports/review-01.md
 /dist/
 /build/
 *.log

@@ -1277,14 +1277,14 @@
         "reason": "实际独立真人复验留待最终验收。"
       },
       "PSC-B01": {
-        "pending": "3.4",
-        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
-        "reason": "本次确认 SEC-07 红项，全绿分支不适用。"
+        "pending": "4.1",
+        "task_file": "openspec/changes/2026-11-04-project-final-acceptance/tasks.md",
+        "reason": "本次确认 SEC-07 红项，全绿分支未触发；最终验收 4.1 复核基线与修复后的判定。"
       },
       "PSC-B02": {
-        "pending": "3.4",
-        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
-        "reason": "本课未选注入实验，待后续课次素材与实测。"
+        "pending": "5.2",
+        "task_file": "openspec/changes/2026-11-04-remediate-security-findings/tasks.md",
+        "reason": "第 8 课未选该提高项，素材与实测由安全修复 5.2 承接。"
       },
       "PSC-N04": {
         "pending": "1.5",

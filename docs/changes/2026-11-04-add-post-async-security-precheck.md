@@ -53,3 +53,11 @@ PR #29 合入后在 `d50e91b` 复跑真实 MySQL、Kafka 和课程网关，隔�
 ### 2.2 资产扫描复核
 
 同一候选保留前轮失败结果，从 Trivy 官方文档列出的镜像取得并校验新库后复跑 `make check-security`，退出 0。六个凭据范围零命中，锁定依赖 High 0、Critical 0。库的官方时效及复跑参数见[资产基线](../../reports/security-baseline.md#22-复验)。
+
+### 3.4 技术证据交接（课程 SEC-01–07）
+
+在收尾检查提交 `1110729` 上运行 `make check CHANGE=2026-11-04-add-post-async-security-precheck TRIVY_CACHE="$PWD/reports/trivy-cache-import"`，退出 0。严格 OpenSpec 12 项、静态与场景追溯、467 项单元/API、4 项启动和 8 项真实 Compose 通过。对原候选 `4aa4953` 按 2.2 的扫描命令复跑，退出 0；本地可达历史 163 个提交，六个凭据扫描范围零命中，依赖 High 0、Critical 0。前轮失败和分项记录保留。
+
+六份报告均在 Git 版本中可打开。通过 `git check-ignore` 验证私有配置、原始日志、漏洞库和镜像归档仍忽略。已核对评审规范并将复跑入口及 SEC-07 红项写入[安全修复交接](2026-11-04-remediate-security-findings.md#第-8-课预检移交)。课程等价保留在最终验收 1.5，独立真人复验保留在最终验收 4.1，见[复验记录](../../reports/review-01.md)。PR #30 的人工代码评审待执行。
+
+3.4 已交接现有技术证据。1.3 的出站防御测试已通过，授权与发布规则破坏演练仍缺证据，保留未完成。课程与人工验收状态见[预检报告](../../reports/security-precheck.md#13-专项检查复核)。

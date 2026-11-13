@@ -34,3 +34,16 @@ SEC-01 的真实入口是 `GET /api/v1/auth/sessions/current`、`GET /api/v1/mat
 - 回归覆盖现有的两班权限、MCP 出站约束、答案门控和撤销、任务恢复。独立专项组合矩阵仍有缺项，详见[变更证据](../docs/changes/2026-11-04-add-post-async-security-precheck.md)。
 - 合成问题草稿。有答案：“蓝鲸动力站的额定电压是多少？” 无答案：“蓝鲸动力站的建造年份是多少？” 跨班：以 B1 问“蓝鲸动力站的额定电压是多少？” 本轮未选 SEC-08 注入实验。
 - [独立复验记录](review-01.md)待项目最终验收 4.1 实际填写。
+
+## 1.3 专项检查复核
+
+收尾分支继续使用隔离合成数据。下面列出已运行的防御检查及实际覆盖，供后续修复按同一入口复跑。
+
+| 检查范围 | 实际覆盖和判据 | 复跑入口 |
+| --- | --- | --- |
+| 资料、检索、配置 | 合法同班访问成功。跨班资料与缺失对象同构，跨班关键词零命中，学生配置写入前后快照相同。检索单测核对授权班级传入仓储、向量载荷不匹配时丢弃以及来源变化时停止返回。 | `test_compose.py -k 'security_precheck or cold_start_and_recovery'`、`tests/unit/test_retrieval.py` |
+| 流式与工具 | 本人运行可读，同班其他学生和跨班教师不可读。工具参数及回填只保留获准字段，无证据时无模型调用，未开放答案不进入页面、普通会话或模型及工具输入。 | `test_compose.py -k controlled_tool_dialogue`、`tests/unit/test_answer_service.py` |
+| 工具出站约束 | 对两次解析变化、对端地址不符和重定向分别用无网络替身验证。前两种零 HTTP 请求，重定向只向已批准端点发送一次请求。三种均无响应体读取。 | `tests/unit/test_tool_protocol.py -k CN_F05` |
+| 撤权与恢复 | 来源撤销不返回旧内容；工具连接在途撤销后不保存结果；任务角色变化后取消；合成审计备份恢复后重新清理到期记录。 | `test_compose.py -k 'cold_start_and_recovery or controlled_tool_dialogue or tool_storage or real_kafka'` |
+
+专项单测共 86 项通过，其中 3 项为新增的出站防御对照。首次测试夹具用普通 Mock 代替响应上下文管理器，改用 `nullcontext` 后复测通过。防御专项覆盖增加，独立破坏授权或发布检查的演练仍未执行，1.3 保留未完成。SEC-08 四步实验按原分工留到后续课次。

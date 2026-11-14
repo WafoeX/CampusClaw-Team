@@ -96,7 +96,9 @@ class MaterialService:
                         "revision": revision + 1,
                         "updated_at": self.clock(),
                     }
-                    self.repository.revise(connection, material_id, changes)
+                    self.repository.revise(
+                        connection, identity.class_id, material_id, revision, changes
+                    )
                 return material_metadata(dict(row) | changes)
         except self.database_error:
             raise unavailable() from None
@@ -158,7 +160,9 @@ class MaterialService:
         try:
             with self.repository.transaction() as connection:
                 self._check_writer(connection, identity, cookie)
-                self._target(connection, identity, material_id)
-                self.repository.remove(connection, material_id, self.clock())
+                if not self.repository.remove(
+                    connection, identity.class_id, material_id, self.clock()
+                ):
+                    raise missing()
         except self.database_error:
             raise unavailable() from None

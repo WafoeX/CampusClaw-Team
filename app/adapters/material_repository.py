@@ -88,9 +88,11 @@ class MaterialRepository:
             .one_or_none()
         )
 
-    def revise(self, connection, material_id, changes):
+    def revise(self, connection, class_id, material_id, revision, changes):
         connection.execute(
-            update(materials).where(materials.c.id == material_id).values(changes)
+            update(materials)
+            .where(self._scope(class_id, material_id), materials.c.revision == revision)
+            .values(changes)
         )
 
     @staticmethod
@@ -128,7 +130,15 @@ class MaterialRepository:
             )
         )
 
-    def remove(self, connection, material_id, deleted_at):
+    def remove(self, connection, class_id, material_id, deleted_at):
+        if self.lock_material(connection, class_id, material_id) is None:
+            return False
+        self._remove(
+            connection, material_id, deleted_at, self._scope(class_id, material_id)
+        )
+        return True
+
+    def _remove(self, connection, material_id, deleted_at, material_scope):
         redact_material_copies(connection, material_id, deleted_at)
         connection.execute(
             update(question_versions)
@@ -169,7 +179,7 @@ class MaterialRepository:
             .values(deleted=True, result=None)
         )
         connection.execute(delete(bodies).where(bodies.c.material_id == material_id))
-        connection.execute(delete(materials).where(materials.c.id == material_id))
+        connection.execute(delete(materials).where(material_scope))
 
     def deletion_manifest(self):
         with self.engine.connect() as connection:
@@ -186,4 +196,6 @@ class MaterialRepository:
     def replay_deletions(self, receipts):
         with self.engine.begin() as connection:
             for material_id, deleted_at in receipts:
-                self.remove(connection, material_id, deleted_at)
+                self._remove(
+                    connection, material_id, deleted_at, materials.c.id == material_id
+                )

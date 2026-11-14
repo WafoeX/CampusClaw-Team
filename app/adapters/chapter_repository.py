@@ -93,10 +93,10 @@ class ChapterRepository(MaterialRepository):
         )
         connection.execute(delete(chapters).where(chapters.c.id == chapter_id))
 
-    def assign(self, connection, material_id, chapter_id, revision, now):
+    def assign(self, connection, class_id, material_id, chapter_id, revision, now):
         connection.execute(
             update(materials)
-            .where(materials.c.id == material_id)
+            .where(self._scope(class_id, material_id), materials.c.revision == revision)
             .values(chapter_id=chapter_id, revision=revision + 1, updated_at=now)
         )
 

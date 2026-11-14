@@ -144,7 +144,11 @@ class IndexRepository(MaterialRepository):
         connection.execute(insert(builds).values(fields))
         connection.execute(
             update(materials)
-            .where(materials.c.id == fields["material_id"])
+            .where(
+                materials.c.class_id == fields["class_id"],
+                materials.c.id == fields["material_id"],
+                materials.c.content_version == fields["source_version"],
+            )
             .values(desired_index_version=fields["index_version"])
         )
         connection.execute(

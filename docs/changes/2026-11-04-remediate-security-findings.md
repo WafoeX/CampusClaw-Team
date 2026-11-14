@@ -47,3 +47,16 @@
 核对 MySQL 迁移 0001–0012、SQLAlchemy 表定义以及认证、模型和工具连接配置。账号表保存 scrypt 口令哈希，会话表保存 32 字节 SHA-256 令牌摘要。工具连接表保存目录键及版本，凭据由目录指定的环境变量读取，发现及审批仅保存工具定义。MySQL、Qdrant、聊天与嵌入服务的凭据在运行时从环境读取。核查范围内未发现需要可逆加密的凭据持久字段。基线未出现真实命中，轮换、历史清理、复扫和重新克隆流程不适用。
 
 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'connector_management or tool_storage or isolated_compose_teaching_service or cold_start_and_recovery'` 在隔离环境退出 0，4 项通过，耗时 165.79 秒。覆盖真实 MySQL 上的认证迁移、口令验证和会话撤销，以及连接登记、工具存储和凭据不回显。首次在默认沙箱运行因 Docker 套接字权限无法启动，改在可访问 Docker 的进程中复测通过。使用 `openspec-apply-change` 与 `project-review` 核对 SR-F10、SEC-10 和实际扫描结果。人工评审待执行。
+
+## 2026-11-14 讲义与检索班级隔离（2.2，SEC-02）
+
+按 SR-F03 和后端、安全、测试规范复核讲义详情、下载、元数据更新、归章、删除及索引构建。改动前，写事务先锁定本班讲义，部分 SQL 写语句仅使用讲义 ID。元数据更新与归章现要求班级、讲义 ID 和当前修订一致，设置待构建索引版本要求班级、讲义 ID 和源版本一致。删除在事务内锁定本班资源并按归属删除主记录，副本清理和运维删除清单重放继续共用同一事务操作。
+
+| 核查面 | 实际结果 |
+| --- | --- |
+| 接口及错误处理 | 本班读取成功。跨班与不存在详情均为 404/1300，公开文案一致、data 为 null。认证回归按同一判据覆盖下载、PATCH 和 DELETE，拒绝写入前后数据库快照一致。 |
+| 业务及数据库 | 本班更新、归章、索引发布和删除通过。旧修订返回 409。副本清理失败后事务回滚，删除清单重放与恢复回归通过。无需迁移。 |
+| 安全及查询条件 | 预检原关键词命中计数为 1、1、0。补充对照用两班合成资料和确定性向量，对班级专属词执行关键词、向量、混合查询，授权班级各命中 1 条，其他班级各为 200 空列表。实际 MySQL 全文语句在排序取限前绑定班级；发往真实 Qdrant 的查询在取限前包含班级及索引范围过滤。检索入口未发现取回所有班级再筛选的路径。 |
+| 公共函数及性能 | 复用仓储组合条件和既有回表核验，检索每分支仍取最多 20 条。未改变查询阈值。压测未执行。 |
+
+以 `project-add-tests` 补充 `tests/integration/retrieval_runtime.py` 的三种检索对照，保留既有写入和恢复断言。首轮 1 项失败，原因是测试把驱动参数的表示当成稳定接口。改用 SQLAlchemy 已编译的绑定参数后，`uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'cold_start_and_recovery or security_precheck'` 退出 0，2 项通过，耗时 126.85 秒。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 在允许绑定本地端口的环境退出 0，OpenSpec 12 项、分层及场景追溯、467 项单元/API、4 项启动检查均通过。按 `project-review` 核对并留存结果，人工评审待执行。

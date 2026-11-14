@@ -189,7 +189,12 @@ class ChapterService:
                     raise conflict()
                 if row["chapter_id"] != chapter_id:
                     self.repository.assign(
-                        connection, material_id, chapter_id, revision, self.clock()
+                        connection,
+                        identity.class_id,
+                        material_id,
+                        chapter_id,
+                        revision,
+                        self.clock(),
                     )
                     row = dict(row) | {
                         "chapter_id": chapter_id,

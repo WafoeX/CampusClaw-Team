@@ -7,9 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 from threading import Event
+from unittest.mock import patch
 from uuid import uuid4
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import event, func, insert, select
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import create_app
@@ -106,7 +107,10 @@ class SyntheticEmbedding:
             before_call()
         if self.fail:
             raise IndexDependencyError("synthetic_failure")
-        return [[1.0] + [0.0] * 2047 for _ in texts]
+        return [
+            ([0.0, 1.0] if "紫铜螺旋仪" in text else [1.0, 0.0]) + [0.0] * 2046
+            for text in texts
+        ]
 
     def embed_query(self, text, deadline, *, before_call=None):
         return self.embed([text], deadline, before_call=before_call)[0]
@@ -194,11 +198,11 @@ def post(client, path, fields, key=None):
     )
 
 
-def search(query="蓝鲸", mode="keyword", scope=None):
+def search(query="蓝鲸", mode="keyword", scope=None, *, client=student):
     fields = {"query": query, "mode": mode}
     if scope is not None:
         fields["chapter_scope"] = scope
-    return post(student, "/api/v1/searches", fields)
+    return post(client, "/api/v1/searches", fields)
 
 
 def put_chapter(material_id, chapter_id):
@@ -284,6 +288,45 @@ if phase == "setup":
         assert opened.status_code == 200
         source = opened.json["data"]
         assert source["source_text"][item["start"] : item["end"]] == item["text"]
+    sql_queries = []
+
+    def capture_keyword(_connection, _cursor, statement, _parameters, context, _many):
+        if "MATCH (" in statement and "material_chunks" in statement:
+            sql_queries.append((statement, context.compiled_parameters[0]))
+
+    foreign_phrase = "紫铜螺旋仪"
+    event.listen(engine, "before_cursor_execute", capture_keyword)
+    try:
+        with patch.object(
+            vectors.endpoint, "request", wraps=vectors.endpoint.request
+        ) as sent:
+            for mode in ("keyword", "vector", "hybrid"):
+                visible = search(foreign_phrase, mode=mode, client=outsider)
+                assert (
+                    visible.status_code == 200
+                    and len(visible.json["data"]["items"]) == 1
+                )
+                hidden = search(foreign_phrase, mode=mode)
+                assert hidden.status_code == 200 and hidden.json["data"]["items"] == []
+        assert len(sql_queries) == 4
+        assert all(
+            "materials.class_id = " in statement.split("ORDER BY")[0]
+            and class_a in parameters.values()
+            for statement, parameters in sql_queries[1::2]
+        )
+        point_queries = [
+            args[2]
+            for args, _ in sent.call_args_list
+            if args[1].endswith("/points/query")
+        ]
+        assert len(point_queries) == 4
+        assert all(
+            {"key": "class_id", "match": {"value": class_a}} in query["filter"]["must"]
+            and query["limit"] == 20
+            for query in point_queries[1::2]
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_keyword)
     # QA-N01/B01/F03/F04/F05：实际资料与出处，零调用及结构/数值失败。
     question = {
         "question": "蓝鲸动力站的额定电压是多少？",

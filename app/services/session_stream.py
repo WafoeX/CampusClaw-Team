@@ -293,20 +293,25 @@ class SessionStreamService:
                 if text != (result or NO_EVIDENCE):
                     raise invalid_answer()
 
-        return ValidatedStream(
-            reservation,
-            deadline=deadline,
-            produce=produce,
-            validate=validate,
-            recheck=recheck,
-            commit=lambda text: self.sessions.finish(
+        def commit(_text):
+            return self.sessions.finish(
                 identity,
                 cookie,
                 ticket,
                 final_payload(),
                 segments=raw,
-                **({"tools": tool_runner.details} if tool_runner else {}),
-            ),
+                tools=tool_runner.details if tool_runner else None,
+                request_id=request_id,
+                model_usage=stream.context.model_usage(),
+            )
+
+        stream = ValidatedStream(
+            reservation,
+            deadline=deadline,
+            produce=produce,
+            validate=validate,
+            recheck=recheck,
+            commit=commit,
             metadata={
                 "run_id": ticket["run_id"],
                 "operation_id": ticket["operation_id"],
@@ -331,6 +336,7 @@ class SessionStreamService:
                 else None
             ),
         )
+        return stream
 
     def _replay(
         self,

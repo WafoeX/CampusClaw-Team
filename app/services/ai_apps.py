@@ -22,6 +22,7 @@ from app.services.ai_contracts import (
 )
 from app.services.auth import digest_cookie, invalid_session, utc_now
 from app.services.materials import missing, unavailable
+from app.services.operation_audit import append_audit
 
 
 def configuration_view(row, kind, *, detail=False):
@@ -195,8 +196,17 @@ class AIApplicationService:
             raise unavailable() from None
 
     def save_configuration(
-        self, identity, cookie, kind, payload, *, key=None, resource_id=None
+        self,
+        identity,
+        cookie,
+        kind,
+        payload,
+        *,
+        key=None,
+        resource_id=None,
+        request_id=None,
     ):
+        started = time.monotonic()
         fields = configuration_input(kind, payload, update=resource_id is not None)
         expected = fields.pop("revision", None)
         try:
@@ -274,6 +284,17 @@ class AIApplicationService:
                     material_ids=fields.get("material_ids", ()),
                     skill_ids=fields.get("skill_ids", ()),
                 )
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "configuration_" + event,
+                    kind,
+                    resource_id=identifier,
+                    duration_ms=round((time.monotonic() - started) * 1000),
+                )
                 if resource_id is None:
                     self.repository.save_creation(
                         connection,
@@ -296,7 +317,10 @@ class AIApplicationService:
         except self.database_error:
             raise unavailable() from None
 
-    def delete_template(self, identity, cookie, resource_id, expected):
+    def delete_template(
+        self, identity, cookie, resource_id, expected, *, request_id=None
+    ):
+        started = time.monotonic()
         revision(expected)
         try:
             with self.repository.transaction() as connection:
@@ -330,6 +354,17 @@ class AIApplicationService:
                     row["prompt"],
                     identity.subject_id,
                     event="delete",
+                )
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    parent["updated_at"],
+                    request_id,
+                    "configuration_delete",
+                    "template",
+                    resource_id=resource_id,
+                    duration_ms=round((time.monotonic() - started) * 1000),
                 )
             return {"id": resource_id, "deleted": True}
         except self.database_error:

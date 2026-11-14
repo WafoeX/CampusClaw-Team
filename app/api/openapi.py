@@ -253,6 +253,8 @@ ENDPOINTS = set(REQUESTS) | {
     "disconnect_tool_connector",
     "list_connector_tools",
     "tool_call_audit",
+    "list_operation_audit",
+    "read_operation_audit",
 }
 ENVELOPE = obj(
     {"code": {"type": "integer"}, "message": TEXT, "data": {}, "request_id": TEXT}
@@ -343,6 +345,24 @@ def document(app):
                 parameters.extend(
                     {"in": "query", "name": name, "schema": ID}
                     for name in ("chapter_id", "quiz_id")
+                )
+            if endpoint == "list_operation_audit":
+                parameters.extend(
+                    {"in": "query", "name": name, "schema": schema}
+                    for name, schema in (
+                        ("actor_id", ID),
+                        ("skill_id", ID),
+                        ("end", {"type": "string", "format": "date-time"}),
+                        (
+                            "days",
+                            {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 7,
+                                "default": 7,
+                            },
+                        ),
+                    )
                 )
             operation = {
                 "operationId": endpoint,

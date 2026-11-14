@@ -115,6 +115,8 @@ class ChatClient:
             if isinstance(usage, dict)
             else {}
         )
+        if context is not None:
+            context.record_model_usage(tokens.get("total_tokens"))
         self.on_result(
             stage="chat",
             model=self.config.model,

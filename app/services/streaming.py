@@ -84,6 +84,17 @@ class StreamContext:
         self.cancelled = threading.Event()
         self._callbacks = []
         self._lock = threading.Lock()
+        self._model_totals = []
+
+    def record_model_usage(self, total_tokens):
+        self._model_totals.append(total_tokens)
+
+    def model_usage(self):
+        if not self._model_totals:
+            return None, "not_applicable"
+        if None in self._model_totals:
+            return None, "unavailable"
+        return sum(self._model_totals), "measured"
 
     def check(self):
         if self.cancelled.is_set():

@@ -117,7 +117,12 @@ def install_ai_apps(app, service):
         def creating(kind=kind):
             request_key = key()
             result = service.save_configuration(
-                g.identity, request.cookies.get(COOKIE), kind, body(), key=request_key
+                g.identity,
+                request.cookies.get(COOKIE),
+                kind,
+                body(),
+                key=request_key,
+                request_id=g.request_id,
             )
             return success(result), 201
 
@@ -129,6 +134,7 @@ def install_ai_apps(app, service):
                     kind,
                     body(),
                     resource_id=identifier(resource_id),
+                    request_id=g.request_id,
                 )
             )
 
@@ -154,6 +160,7 @@ def install_ai_apps(app, service):
                 request.cookies.get(COOKIE),
                 identifier(resource_id),
                 payload["revision"],
+                request_id=g.request_id,
             )
         )
 

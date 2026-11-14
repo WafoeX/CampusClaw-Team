@@ -85,3 +85,19 @@
 复用安全预检的真实 SSE 入口、合成学生、技能和固定模型返回。基线 `bc591b4` 与修复后的模型日志均记录 30 tokens。基线日志的请求标识为空，修复后与 HTTP 请求标识一致，技能及数据库操作者对照均通过。从现有流上下文把服务端生成的标识传到模型回调。字段不随请求发送给模型，日志保持结构化单行并继续限制用量字段，不记录正文或凭据。
 
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'` 退出 0，2 项通过，耗时 37.81 秒。预检加入模型与 HTTP 日志的请求标识一致性断言。按 `project-add-tests` 和 `project-review` 核对入口、现有 SSE 及工具流程、日志字段和安全边界。`make check-static CHANGE=2026-11-04-remediate-security-findings` 与断网单元/API 检查通过，467 项。无数据库结构改动，未做压测。技能用量持久化、教师授权投影、学生拒绝审计及故障关闭仍待 5.1 实施和验证。
+
+## 2026-11-15 持久操作审计（5.1，SEC-07）
+
+在已合入 PR #32 的 `9440234` 上实施。该 PR 的 GitHub `make check` 已通过（运行 43599290307）。本次按 `openspec-apply-change`、`project-data-change`、`project-add-tests` 和 `project-review`，读取 SR-N02、SR-F12/13、数据字典、迁移 0012 与后端、测试、安全、数据、运维、AI 和评审规则。新增 0013，追加带请求标识的去内容单行 JSON，保留 90 天。配置和技能成功审计使用业务事务，拒绝记录用独立事务与唯一请求标识。恢复清理和回退约定见[审计字典](../data-dictionary.md#班级操作审计0013)。
+
+| 核查 | 判据及实测 |
+| --- | --- |
+| 接口 | 受保护列表和详情已连入 OpenAPI。教师可按操作者、技能、时间查询，学生 403、匿名 401，超出 7 日窗口返回 400。 |
+| 业务 | 同一 SSE 技能完成事件的用量为 30 tokens，耗时等于数据库执行耗时，请求标识与 HTTP 响应匹配。三次同源学生配置写均 403/1200，分别有且仅有一条关联的拒绝审计。 |
+| 数据库 | 真实 MySQL 验证空库升级、重复升级、单步降至 0012 后再升，保留旧账号并保留教学表。通过时钟推进清理到期记录，重插清理前的合成审计行模拟恢复，再次清理至零。 |
+| 公共函数 | 复用当前身份与分页约束，统一白名单投影和 JSON 编码。实际落库 JSON 单行，字段值与投影一致。 |
+| 错误处理 | 模拟审计 INSERT 存储故障，教师配置写返回 503/1500，相关配置、修订与审计行快照一致；学生仍返回 403/1200。受控工具回归验证发包前审计故障不调用远端。 |
+| 安全 | 跨班详情与缺失对象同构，跨班操作者筛选计数为零。技能投影只含定义标识，排除私人会话和执行 ID、输入输出正文。 |
+| 性能 | 班级时间、操作者与技能查询具备组合索引，清理每批至多 100 条。未执行压测。 |
+
+`uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue or cold_start_and_recovery'` 两轮退出 0。加入单行 JSON、0013 单步回退和恢复清理后，最终轮 3 项通过、耗时 90.13 秒。隔离 Compose 使用真实 MySQL 8.4 与 Qdrant，技能调用使用固定替身。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 退出 0，12 项严格 OpenSpec、分层及追溯、467 项单元/API、4 项启动检查通过。新一轮本地 Trivy 官方源下载 7 分钟超时，依赖扫描单列到 4.2；完整候选门禁由后续 CI 复核。人工评审待执行。

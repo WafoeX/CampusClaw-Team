@@ -384,3 +384,9 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 第一条命令验证冷启动、五个受保护接口、两班检索、学生写入前后的记录和技能调用。输出目录内含页面、OpenAPI、隔离日志、应用与 MCP 镜像归档。第二条命令用固定镜像扫描本地引用可达历史、工作区候选文件、页面、日志、镜像文件和镜像配置，并用 Trivy 审计候选的 `uv.lock`。漏洞库更新使用固定版本 Trivy 自带的来源顺序，先访问 Google Container Registry 镜像，符合回退条件时尝试 GHCR。每个范围独立报告，`0` 为通过，`1` 为命中阻断项，`2` 为缺少输入或扫描工具故障。任一分项未通过时 Make 非零退出。若在同一工作区换了预检工具提交，传入资产采集时的候选提交号。原始文件保留在本地报告目录。
 
 要复跑教学事务与 Kafka 恢复，用 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'`。课程等价、红项和独立人工复验状态见[预检报告](reports/security-precheck.md)。
+
+### 班级操作审计
+
+启用安全修复候选前，用 `docker compose exec app python -m app.auth_admin upgrade` 应用 0013。教师使用本班会话访问 `GET /api/v1/operation-audits`，可按 `actor_id`、`skill_id` 和 UTC 时间窗口筛选。默认读取最近 7 天，`days` 接受 1–7，`end` 可指定过去 90 天内的 UTC 秒级时刻。窗口包含开始时刻、排除结束时刻。按返回的 ID 调用 `GET /api/v1/operation-audits/{event_id}` 读取本班审计元数据。列表和详情均禁止缓存，学生读取返回 403，跨班和不存在的审计详情均返回 404。
+
+记录覆盖技能成功执行、技能/助手/模板的配置变更及学生同源配置写拒绝。用量为模型适配器可计量的总 tokens。字段、留存、清理和回退见[数据字典](docs/data-dictionary.md#班级操作审计0013)。隔离回归可运行 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'`。

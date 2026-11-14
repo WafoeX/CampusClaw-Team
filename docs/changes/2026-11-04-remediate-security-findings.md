@@ -39,3 +39,11 @@
 复跑使用 `CAMPUSCLAW_SECURITY_ASSETS=reports/security-remediation-bc591b4 uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`。本轮授权用例通过并保存了对应 `observations.json`。首次运行时 Docker 未启动。启动后取得授权对照和资产；同次选择的其他用例中，Kafka worker 因资产模式使用的隔离镜像标签与扩展 Compose 预期不符而失败。随后按 README 分开运行两个异步用例，均通过。原始产物留在 Git 忽略目录。
 
 单独运行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`，退出 0，1 项通过，耗时 14.93 秒。2.1 复核通过，当前策略未发现需要改动的授权缺口。3.2 引入一次性令牌后需要复跑适用令牌条件的角色对照。人工评审待执行。
+
+## 2026-11-14 凭据与落库检查（4.1，SEC-05）
+
+使用 `make check-security SECURITY_ASSETS=reports/security-remediation-bc591b4 SECURITY_CANDIDATE=bc591b4c00fe01614db912842f62ab333268911b` 扫描基线。锁定 Gitleaks 对本地可获取提交历史（168 个可达提交）、工作区、前端产物、运行日志、应用镜像和 MCP 镜像六项扫描分别退出 0，均为零命中。两份镜像均核对构建修订标签。锁定依赖审计因 Trivy 漏洞库获取失败返回 2（工具退出 1），因此 Make 退出 2。依赖审计及门禁复验归 4.2、4.3。
+
+核对 MySQL 迁移 0001–0012、SQLAlchemy 表定义以及认证、模型和工具连接配置。账号表保存 scrypt 口令哈希，会话表保存 32 字节 SHA-256 令牌摘要。工具连接表保存目录键及版本，凭据由目录指定的环境变量读取，发现及审批仅保存工具定义。MySQL、Qdrant、聊天与嵌入服务的凭据在运行时从环境读取。核查范围内未发现需要可逆加密的凭据持久字段。基线未出现真实命中，轮换、历史清理、复扫和重新克隆流程不适用。
+
+`uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'connector_management or tool_storage or isolated_compose_teaching_service or cold_start_and_recovery'` 在隔离环境退出 0，4 项通过，耗时 165.79 秒。覆盖真实 MySQL 上的认证迁移、口令验证和会话撤销，以及连接登记、工具存储和凭据不回显。首次在默认沙箱运行因 Docker 套接字权限无法启动，改在可访问 Docker 的进程中复测通过。使用 `openspec-apply-change` 与 `project-review` 核对 SR-F10、SEC-10 和实际扫描结果。人工评审待执行。

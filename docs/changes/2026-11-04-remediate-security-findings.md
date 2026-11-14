@@ -40,6 +40,25 @@
 
 单独运行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`，退出 0，1 项通过，耗时 14.93 秒。2.1 复核通过，当前策略未发现需要改动的授权缺口。3.2 引入一次性令牌后需要复跑适用令牌条件的角色对照。人工评审待执行。
 
+## 2026-11-14 固定基线复跑（1.1、1.2 部分）
+
+本次 Codex 会话在首个修复前固定主干 `bc591b4c00fe01614db912842f62ab333268911b`。使用 Docker 29.9.2、Compose 5.6.1、arm64、10 个 Docker 虚拟 CPU、锁定 MySQL 8.4、Qdrant 1.15.3、Kafka 4.1.2 和合成 A/B 班。候选资产留在忽略目录 `reports/security-remediation-bc591b4`，应用与 MCP 镜像标签和对应 `revision` 文件均指向该提交。
+
+| 基线对照 | 实际结果与缺项 |
+| --- | --- |
+| SEC-01、SEC-03 | 合法对照通过，五条匿名请求和三条学生配置写请求均按契约拒绝。数值及副作用见 2.1。 |
+| SEC-02 | 跨班讲义与合法但不存在的讲义均为 404/1300，文案及 data 相同。本班关键词各命中 1 条，跨班为 0 条。 |
+| SEC-04 | 现有只读成绩入口返回 405。测验提交、结果、任务和发件箱四表快照无变化，行数为 1、1、0、0。独立评分写入口的课程等价仍待确认。 |
+| SEC-05、SEC-06 | 凭据六项通过。锁文件依赖审计失败于漏洞库下载，未获得 High/Critical 计数。分项退出码见 4.1。 |
+| SEC-07 | 技能调用成功，数据库操作者与会话相符，隔离运行耗时 75 ms。固定模型返回 30 tokens，日志未关联请求标识，执行记录无用量。基线红，后续进展见 5.1。 |
+| SEC-08 | 上一课无实验运行记录，本轮仍缺四步实测。 |
+
+从干净独立克隆运行 `make check CHANGE=2026-11-04-remediate-security-findings`。12 项 OpenSpec、静态与分层追溯、467 项单元/API、4 项启动检查通过。Gitleaks 在该克隆扫描 118 个可达提交并检查工作区，均零命中。Trivy 拉取漏洞库时收到 `unexpected EOF`，Make 退出 2，未进入集成子门禁。首次运行时 Docker 未启动。启动后改用完整克隆解决工作树的 Git 元数据挂载问题。随后尝试 Trivy 官方 ECR 镜像，下载超过 3 分钟时限仍失败。现有缓存已过计划更新时间，未用于本次判定。
+
+`uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 单独复跑退出 0，2 项通过，耗时 87.24 秒。固定模型替身下，22 次受理的 P95 为 11.76 ms，两次完成为 5621.98 ms 与 38.56 ms。停止消费者后恢复，崩溃后实际重投递 2 次，首个任务只生效写入 1 批。资产采集与 Kafka 合并运行时出现过隔离镜像标签不匹配，按 README 分开复跑通过。此处的延迟只对应隔离替身回归。
+
+依赖漏洞审计缺有效结果，1.1 保持未完成。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+
 ## 2026-11-14 凭据与落库检查（4.1，SEC-05）
 
 使用 `make check-security SECURITY_ASSETS=reports/security-remediation-bc591b4 SECURITY_CANDIDATE=bc591b4c00fe01614db912842f62ab333268911b` 扫描基线。锁定 Gitleaks 对本地可获取提交历史（168 个可达提交）、工作区、前端产物、运行日志、应用镜像和 MCP 镜像六项扫描分别退出 0，均为零命中。两份镜像均核对构建修订标签。锁定依赖审计因 Trivy 漏洞库获取失败返回 2（工具退出 1），因此 Make 退出 2。依赖审计及门禁复验归 4.2、4.3。

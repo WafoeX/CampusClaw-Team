@@ -74,8 +74,11 @@ class Reservation:
 
 
 class StreamContext:
-    def __init__(self, deadline, *, draining=lambda: False, clock=time.monotonic):
+    def __init__(
+        self, deadline, *, request_id=None, draining=lambda: False, clock=time.monotonic
+    ):
         self.deadline = deadline
+        self.request_id = request_id
         self.draining = draining
         self.clock = clock
         self.cancelled = threading.Event()
@@ -152,6 +155,7 @@ class ValidatedStream:
             min(clock() + STREAM_SECONDS, deadline)
             if deadline is not None
             else clock() + STREAM_SECONDS,
+            request_id=request_id,
             draining=reservation.capacity.draining,
             clock=clock,
         )

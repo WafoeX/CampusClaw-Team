@@ -60,3 +60,9 @@
 | 公共函数及性能 | 复用仓储组合条件和既有回表核验，检索每分支仍取最多 20 条。未改变查询阈值。压测未执行。 |
 
 以 `project-add-tests` 补充 `tests/integration/retrieval_runtime.py` 的三种检索对照，保留既有写入和恢复断言。首轮 1 项失败，原因是测试把驱动参数的表示当成稳定接口。改用 SQLAlchemy 已编译的绑定参数后，`uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'cold_start_and_recovery or security_precheck'` 退出 0，2 项通过，耗时 126.85 秒。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 在允许绑定本地端口的环境退出 0，OpenSpec 12 项、分层及场景追溯、467 项单元/API、4 项启动检查均通过。按 `project-review` 核对并留存结果，人工评审待执行。
+
+## 2026-11-14 流式模型日志关联（5.1 部分，SEC-07）
+
+复用安全预检的真实 SSE 入口、合成学生、技能和固定模型返回。基线 `bc591b4` 与修复后的模型日志均记录 30 tokens。基线日志的请求标识为空，修复后与 HTTP 请求标识一致，技能及数据库操作者对照均通过。从现有流上下文把服务端生成的标识传到模型回调。字段不随请求发送给模型，日志保持结构化单行并继续限制用量字段，不记录正文或凭据。
+
+`uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'` 退出 0，2 项通过，耗时 37.81 秒。预检加入模型与 HTTP 日志的请求标识一致性断言。按 `project-add-tests` 和 `project-review` 核对入口、现有 SSE 及工具流程、日志字段和安全边界。`make check-static CHANGE=2026-11-04-remediate-security-findings` 与断网单元/API 检查通过，467 项。无数据库结构改动，未做压测。技能用量持久化、教师授权投影、学生拒绝审计及故障关闭仍待 5.1 实施和验证。

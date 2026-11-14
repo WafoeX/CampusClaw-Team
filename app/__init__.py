@@ -155,11 +155,12 @@ def create_app(
                 enabled=settings.teaching_jobs_enabled,
             )
 
-        def model_event(**details):
+        def model_event(*, request_id=None, **details):
             log_event(
                 "model",
                 settings.version,
-                request_id=g.request_id if has_request_context() else None,
+                request_id=request_id
+                or (g.request_id if has_request_context() else None),
                 **details,
             )
 

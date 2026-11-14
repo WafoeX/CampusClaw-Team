@@ -413,6 +413,7 @@ def test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck(stack):
             json.dumps(evidence, ensure_ascii=False, indent=2) + "\n"
         )
     assert all(row[2:] == [401, 1100, True] for row in evidence["anonymous"])
+    assert audit["usage_linked_by_request"]
     assert evidence["cross"] == evidence["missing"] and evidence["cross"][:2] == [
         404,
         1300,

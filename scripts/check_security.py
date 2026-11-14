@@ -23,7 +23,6 @@ FILES = {
     ),
     "logs": ("compose.log", "precheck.log"),
 }
-DB_REPOSITORY = "ghcr.io/aquasecurity/trivy-db:2"
 
 
 def git(*args):
@@ -96,7 +95,6 @@ def trivy(image, name, source, cache, output, *, archive=False):
         [
             "image" if archive else "fs",
             "--cache-dir=/cache",
-            f"--db-repository={DB_REPOSITORY}",
             "--no-progress",
             "--scanners=" + ("secret" if archive else "vuln"),
             "--timeout=2m",

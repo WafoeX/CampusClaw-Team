@@ -50,8 +50,6 @@ def scan_image(scanner, image, folder, env):
                 "/scan/candidate.tar",
                 "--cache-dir",
                 "/cache",
-                "--db-repository",
-                "ghcr.io/aquasecurity/trivy-db:2",
                 "--no-progress",
                 "--scanners",
                 "vuln",

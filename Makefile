@@ -37,7 +37,7 @@ check-secrets:
 
 check-dependencies:
 	mkdir -p "$(TRIVY_CACHE)"
-	docker run --rm --mount "type=bind,src=$(TRIVY_CACHE),dst=/cache" --mount "type=bind,src=$(CURDIR)/uv.lock,dst=/scan/uv.lock,readonly" "$(TRIVY)" fs --cache-dir /cache --db-repository ghcr.io/aquasecurity/trivy-db:2 --no-progress --include-dev-deps --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /scan
+	docker run --rm --mount "type=bind,src=$(TRIVY_CACHE),dst=/cache" --mount "type=bind,src=$(CURDIR)/uv.lock,dst=/scan/uv.lock,readonly" "$(TRIVY)" fs --cache-dir /cache --no-progress --include-dev-deps --scanners vuln --severity HIGH,CRITICAL --exit-code 1 /scan
 
 check-integration:
 	mkdir -p "$(TRIVY_CACHE)"

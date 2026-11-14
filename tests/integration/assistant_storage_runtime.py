@@ -534,7 +534,7 @@ event.listen(engine, "before_cursor_execute", interrupt_cleanup)
 try:
     try:
         with engine.begin() as connection:
-            MaterialRepository(engine).remove(connection, material_id, now)
+            MaterialRepository(engine).remove(connection, a_class, material_id, now)
     except OperationalError:
         pass
     else:

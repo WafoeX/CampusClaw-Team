@@ -122,5 +122,10 @@ class ChatClient:
             response_model_present="model" in result,
             duration_ms=round((time.monotonic() - started) * 1000, 2),
             **tokens,
+            **(
+                {"request_id": context.request_id}
+                if context is not None and context.request_id is not None
+                else {}
+            ),
         )
         return payload

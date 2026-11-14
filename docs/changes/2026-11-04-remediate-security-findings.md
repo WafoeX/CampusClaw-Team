@@ -26,3 +26,62 @@
 安全修复 1.1 的输入见[预检报告](../../reports/security-precheck.md)、[扫描基线](../../reports/security-baseline.md)、[权限复核](../../reports/risk-authz.md)、[并发复核](../../reports/risk-concurrency.md)和[事务复核](../../reports/risk-transaction.md)。应用候选为 `4aa4953`，收尾检查代码为 `1110729`。
 
 先用[预检复跑命令](../../README.md#课末安全预检)确认原判定。已记录的 SEC-07 问题为技能用量日志缺少请求关联，修复前后的结果归安全修复 5.1。SEC-04 采用当前评分只读入口的对照，正式交卷为 201，候选题为 202。课程等价由最终验收 1.5 确认，独立真人复验由最终验收 4.1 执行。预检 1.3 尚缺授权及发布规则破坏演练证据，相关结论以[专项检查记录](../../reports/security-precheck.md#13-专项检查复核)为准。
+
+## 2026-11-14 授权复核（2.1，SEC-01、SEC-03）
+
+从已合入 PR #31 的主干 `bc591b4c00fe01614db912842f62ab333268911b` 重放。按 `openspec-apply-change` 和 `project-review` 对照 SR-F02、SR-F04、仓库 SEC-01/02、TEST-09 与 TEST-11。执行者为本次 Codex 会话。使用 Docker 29.9.2、Compose 5.6.1、锁定的 MySQL 8.4 与 Qdrant 1.15.3、A/B 合成班级和同源 HTTPS Cookie。应用存活与核心就绪检查为 200，镜像修订与候选提交一致。
+
+| 前置与操作 | 预期 | 实际 |
+| --- | --- | --- |
+| A1 先合法调用会话详情、资料列表、资料详情、资料下载和关键词检索，再用独立无 Cookie 客户端逐一重放 | 匿名统一拒绝，无受保护响应数据 | 五个合法请求均为 200。匿名五次均为 401/1100，data 均为 null。 |
+| A 班教师分别成功更新技能、提示词模板与助手；A1 维持现有有效会话、合法 Origin 和同源头，带当前修订重放三条写入 | 403/1200 且无业务写入 | 教师三次 200，修订升至 2。学生三次均为 403/1200，配置、修订和审计七表快照前后一致。 |
+
+复跑使用 `CAMPUSCLAW_SECURITY_ASSETS=reports/security-remediation-bc591b4 uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`。本轮授权用例通过并保存了对应 `observations.json`。首次运行时 Docker 未启动。启动后取得授权对照和资产；同次选择的其他用例中，Kafka worker 因资产模式使用的隔离镜像标签与扩展 Compose 预期不符而失败。随后按 README 分开运行两个异步用例，均通过。原始产物留在 Git 忽略目录。
+
+单独运行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`，退出 0，1 项通过，耗时 14.93 秒。2.1 复核通过，当前策略未发现需要改动的授权缺口。3.2 引入一次性令牌后需要复跑适用令牌条件的角色对照。人工评审待执行。
+
+## 2026-11-14 固定基线复跑（1.1、1.2 部分）
+
+本次 Codex 会话在首个修复前固定主干 `bc591b4c00fe01614db912842f62ab333268911b`。使用 Docker 29.9.2、Compose 5.6.1、arm64、10 个 Docker 虚拟 CPU、锁定 MySQL 8.4、Qdrant 1.15.3、Kafka 4.1.2 和合成 A/B 班。候选资产留在忽略目录 `reports/security-remediation-bc591b4`，应用与 MCP 镜像标签和对应 `revision` 文件均指向该提交。
+
+| 基线对照 | 实际结果与缺项 |
+| --- | --- |
+| SEC-01、SEC-03 | 合法对照通过，五条匿名请求和三条学生配置写请求均按契约拒绝。数值及副作用见 2.1。 |
+| SEC-02 | 跨班讲义与合法但不存在的讲义均为 404/1300，文案及 data 相同。本班关键词各命中 1 条，跨班为 0 条。 |
+| SEC-04 | 现有只读成绩入口返回 405。测验提交、结果、任务和发件箱四表快照无变化，行数为 1、1、0、0。独立评分写入口的课程等价仍待确认。 |
+| SEC-05、SEC-06 | 凭据六项通过。锁文件依赖审计失败于漏洞库下载，未获得 High/Critical 计数。分项退出码见 4.1。 |
+| SEC-07 | 技能调用成功，数据库操作者与会话相符，隔离运行耗时 75 ms。固定模型返回 30 tokens，日志未关联请求标识，执行记录无用量。基线红，后续进展见 5.1。 |
+| SEC-08 | 上一课无实验运行记录，本轮仍缺四步实测。 |
+
+从干净独立克隆运行 `make check CHANGE=2026-11-04-remediate-security-findings`。12 项 OpenSpec、静态与分层追溯、467 项单元/API、4 项启动检查通过。Gitleaks 在该克隆扫描 118 个可达提交并检查工作区，均零命中。Trivy 拉取漏洞库时收到 `unexpected EOF`，Make 退出 2，未进入集成子门禁。首次运行时 Docker 未启动。启动后改用完整克隆解决工作树的 Git 元数据挂载问题。随后尝试 Trivy 官方 ECR 镜像，下载超过 3 分钟时限仍失败。现有缓存已过计划更新时间，未用于本次判定。
+
+`uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 单独复跑退出 0，2 项通过，耗时 87.24 秒。固定模型替身下，22 次受理的 P95 为 11.76 ms，两次完成为 5621.98 ms 与 38.56 ms。停止消费者后恢复，崩溃后实际重投递 2 次，首个任务只生效写入 1 批。资产采集与 Kafka 合并运行时出现过隔离镜像标签不匹配，按 README 分开复跑通过。此处的延迟只对应隔离替身回归。
+
+依赖漏洞审计缺有效结果，1.1 保持未完成。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+
+## 2026-11-14 凭据与落库检查（4.1，SEC-05）
+
+使用 `make check-security SECURITY_ASSETS=reports/security-remediation-bc591b4 SECURITY_CANDIDATE=bc591b4c00fe01614db912842f62ab333268911b` 扫描基线。锁定 Gitleaks 对本地可获取提交历史（168 个可达提交）、工作区、前端产物、运行日志、应用镜像和 MCP 镜像六项扫描分别退出 0，均为零命中。两份镜像均核对构建修订标签。锁定依赖审计因 Trivy 漏洞库获取失败返回 2（工具退出 1），因此 Make 退出 2。依赖审计及门禁复验归 4.2、4.3。
+
+核对 MySQL 迁移 0001–0012、SQLAlchemy 表定义以及认证、模型和工具连接配置。账号表保存 scrypt 口令哈希，会话表保存 32 字节 SHA-256 令牌摘要。工具连接表保存目录键及版本，凭据由目录指定的环境变量读取，发现及审批仅保存工具定义。MySQL、Qdrant、聊天与嵌入服务的凭据在运行时从环境读取。核查范围内未发现需要可逆加密的凭据持久字段。基线未出现真实命中，轮换、历史清理、复扫和重新克隆流程不适用。
+
+`uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'connector_management or tool_storage or isolated_compose_teaching_service or cold_start_and_recovery'` 在隔离环境退出 0，4 项通过，耗时 165.79 秒。覆盖真实 MySQL 上的认证迁移、口令验证和会话撤销，以及连接登记、工具存储和凭据不回显。首次在默认沙箱运行因 Docker 套接字权限无法启动，改在可访问 Docker 的进程中复测通过。使用 `openspec-apply-change` 与 `project-review` 核对 SR-F10、SEC-10 和实际扫描结果。人工评审待执行。
+
+## 2026-11-14 讲义与检索班级隔离（2.2，SEC-02）
+
+按 SR-F03 和后端、安全、测试规范复核讲义详情、下载、元数据更新、归章、删除及索引构建。改动前，写事务先锁定本班讲义，部分 SQL 写语句仅使用讲义 ID。元数据更新与归章现要求班级、讲义 ID 和当前修订一致，设置待构建索引版本要求班级、讲义 ID 和源版本一致。删除在事务内锁定本班资源并按归属删除主记录，副本清理和运维删除清单重放继续共用同一事务操作。
+
+| 核查面 | 实际结果 |
+| --- | --- |
+| 接口及错误处理 | 本班读取成功。跨班与不存在详情均为 404/1300，公开文案一致、data 为 null。认证回归按同一判据覆盖下载、PATCH 和 DELETE，拒绝写入前后数据库快照一致。 |
+| 业务及数据库 | 本班更新、归章、索引发布和删除通过。旧修订返回 409。副本清理失败后事务回滚，删除清单重放与恢复回归通过。无需迁移。 |
+| 安全及查询条件 | 预检原关键词命中计数为 1、1、0。补充对照用两班合成资料和确定性向量，对班级专属词执行关键词、向量、混合查询，授权班级各命中 1 条，其他班级各为 200 空列表。实际 MySQL 全文语句在排序取限前绑定班级；发往真实 Qdrant 的查询在取限前包含班级及索引范围过滤。检索入口未发现取回所有班级再筛选的路径。 |
+| 公共函数及性能 | 复用仓储组合条件和既有回表核验，检索每分支仍取最多 20 条。未改变查询阈值。压测未执行。 |
+
+以 `project-add-tests` 补充 `tests/integration/retrieval_runtime.py` 的三种检索对照，保留既有写入和恢复断言。首轮 1 项失败，原因是测试把驱动参数的表示当成稳定接口。改用 SQLAlchemy 已编译的绑定参数后，`uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'cold_start_and_recovery or security_precheck'` 退出 0，2 项通过，耗时 126.85 秒。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 在允许绑定本地端口的环境退出 0，OpenSpec 12 项、分层及场景追溯、467 项单元/API、4 项启动检查均通过。按 `project-review` 核对并留存结果，人工评审待执行。
+
+## 2026-11-14 流式模型日志关联（5.1 部分，SEC-07）
+
+复用安全预检的真实 SSE 入口、合成学生、技能和固定模型返回。基线 `bc591b4` 与修复后的模型日志均记录 30 tokens。基线日志的请求标识为空，修复后与 HTTP 请求标识一致，技能及数据库操作者对照均通过。从现有流上下文把服务端生成的标识传到模型回调。字段不随请求发送给模型，日志保持结构化单行并继续限制用量字段，不记录正文或凭据。
+
+`uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'` 退出 0，2 项通过，耗时 37.81 秒。预检加入模型与 HTTP 日志的请求标识一致性断言。按 `project-add-tests` 和 `project-review` 核对入口、现有 SSE 及工具流程、日志字段和安全边界。`make check-static CHANGE=2026-11-04-remediate-security-findings` 与断网单元/API 检查通过，467 项。无数据库结构改动，未做压测。技能用量持久化、教师授权投影、学生拒绝审计及故障关闭仍待 5.1 实施和验证。

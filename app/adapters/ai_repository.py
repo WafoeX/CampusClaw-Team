@@ -18,6 +18,7 @@ from app.adapters.assistant_schema_v9 import config_requests, templates
 from app.adapters.feedback_repository import FeedbackRepositoryMixin
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.material_schema_v2 import materials
+from app.adapters.operation_audit_repository import OperationAuditRepositoryMixin
 from app.adapters.session_repository import SessionRepositoryMixin
 from app.adapters.skill_repository import SkillRepositoryMixin
 from app.adapters.tool_audit import cleanup_tool_audit
@@ -29,6 +30,7 @@ CONFIGS = {
 
 
 class AIRepository(
+    OperationAuditRepositoryMixin,
     FeedbackRepositoryMixin,
     SessionRepositoryMixin,
     SkillRepositoryMixin,
@@ -443,9 +445,11 @@ class AIRepository(
                 {"now": now},
             )
             tool_audit = cleanup_tool_audit(connection, now)
+            operation_audit_expired = self.cleanup_operation_audit(connection, now)
         return {
             "operations": len(ids),
             "sessions": session_count,
             "configuration_requests": result.rowcount,
+            "operation_audit_expired": operation_audit_expired,
             **tool_audit,
         }

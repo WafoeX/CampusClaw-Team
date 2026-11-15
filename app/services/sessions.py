@@ -19,6 +19,7 @@ from app.services.answer_validation import (
     validate_claims,
 )
 from app.services.materials import missing, unavailable
+from app.services.operation_audit import append_audit
 from app.services.skills import HINTS, render_selection, select_skill
 from app.services.skills import NO_EVIDENCE as NO_GUIDANCE_EVIDENCE
 from app.services.tool_connectors import references
@@ -559,7 +560,18 @@ class SessionService:
         except self.ai.database_error:
             raise unavailable() from None
 
-    def finish(self, identity, cookie, ticket, payload, *, segments=None, tools=None):
+    def finish(
+        self,
+        identity,
+        cookie,
+        ticket,
+        payload,
+        *,
+        segments=None,
+        tools=None,
+        request_id=None,
+        model_usage=(None, "unavailable"),
+    ):
         """持久成功必须由本服务重验模型结构，不能相信调用方传入自由正文。"""
         steps = []
         if ticket["configuration"]["app_key"] == "problem_guidance":
@@ -623,15 +635,35 @@ class SessionService:
                 self.repository.commit_message(
                     connection, identity, ticket, text, cited, now
                 )
+                duration_ms = round((time.monotonic() - ticket["started"]) * 1000)
                 self.repository.finish_attempt(
                     connection,
                     ticket,
                     status="succeeded",
                     details={"text": text, "steps": steps}
                     | ({"tools": tools} if tools else {}),
-                    duration_ms=round((time.monotonic() - ticket["started"]) * 1000),
+                    duration_ms=duration_ms,
                     now=now,
                 )
+                skill = ticket["selected_skill"]
+                if skill is not None:
+                    tokens, usage_status = model_usage
+                    if ticket["evidence"] and usage_status == "not_applicable":
+                        usage_status = "unavailable"
+                    append_audit(
+                        self.repository,
+                        connection,
+                        identity,
+                        now,
+                        request_id,
+                        "skill_execute",
+                        "skill",
+                        resource_id=skill["id"],
+                        skill_id=skill["id"],
+                        total_tokens=tokens,
+                        usage_status=usage_status,
+                        duration_ms=duration_ms,
+                    )
                 return {
                     "message_id": ticket["message_id"],
                     "run_id": ticket["run_id"],

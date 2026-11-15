@@ -24,6 +24,7 @@ def install_http(
     public_routes,
     draining,
     page_login=None,
+    on_denied=None,
 ):
     @app.before_request
     def prepare_request():
@@ -73,6 +74,8 @@ def install_http(
         response = jsonify(
             code=error.code, message=error.message, data=None, request_id=g.request_id
         )
+        if on_denied is not None and error.status == 403:
+            on_denied()
         if error.retry_after is not None:
             response.headers["Retry-After"] = str(error.retry_after)
         return response, error.status

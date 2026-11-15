@@ -41,6 +41,11 @@ from app.api.index_builds import INDEX_POLICIES, install_index_builds
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
 from app.api.materials import MATERIAL_POLICIES, install_materials
 from app.api.openapi import DOC_POLICIES, install_openapi
+from app.api.operation_audit import (
+    AUDIT_POLICIES,
+    denied_configuration,
+    install_operation_audit,
+)
 from app.api.retrieval import RETRIEVAL_POLICIES, install_retrieval
 from app.api.sessions import SESSION_POLICIES, install_sessions
 from app.api.skills import SKILL_POLICIES, install_skills
@@ -57,6 +62,7 @@ from app.services.health import HealthService
 from app.services.indexing import IndexService
 from app.services.materials import MaterialService
 from app.services.model_gate import ModelGate
+from app.services.operation_audit import OperationAudit
 from app.services.rate_limits import RequestLimiter
 from app.services.retrieval import RetrievalService
 from app.services.streaming import LongRequestCapacity
@@ -274,8 +280,10 @@ def create_app(
             **TEACHING_POLICIES,
             **TEACHING_PAGE_POLICIES,
             **TOOL_POLICIES,
+            **AUDIT_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
+    audit = OperationAudit(ai_apps) if origin is not None else None
     install_http(
         app,
         version=settings.version,
@@ -285,6 +293,9 @@ def create_app(
         public_routes=frozenset(public_routes),
         draining=draining,
         page_login=login_redirect if origin is not None else None,
+        on_denied=(lambda: denied_configuration(audit, settings.version, origin))
+        if audit is not None
+        else None,
     )
     if origin is not None:
         install_auth(app, auth, origin, limiter)
@@ -306,4 +317,5 @@ def create_app(
         install_teaching(app, teaching, candidate_jobs)
         install_teaching_pages(app, generation_enabled=settings.teaching_jobs_enabled)
         install_tool_connectors(app, tool_connectors)
+        install_operation_audit(app, audit)
     return app

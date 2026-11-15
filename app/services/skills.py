@@ -9,6 +9,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from app.services.access import AccessDenied
 from app.services.ai_contracts import bad, clean_text, conflict, revision
 from app.services.materials import missing, unavailable
+from app.services.operation_audit import append_audit
 from app.services.tool_connectors import references
 
 VERSION = "bounded-skills-v1"
@@ -235,7 +236,8 @@ class SkillService:
         except self.ai_apps.database_error:
             raise unavailable() from None
 
-    def save(self, identity, cookie, payload, resource_id=None):
+    def save(self, identity, cookie, payload, resource_id=None, *, request_id=None):
+        started = time.monotonic()
         if not isinstance(payload, dict):
             raise bad()
         expected = revision(payload.get("revision")) if resource_id else None
@@ -320,11 +322,24 @@ class SkillService:
                 self.repository.store_skill(
                     connection, parent, fields, identity.subject_id, new=current is None
                 )
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "configuration_update" if current else "configuration_create",
+                    "skill",
+                    resource_id=identifier,
+                    skill_id=identifier,
+                    duration_ms=round((time.monotonic() - started) * 1000),
+                )
                 return view(parent | {"definition": fields})
         except self.ai_apps.database_error:
             raise unavailable() from None
 
-    def delete(self, identity, cookie, resource_id, expected):
+    def delete(self, identity, cookie, resource_id, expected, *, request_id=None):
+        started = time.monotonic()
         revision(expected)
         try:
             with self.repository.transaction() as connection:
@@ -339,8 +354,19 @@ class SkillService:
                     raise conflict()
                 if row["builtin_key"]:
                     raise bad("内置技能定义只读，请停用或解绑")
-                self.repository.delete_skill(
-                    connection, row, identity.subject_id, self.ai_apps.clock()
+                now = self.ai_apps.clock()
+                self.repository.delete_skill(connection, row, identity.subject_id, now)
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "configuration_delete",
+                    "skill",
+                    resource_id=resource_id,
+                    skill_id=resource_id,
+                    duration_ms=round((time.monotonic() - started) * 1000),
                 )
                 return {"id": resource_id, "deleted": True}
         except self.ai_apps.database_error:

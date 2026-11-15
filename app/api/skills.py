@@ -58,7 +58,12 @@ def install_skills(app, ai_apps, tool_connectors=None):
     @app.post("/api/v1/skills")
     def create_skill():
         return success(
-            service.save(g.identity, request.cookies.get(COOKIE), payload())
+            service.save(
+                g.identity,
+                request.cookies.get(COOKIE),
+                payload(),
+                request_id=g.request_id,
+            )
         ), 201
 
     @app.patch("/api/v1/skills/<resource_id>")
@@ -69,6 +74,7 @@ def install_skills(app, ai_apps, tool_connectors=None):
                 request.cookies.get(COOKIE),
                 payload(),
                 identifier(resource_id),
+                request_id=g.request_id,
             )
         )
 
@@ -81,5 +87,6 @@ def install_skills(app, ai_apps, tool_connectors=None):
                 request.cookies.get(COOKIE),
                 identifier(resource_id),
                 data["revision"],
+                request_id=g.request_id,
             )
         )

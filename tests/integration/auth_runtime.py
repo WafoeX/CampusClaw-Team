@@ -90,6 +90,7 @@ expected = {
     "teaching_job_quarantine",
     "tool_results",
     "operation_audit_events",
+    "csrf_tokens",
 }
 assert set(inspect(engine).get_table_names()) == expected
 assert inspect(engine).get_pk_constraint("auth_sessions")["constrained_columns"] == [

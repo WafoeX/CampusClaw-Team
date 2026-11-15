@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
+from configuration_client import configuration_headers
 from sqlalchemy import event, func, insert, inspect, select, text, update
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
@@ -197,7 +198,8 @@ def request(who, method, path, payload=None, key=None):
         path,
         method=method,
         base_url=origin,
-        headers=headers | ({"Idempotency-Key": key} if key else {}),
+        headers=configuration_headers(clients[who], method, path, origin, headers)
+        | ({"Idempotency-Key": key} if key else {}),
         json=payload,
     )
 

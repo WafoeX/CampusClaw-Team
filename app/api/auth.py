@@ -14,6 +14,7 @@ from app.services.teaching import TEACHING_ANSWER, TEACHING_WRITE
 COOKIE = "__Host-campusclaw_session"
 COOKIE_OPTIONS = {"secure": True, "httponly": True, "samesite": "Strict", "path": "/"}
 LOGIN_NAME = re.compile(r"[a-zA-Z0-9_-]{1,64}")
+CSRF_ISSUER = "issue_configuration_csrf"
 RUN_PATH = re.compile(
     r"/runs/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 )
@@ -124,6 +125,8 @@ def install_auth(app, auth, origin, limiter):
             raise AccessDenied(403, 1200, "请从本系统页面重新操作")
         if request.endpoint == "login":
             limiter.check("login-source", request.remote_addr or "unknown")
+        elif request.endpoint == CSRF_ISSUER:
+            limiter.check("csrf-issue", g.identity.subject_id)
         elif g.get("identity") is not None:
             limiter.check("write-subject", g.identity.subject_id)
         else:

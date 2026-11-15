@@ -5,6 +5,9 @@ from secrets import token_urlsafe
 
 from flask import jsonify, make_response, render_template
 
+from app.api.auth import CSRF_ISSUER
+from app.api.csrf import CSRF_HEADER
+from app.api.operation_audit import CONFIGURATION_ENDPOINTS
 from app.services.ai_contracts import AI_USE
 
 DOC_POLICIES = {
@@ -61,6 +64,9 @@ SKILL = {
     },
 }
 REQUESTS = {
+    CSRF_ISSUER: obj(
+        {"action": {"type": "string", "enum": list(CONFIGURATION_ENDPOINTS)}}
+    ),
     "create_question": obj(
         {
             "kind": {"enum": ["single_choice", "true_false"]},
@@ -292,6 +298,16 @@ def document(app):
                             "type": "string",
                             "pattern": "^[A-Za-z0-9_-]{1,64}$",
                         },
+                    }
+                )
+            if endpoint in CONFIGURATION_ENDPOINTS:
+                parameters.append(
+                    {
+                        "in": "header",
+                        "name": CSRF_HEADER,
+                        "required": True,
+                        "description": "用相同会话在 POST /api/v1/auth/csrf-tokens 以此接口 operationId 换取，每次配置写入用一个新令牌。",
+                        "schema": {"type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
                     }
                 )
             if (

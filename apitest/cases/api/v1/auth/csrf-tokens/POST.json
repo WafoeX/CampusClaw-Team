@@ -1,0 +1,7 @@
+{
+  "method": "POST",
+  "path": "/api/v1/auth/csrf-tokens",
+  "pytest": [
+    "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+  ]
+}

@@ -330,6 +330,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 登录后从导航进入 `/swagger`，读取同源 `/api/v1/openapi.json`，选择路径/方法，填写参数及JSON。该入口是项目原生 OpenAPI 控制台，浏览器自动携带 HttpOnly Cookie 和实际 Origin，控制台补写入头；SSE 显示原始帧。试调会操作当前账号有权访问的数据，请使用合成测试账号。课件 Bearer Swagger 与项目 Cookie 的等价确认仍交最终验收1.5。
 
+教师页面和 `/swagger` 会在每次创建、修改或删除受支持的技能、提示模板、助手配置之前自动获取一次性 CSRF 令牌。直接调用 API 时，同一会话先向 `POST /api/v1/auth/csrf-tokens` 发送 `{"action":"<目标接口的 operationId>"}`，再将返回的 `data.token` 放入本次请求的 `X-CampusClaw-CSRF`。签发和目标请求均沿用 Origin 与 `X-CampusClaw-Request: same-origin`，目标请求仍须通过角色和资源校验。每次重试重新获取令牌。上线前先应用 0014 数据库迁移，再同步切换模板与 API 客户端。
+
 `uv run --locked python apitest/run_all.py` 按 `apitest/cases/` 的路径/方法清单运行共享 pytest（包含隔离 MySQL/Qdrant），任一失败、跳过或零用例非零退出，本地HTML为 `reports/2026-11-04-add-streaming-ai-assistant/apitest/index.html`，不提交报告。`uv run --locked python -m scripts.evaluate_assistant` 执行固定10条可答/10条拒答的生产流宿主替身评测，加 `--real` 使用真实课程网关。模型、存储替身及零调用项在报告中分别标注，不把合成存储当真实授权证据。首轮真实结果18/20已保留，补充诊断及修正评测器后两次全量真实复测20/20；最初两条失败原因未能确认，不承诺模型输出始终稳定。最终门禁和浏览器通过，5.2及5.4已完成；详见[固定评测记录](docs/eval/2026-11-08-assistant-regression.md)。
 
 ### 历史出处与教学反馈（Task 4.1/4.2 开发候选）

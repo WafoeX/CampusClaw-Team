@@ -2,6 +2,7 @@
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -9,8 +10,9 @@ from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
+from configuration_client import configuration_headers
 from session_proxy_worker import install
-from sqlalchemy import event, insert, inspect, select
+from sqlalchemy import event, insert, inspect, select, update
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
 
@@ -27,13 +29,16 @@ from app.adapters.assistant_schema_v8 import (
 )
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
+from app.adapters.csrf_schema_v14 import csrf_tokens
 from app.adapters.database import mysql_engine
 from app.adapters.migrations.runner import migrate
 from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.teaching_schema_v10 import quiz_results, quiz_submissions
 from app.adapters.teaching_schema_v12 import jobs, outbox
+from app.api.auth import COOKIE
+from app.api.csrf import CSRF_HEADER
 from app.config import ChatSettings, Settings
-from app.services.auth import utc_now
+from app.services.auth import digest_cookie, utc_now
 
 origin = "https://campusclaw.test"
 headers = {"Origin": origin, "X-CampusClaw-Request": "same-origin"}
@@ -57,9 +62,14 @@ settings = Settings.load(
 app = create_app(settings)
 
 
-def call(client, method, path, payload=None):
+def call(client, method, path, payload=None, *, issue_csrf=True):
+    request_headers = (
+        configuration_headers(client, method, path, origin, headers)
+        if issue_csrf
+        else headers
+    )
     options = {
-        "headers": headers | {"Idempotency-Key": uuid4().hex},
+        "headers": request_headers | {"Idempotency-Key": uuid4().hex},
         "base_url": origin,
     }
     if payload is not None:
@@ -75,12 +85,15 @@ def checked(client, method, path, payload=None, status=200):
 
 def login(name):
     client = app.test_client()
-    checked(
+    response = call(
         client,
         "POST",
         "/api/v1/auth/sessions",
         {"login_name": "demo_" + name, "password": password},
     )
+    assert response.status_code == 200
+    cookie = response.headers["Set-Cookie"]
+    assert all(flag in cookie for flag in ("SameSite=Strict", "HttpOnly", "Secure"))
     return client
 
 
@@ -208,6 +221,7 @@ assistant = {
 }
 config_results = []
 denial_requests = []
+original_role_denials = []
 for segment, identifier, payload in (
     ("skills", skill_id, skill),
     (
@@ -230,15 +244,116 @@ for segment, identifier, payload in (
         audits,
     )
     before = snapshot(*tables)
-    rejected = call(
-        student,
-        "PATCH",
-        path,
-        payload | {"revision": 2, "name": "学生尝试的合成名称"},
-    )
+    student_payload = payload | {"revision": 2, "name": "学生尝试的合成名称"}
+    original = call(student, "PATCH", path, student_payload, issue_csrf=False)
+    original_role_denials.append(envelope(original)[:2])
+    denial_requests.append(original.headers["X-Request-ID"])
+    assert before == snapshot(*tables)
+    rejected = call(student, "PATCH", path, student_payload)
     denied = envelope(rejected)
     denial_requests.append(rejected.headers["X-Request-ID"])
     config_results.append([segment, denied[0], denied[1], before == snapshot(*tables)])
+
+assert original_role_denials == [(403, 1200)] * 3
+issue_path = "/api/v1/auth/csrf-tokens"
+issue_payload = {"action": "update_templates"}
+document = call(teacher, "GET", "/api/v1/openapi.json").json["paths"]
+token_ops = {
+    (path, method)
+    for path, operations in document.items()
+    for method, operation in operations.items()
+    if any(
+        parameter["in"] == "header"
+        and parameter["name"] == CSRF_HEADER
+        and parameter["required"]
+        for parameter in operation["parameters"]
+    )
+}
+assert token_ops == {
+    ("/api/v1/skills", "post"),
+    ("/api/v1/skills/{resource_id}", "patch"),
+    ("/api/v1/skills/{resource_id}", "delete"),
+    ("/api/v1/prompt-templates", "post"),
+    ("/api/v1/prompt-templates/{resource_id}", "patch"),
+    ("/api/v1/prompt-templates/{resource_id}", "delete"),
+    ("/api/v1/assistants", "post"),
+    ("/api/v1/assistants/{resource_id}", "patch"),
+}
+assert set(
+    document[issue_path]["post"]["requestBody"]["content"]["application/json"][
+        "schema"
+    ]["properties"]["action"]["enum"]
+) == {document[path][method]["operationId"] for path, method in token_ops}
+assert envelope(call(teacher, "POST", issue_path, {"action": "read_skill"}))[:2] == (
+    400,
+    1000,
+)
+template_route = f"/api/v1/prompt-templates/{template_id}"
+template_patch = {key: template[key] for key in ("name", "prompt", "enabled")}
+template_patch["revision"] = 2
+config_tables = (templates, template_revisions, events)
+unchanged = snapshot(*config_tables)
+wrong_origin = teacher.post(
+    "/api/v1/prompt-templates",
+    base_url=origin,
+    headers={"Origin": "https://unrelated.test"},
+    data={"name": "合成表单", "app_key": "practice"},
+)
+assert envelope(wrong_origin)[:2] == (403, 1200)
+missing_token = call(teacher, "PATCH", template_route, template_patch, issue_csrf=False)
+assert envelope(missing_token)[:2] == (403, 1200)
+assert snapshot(*config_tables) == unchanged
+
+issued = call(teacher, "POST", issue_path, issue_payload)
+assert issued.status_code == 200 and issued.headers["Cache-Control"] == "no-store"
+token = issued.json["data"]["token"]
+token_headers = headers | {CSRF_HEADER: token}
+assert all(token not in value for value in issued.headers.values())
+
+different_action = teacher.delete(
+    template_route, base_url=origin, headers=token_headers, json={"revision": 2}
+)
+different_session = other_teacher.patch(
+    template_route, base_url=origin, headers=token_headers, json=template_patch
+)
+assert envelope(different_action)[:2] == envelope(different_session)[:2] == (403, 1200)
+assert snapshot(*config_tables) == unchanged
+
+cookie = teacher.get_cookie(COOKIE, domain="campusclaw.test").value
+
+
+def patch_with_token(_):
+    client = app.test_client()
+    client.set_cookie(COOKIE, cookie, domain="campusclaw.test")
+    return client.patch(
+        template_route, base_url=origin, headers=token_headers, json=template_patch
+    )
+
+
+with ThreadPoolExecutor(max_workers=2) as pool:
+    responses = list(pool.map(patch_with_token, range(2)))
+assert sorted(response.status_code for response in responses) == [200, 403]
+assert next(r for r in responses if r.status_code == 200).json["data"]["revision"] == 3
+state_after_write = snapshot(*config_tables)
+assert len(state_after_write[1]) == len(unchanged[1]) + 1
+assert envelope(patch_with_token(None))[:2] == (403, 1200)
+assert snapshot(*config_tables) == state_after_write
+
+expired = checked(teacher, "POST", issue_path, issue_payload)["token"]
+with engine.begin() as connection:
+    connection.execute(
+        update(csrf_tokens)
+        .where(csrf_tokens.c.digest == digest_cookie(expired))
+        .values(expires_at=utc_now() - timedelta(seconds=1))
+    )
+expired_result = teacher.patch(
+    template_route,
+    base_url=origin,
+    headers=headers | {CSRF_HEADER: expired},
+    json=template_patch | {"revision": 3},
+)
+assert envelope(expired_result)[:2] == (403, 1200)
+assert snapshot(*config_tables) == state_after_write
 
 quiz_question = {
     "kind": "single_choice",
@@ -411,7 +526,7 @@ try:
         "name": "合成审计故障对照",
         "prompt": "{{input}}",
         "enabled": True,
-        "revision": 2,
+        "revision": 3,
     }
     unavailable = envelope(call(teacher, "PATCH", route, patch_template))
     assert unavailable[:2] == (503, 1500) and unavailable[3] is None
@@ -432,7 +547,8 @@ assert (
     == execution
 )
 future = utc_now() + timedelta(days=91)
-assert cleanup.cleanup_expired(utc_now())["operation_audit_expired"] == 0
+cleaned = cleanup.cleanup_expired(utc_now())
+assert cleaned["operation_audit_expired"] == 0 and cleaned["csrf_tokens_expired"] == 1
 assert cleanup.cleanup_expired(future)["operation_audit_expired"] == len(audit_backup)
 with engine.begin() as connection:
     connection.execute(insert(events), audit_backup)
@@ -446,6 +562,10 @@ config.set_main_option(
 )
 with engine.connect() as connection:
     config.attributes["connection"] = connection
+    command.downgrade(config, "0013_operation_audit")
+    connection.commit()
+    assert not inspect(connection).has_table(csrf_tokens.name)
+    assert inspect(connection).has_table(events.name)
     command.downgrade(config, "0012_teaching_jobs")
     connection.commit()
 assert not inspect(engine).has_table(events.name)
@@ -453,6 +573,7 @@ assert inspect(engine).has_table(jobs.name) and snapshot(accounts) == prior_acco
 migrate(engine)
 migrate(engine)
 assert inspect(engine).has_table(events.name) and snapshot(accounts) == prior_accounts
+assert inspect(engine).has_table(csrf_tokens.name)
 
 write_routes = [
     f"{method} {rule.rule}"
@@ -466,6 +587,14 @@ report = {
     "cross": foreign,
     "missing": missing,
     "configuration": config_results,
+    "configuration_original_role_denials": original_role_denials,
+    "configuration_csrf": {
+        "other_origin_form": wrong_origin.status_code,
+        "missing": missing_token.status_code,
+        "parallel": sorted(response.status_code for response in responses),
+        "expired": expired_result.status_code,
+        "same_site": "Strict",
+    },
     "grading": {
         "http": score_probe.status_code,
         "unchanged": unchanged,

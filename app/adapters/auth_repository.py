@@ -5,6 +5,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.mysql import insert
 
 from app.adapters.auth_schema_v1 import accounts, auth_audits, auth_sessions, classes
+from app.adapters.csrf_schema_v14 import csrf_tokens
 
 SEED_CLASSES = ("class-a", "class-b")
 
@@ -43,6 +44,41 @@ class AuthRepository:
         )
         with self.engine.connect() as connection:
             return connection.execute(query).mappings().one_or_none()
+
+    def issue_csrf(self, session_digest, digest, action, now, expires_at):
+        with self.engine.begin() as connection:
+            session_expiry = connection.scalar(
+                select(auth_sessions.c.expires_at)
+                .where(
+                    auth_sessions.c.token_digest == session_digest,
+                    auth_sessions.c.expires_at > now,
+                    auth_sessions.c.revoked_at.is_(None),
+                )
+                .with_for_update()
+            )
+            if session_expiry is None:
+                return False
+            connection.execute(
+                csrf_tokens.insert().values(
+                    digest=digest,
+                    session_digest=session_digest,
+                    action=action,
+                    expires_at=min(expires_at, session_expiry),
+                )
+            )
+            return True
+
+    def consume_csrf(self, session_digest, digest, action, now):
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                delete(csrf_tokens).where(
+                    csrf_tokens.c.digest == digest,
+                    csrf_tokens.c.session_digest == session_digest,
+                    csrf_tokens.c.action == action,
+                    csrf_tokens.c.expires_at > now,
+                )
+            )
+            return result.rowcount == 1
 
     def replace_session(self, account_id, verified_hash, digest, now, expires):
         with self.engine.begin() as connection:

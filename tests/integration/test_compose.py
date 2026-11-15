@@ -310,7 +310,20 @@ def test_MP_N01_MP_B01_isolated_compose_teaching_service(stack, tmp_path):
         compose("rm", "--stop", "--force", "mcp-server")
 
 
+def install_configuration_client(compose):
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/configuration_client.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("configuration_client.py").read_text(),
+    )
+
+
 def verify_security_precheck(compose):
+    install_configuration_client(compose)
     compose(
         "exec",
         "-T",
@@ -460,6 +473,7 @@ def test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management(s
 def test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue(stack):
     compose, _, status, _ = stack
     assert status("ready")[0] == 200
+    install_configuration_client(compose)
     compose("up", "--build", "--wait", "--no-deps", "mcp-server")
     compose(
         "exec",
@@ -781,6 +795,7 @@ def verify_assistant_storage(compose):
 
 
 def verify_ai_apps(compose):
+    install_configuration_client(compose)
     compose(
         "exec",
         "-T",
@@ -796,5 +811,6 @@ def verify_ai_apps(compose):
         "app",
         "python",
         "-c",
+        "import sys; sys.path.insert(0, '/tmp'); exec(sys.argv[1])",
         Path(__file__).with_name("ai_apps_runtime.py").read_text(),
     )

@@ -7,6 +7,7 @@ from app.services.access import AccessDenied
 
 COOKIE_VALUE = re.compile(r"[A-Za-z0-9_-]{43}")
 SESSION_DURATION = timedelta(minutes=30)
+CSRF_DURATION = timedelta(minutes=5)
 
 
 def utc_now():
@@ -60,6 +61,35 @@ class AuthService:
         if digest is None:
             return None
         return self.repository.find_session(digest, self.clock())
+
+    def issue_csrf(self, cookie, action):
+        session = digest_cookie(cookie)
+        if session is None:
+            raise invalid_session()
+        token = token_urlsafe(32)
+        now = self.clock()
+        try:
+            if not self.repository.issue_csrf(
+                session, digest_cookie(token), action, now, now + CSRF_DURATION
+            ):
+                raise invalid_session()
+        except self.database_error:
+            raise AccessDenied(503, 1500, "依赖服务暂不可用，请稍后重试") from None
+        return token
+
+    def consume_csrf(self, cookie, token, action):
+        session = digest_cookie(cookie)
+        digest = digest_cookie(token)
+        if session is None:
+            raise invalid_session()
+        try:
+            if digest is not None and self.repository.consume_csrf(
+                session, digest, action, self.clock()
+            ):
+                return
+        except self.database_error:
+            raise AccessDenied(503, 1500, "依赖服务暂不可用，请稍后重试") from None
+        raise AccessDenied(403, 1200, "配置写入令牌无效，请重新操作")
 
     def logout(self, account_id, cookie):
         digest = digest_cookie(cookie)

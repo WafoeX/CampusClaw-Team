@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Event
 from uuid import uuid4
 
+from configuration_client import configuration_headers
 from session_proxy_worker import install
 from sqlalchemy import event, insert, select
 from sqlalchemy.exc import OperationalError
@@ -60,7 +61,8 @@ def login(app, name):
 def call(client, method, path, payload=None, key=None):
     options = {
         "base_url": origin,
-        "headers": headers | ({"Idempotency-Key": key} if key else {}),
+        "headers": configuration_headers(client, method, path, origin, headers)
+        | ({"Idempotency-Key": key} if key else {}),
     }
     if payload is not None:
         options["json"] = payload

@@ -158,3 +158,9 @@
 按 `openspec-apply-change`、`project-add-tests`、`project-review` 对照 SR-F07、SEC-11 和 TEST-09。在既有隔离检索入口，用正常带撇号的书名调用关键词检索，真实 MySQL 返回 200。SQLAlchemy 游标事件捕获的全文检索语句与同班对照相同，书名与班级留在绑定参数中。附加非契约字段 `sort_order` 的请求返回 400/1000，全文检索语句计数保持不变。既有关键词、向量和混合查询归属对照继续执行。
 
 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery` 退出 0，1 项通过，耗时 114.55 秒。Ruff 格式和检查通过。本项只增加测试，复用现有接口错误码、服务及持久结构。未执行专项压测、完整注入三件套或人工评审，3.1、3.3 的验收状态仍未完成。
+
+## 2026-11-16 讲义标题纯文本渲染（3.1 部分，SR-F08）
+
+以合入 PR #36 后的 `8cb3741` 为基线，用 `openspec-apply-change`、`project-add-tests`、`project-review` 对照 SR-F08、SEC-12 和 TEST-07。复用隔离教学 Chromium 主路径。教师创建含普通尖括号、引号和连接符的合成标题，学生通过 API 读回准确值，资料列表和详情的原始 HTML 响应均为 200 且不带标题标记。两页加载后，标题文字逐字符相等，标题容器的子元素数量为 0。现有草稿恢复、正式提交、答案门控与看板断言同步通过。
+
+`node --check tests/browser/teaching.mjs` 通过。`uv run --locked python -m tests.browser.run_teaching` 首轮退出 0。临时清空详情标题赋值后，同一命令在标题断言处退出 1。恢复模板后再次退出 0，输出 `MATERIAL_TITLE_BROWSER_OK`、`TEACHING_BROWSER_OK` 与 `TEACHING_BROWSER_RUNTIME_OK`。本项复用现有 API、页面、错误处理和数据结构，仅增加普通文本渲染断言。原教学浏览器回归随本项执行，专项负载及完整注入用例仍待验收，3.1 保持未完成。

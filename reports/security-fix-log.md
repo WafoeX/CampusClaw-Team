@@ -18,3 +18,5 @@
 3.2 的用例在 [`tests/integration/security_precheck_runtime.py`](../tests/integration/security_precheck_runtime.py)，令牌签发接口另有 [`apitest` 用例](../apitest/cases/api/v1/auth/csrf-tokens/POST.json)。合法同源首次写入成功。跨来源表单、缺失或过期令牌、动作或会话不匹配为 403/1200。两个请求并发消费同一枚令牌时，一个 200、一个 403，配置只增加一条修订。再次提交为 403，数据库快照相同。
 
 [`tests/integration/retrieval_runtime.py`](../tests/integration/retrieval_runtime.py) 已在真实 MySQL 上确认普通含撇号的检索值与班级值均独立绑定，额外排序字段返回 400/1000 且未执行全文检索 SQL。完整 SQL 注入、XSS 及三件套的门禁阻断证据仍待补，3.1、3.3 保持未完成。人工冷启动、跨机器独立复验和评审待执行。
+
+[`tests/browser/teaching.mjs`](../tests/browser/teaching.mjs) 已在 Chromium 核对普通含尖括号的讲义标题。两页原始 HTML 不带标题标记，JSON 返回原值，学生列表和详情按纯文本显示且标题容器无子元素。临时移除详情标题赋值时，同一命令退出 1，恢复后退出 0。

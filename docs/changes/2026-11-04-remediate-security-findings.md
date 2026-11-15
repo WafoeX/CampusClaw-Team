@@ -40,7 +40,7 @@
 
 单独运行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`，退出 0，1 项通过，耗时 14.93 秒。2.1 复核通过，当前策略未发现需要改动的授权缺口。3.2 引入一次性令牌后需要复跑适用令牌条件的角色对照。人工评审待执行。
 
-## 2026-11-14 固定基线复跑（1.1、1.2 部分）
+## 2026-11-14 固定基线复跑（1.1、1.2）
 
 本次 Codex 会话在首个修复前固定主干 `bc591b4c00fe01614db912842f62ab333268911b`。使用 Docker 29.9.2、Compose 5.6.1、arm64、10 个 Docker 虚拟 CPU、锁定 MySQL 8.4、Qdrant 1.15.3、Kafka 4.1.2 和合成 A/B 班。候选资产留在忽略目录 `reports/security-remediation-bc591b4`，应用与 MCP 镜像标签和对应 `revision` 文件均指向该提交。
 
@@ -58,6 +58,8 @@
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 单独复跑退出 0，2 项通过，耗时 87.24 秒。固定模型替身下，22 次受理的 P95 为 11.76 ms，两次完成为 5621.98 ms 与 38.56 ms。停止消费者后恢复，崩溃后实际重投递 2 次，首个任务只生效写入 1 批。资产采集与 Kafka 合并运行时出现过隔离镜像标签不匹配，按 README 分开复跑通过。此处的延迟只对应隔离替身回归。
 
 基线执行当天未取得依赖漏洞计数。后续同锁文件的复验见下文 4.2。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+
+2026-11-15 再核对固定候选的 `revision` 与脱敏 `observations.json`，SEC-01–05 技术对照与上表一致，SEC-07 的日志关联缺口归操作审计。SEC-06 按 SR-F01 补同字节锁文件的后续真实扫描，High/Critical 各为 0，保留首次下载失败及复验日期。1.1 到此具备 SEC-01–07 可追溯记录及三项异步实测。采用先校验权限与数据归属，再验证输入防护的实施顺序。SEC-04 课程等价和 SEC-08 四步基线分别留在 2.3 和 1.2。
 
 ## 2026-11-14 凭据与落库检查（4.1，SEC-05）
 

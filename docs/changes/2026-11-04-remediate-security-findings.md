@@ -57,7 +57,7 @@
 
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 单独复跑退出 0，2 项通过，耗时 87.24 秒。固定模型替身下，22 次受理的 P95 为 11.76 ms，两次完成为 5621.98 ms 与 38.56 ms。停止消费者后恢复，崩溃后实际重投递 2 次，首个任务只生效写入 1 批。资产采集与 Kafka 合并运行时出现过隔离镜像标签不匹配，按 README 分开复跑通过。此处的延迟只对应隔离替身回归。
 
-依赖漏洞审计缺有效结果，1.1 保持未完成。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+基线执行当天未取得依赖漏洞计数。后续同锁文件的复验见下文 4.2。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
 
 ## 2026-11-14 凭据与落库检查（4.1，SEC-05）
 
@@ -101,3 +101,7 @@
 | 性能 | 班级时间、操作者与技能查询具备组合索引，清理每批至多 100 条。未执行压测。 |
 
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue or cold_start_and_recovery'` 两轮退出 0。加入单行 JSON、0013 单步回退和恢复清理后，最终轮 3 项通过、耗时 90.13 秒。隔离 Compose 使用真实 MySQL 8.4 与 Qdrant，技能调用使用固定替身。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 退出 0，12 项严格 OpenSpec、分层及追溯、467 项单元/API、4 项启动检查通过。新一轮本地 Trivy 官方源下载 7 分钟超时，依赖扫描单列到 4.2；完整候选门禁由后续 CI 复核。人工评审待执行。
+
+## 2026-11-15 锁定依赖审计（4.2，SEC-06）
+
+以 `openspec-apply-change` 和 `project-review` 对照 SEC-06、SEC-16、REV-05，读取 PR #33 的实际 CI 日志并核对三个 Git 锁文件对象。固定 Trivy 在 GitHub Actions 中首次下载漏洞库并执行含开发依赖的锁文件扫描，High 与 Critical 均为 0。锁文件与第 9 课基线和最新主干完全一致。结果、判定和 CI 链接已归档到[扫描基线](../../reports/security-baseline.md#2026-11-15-锁定依赖复验安全修复-42)。4.3 仍须用隔离资产复验完整门禁。人工评审待执行。

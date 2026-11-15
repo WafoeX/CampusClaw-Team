@@ -27,3 +27,9 @@
 | 锁定依赖（含开发依赖） | High 0、Critical 0，分项退出 0。 |
 
 SEC-05 和 SEC-06 本轮判绿，未发现需轮换的候选凭据或需处置的 High/Critical 发现。前轮下载失败记录保留。
+
+## 2026-11-15 锁定依赖复验（安全修复 4.2）
+
+[PR #33](https://github.com/WafoeX/CampusClaw-Team/pull/33) 候选 `f2be908d2c950ec1a7df9ad0545ae70fa966e284` 的 [GitHub Actions 日志](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43617235018/job/132514859404)显示，固定摘要的 Trivy 从 Google 镜像下载漏洞库后，以 `--include-dev-deps --scanners vuln --severity HIGH,CRITICAL --exit-code 1` 扫描锁文件。Trivy 识别 1 个语言锁文件，输出表中 `uv.lock` 的漏洞合计为 0，因此 High 0、Critical 0，需处置的包和漏洞号无。子门禁通过，整体 `make check` 成功，随后 8 项集成检查全部通过。该次日志未登记漏洞库的具体内容修订。
+
+通过 `git rev-parse bc591b4:uv.lock f2be908:uv.lock HEAD:uv.lock` 核对，修复前基线 `bc591b4`、已扫描候选与当前主干 `e546a53` 的锁文件对象均为 `119316dcc651a7390979b35e0a8e4b0606b6078c`。课程项 SEC-06 的依赖处置判绿。仓库保留同一阻断等级，完整资产入口的红绿对照归 4.3。此前本地漏洞库下载失败的原始记录仍保留。

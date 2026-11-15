@@ -146,3 +146,9 @@
 `uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 退出 0，2 项通过，耗时 90.89 秒。该轮 Kafka 崩溃后重投递 2 次、首任务提交 1 批；22 次受理 P95 为 9.98 ms，两次完成分别为 5583.64 ms、42.75 ms。结果为替身模型下的异步工程回归数据。
 
 同轮候选静态检查和 467 项单元/API 通过。在默认沙箱中，启动测试绑定回环端口被拒，`make` 退出 2。放开回环限制后，4 项启动检查与 Git 历史/工作区凭据扫描均通过。完整门禁与整套注入回归仍按 6.1 独立验收，6.1 保持未完成。业务路由、持久结构、公共函数和错误映射沿用现状，此项变动限于测试及证据。人工评审待执行。
+
+## 2026-11-15 修复索引与返工取证（6.2、6.3 部分）
+
+按 REV-05、REV-08 自检。本地 `make check CHANGE=2026-11-04-remediate-security-findings` 在四步走查工作区退出 2。Gitleaks 历史、工作区均零命中。Trivy 从 Google 镜像下载漏洞库约 8 分 28 秒后收到 `unexpected EOF`，本轮未取得锁文件漏洞计数，完整门禁未进入集成阶段。独立定向集成结果见四步走查记录。已合入的 PR #35 的 [CI](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43683828817/job/132719974208) 通过，适用于原候选 `2b8e438`。
+
+归档 [SEC-01–08 修复索引](../../reports/security-fix-log.md)及[返工记录](../../reports/security-rework.md)。用脚本核对本地报告链接、标题锚点和 Git 提交对象，`git check-ignore` 确认原始资产和漏洞库缓存仍被忽略。6.2 仍缺 SEC-08 和可比较的定位、修复耗时。6.3 的技术证据和最终人工复验按任务分别登记。当前候选待完整 CI 和人工评审。

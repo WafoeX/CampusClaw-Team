@@ -152,3 +152,9 @@
 按 REV-05、REV-08 自检。本地 `make check CHANGE=2026-11-04-remediate-security-findings` 在四步走查工作区退出 2。Gitleaks 历史、工作区均零命中。Trivy 从 Google 镜像下载漏洞库约 8 分 28 秒后收到 `unexpected EOF`，本轮未取得锁文件漏洞计数，完整门禁未进入集成阶段。独立定向集成结果见四步走查记录。已合入的 PR #35 的 [CI](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43683828817/job/132719974208) 通过，适用于原候选 `2b8e438`。
 
 归档 [SEC-01–08 修复索引](../../reports/security-fix-log.md)及[返工记录](../../reports/security-rework.md)。用脚本核对本地报告链接、标题锚点和 Git 提交对象，`git check-ignore` 确认原始资产和漏洞库缓存仍被忽略。6.2 仍缺 SEC-08 和可比较的定位、修复耗时。6.3 的技术证据和最终人工复验按任务分别登记。当前候选待完整 CI 和人工评审。
+
+## 2026-11-15 检索参数绑定回归（3.1 部分，SR-F07）
+
+按 `openspec-apply-change`、`project-add-tests`、`project-review` 对照 SR-F07、SEC-11 和 TEST-09。在既有隔离检索入口，用正常带撇号的书名调用关键词检索，真实 MySQL 返回 200。SQLAlchemy 游标事件捕获的全文检索语句与同班对照相同，书名与班级留在绑定参数中。附加非契约字段 `sort_order` 的请求返回 400/1000，全文检索语句计数保持不变。既有关键词、向量和混合查询归属对照继续执行。
+
+`uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery` 退出 0，1 项通过，耗时 114.55 秒。Ruff 格式和检查通过。本项只增加测试，复用现有接口错误码、服务及持久结构。未执行专项压测、完整注入三件套或人工评审，3.1、3.3 的验收状态仍未完成。

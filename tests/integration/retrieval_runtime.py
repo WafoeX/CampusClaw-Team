@@ -325,6 +325,23 @@ if phase == "setup":
             and query["limit"] == 20
             for query in point_queries[1::2]
         )
+
+        # 普通带撇号的书名应作为查询值绑定，保持同一个排序和班级约束。
+        keyword_sql, _ = sql_queries[1]
+        book_title = "O'Reilly 学习手册"
+        quoted_title = search(book_title)
+        assert quoted_title.status_code == 200, quoted_title.json
+        statement, parameters = sql_queries[-1]
+        assert len(sql_queries) == 5
+        assert statement == keyword_sql
+        assert book_title in parameters.values() and class_a in parameters.values()
+
+        unsupported_sort = post(
+            student, "/api/v1/searches", {"query": book_title, "sort_order": "title"}
+        )
+        assert unsupported_sort.status_code == 400
+        assert unsupported_sort.json["code"] == 1000
+        assert len(sql_queries) == 5
     finally:
         event.remove(engine, "before_cursor_execute", capture_keyword)
     # QA-N01/B01/F03/F04/F05：实际资料与出处，零调用及结构/数值失败。

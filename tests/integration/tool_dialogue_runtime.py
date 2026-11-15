@@ -372,12 +372,17 @@ def fail_audit(_connection, _cursor, statement, _params, _context, _many):
 event.listen(session_service.repository.engine, "before_cursor_execute", fail_audit)
 try:
     before = len(audit())
-    assert stream(payload, "audit-down")[0]["tools"][0] == {
+    meta, _, done = stream(payload, "audit-down")
+    assert meta["tools"][0] == {
         "status": "error",
         "reason": "audit",
     }
     assert len(audit()) == before
     assert sent == []
+    with engine.connect() as connection:
+        assert not connection.execute(
+            select(attempts.c.id).where(attempts.c.run_id == done["run_id"])
+        ).all()
 finally:
     event.remove(session_service.repository.engine, "before_cursor_execute", fail_audit)
 
@@ -430,8 +435,20 @@ try:
             )
         finally:
             permitted_to_continue.set()
-        meta, _, _ = pending.result(timeout=10)
-    assert len(sent) == sent_before and meta["tools"][0]["status"] == "rejected"
+        meta, _, done = pending.result(timeout=10)
+    # SR-F06：候选已准备发送时撤销连接，无 MCP 发包且拒绝可按执行记录追溯。
+    assert len(sent) == sent_before
+    assert meta["tools"] == [
+        {"status": "rejected", "reason": "unavailable", "tool": refs[0]}
+    ]
+    with engine.connect() as connection:
+        outcome = connection.execute(
+            select(results.c.outcome, results.c.reason)
+            .select_from(attempts.join(results, attempts.c.id == results.c.attempt_id))
+            .where(attempts.c.run_id == done["run_id"])
+        ).one()
+    assert outcome == ("rejected", "unavailable")
+    assert private(done)["result"]["tools"] == meta["tools"]
 finally:
     ToolRunner._same_candidate = real_candidate
 assert call(teacher, "POST", path + "/connections", {}).status_code == 200

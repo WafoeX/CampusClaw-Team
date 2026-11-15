@@ -164,3 +164,9 @@
 以合入 PR #36 后的 `8cb3741` 为基线，用 `openspec-apply-change`、`project-add-tests`、`project-review` 对照 SR-F08、SEC-12 和 TEST-07。复用隔离教学 Chromium 主路径。教师创建含普通尖括号、引号和连接符的合成标题，学生通过 API 读回准确值，资料列表和详情的原始 HTML 响应均为 200 且不带标题标记。两页加载后，标题文字逐字符相等，标题容器的子元素数量为 0。现有草稿恢复、正式提交、答案门控与看板断言同步通过。
 
 `node --check tests/browser/teaching.mjs` 通过。`uv run --locked python -m tests.browser.run_teaching` 首轮退出 0。临时清空详情标题赋值后，同一命令在标题断言处退出 1。恢复模板后再次退出 0，输出 `MATERIAL_TITLE_BROWSER_OK`、`TEACHING_BROWSER_OK` 与 `TEACHING_BROWSER_RUNTIME_OK`。本项复用现有 API、页面、错误处理和数据结构，仅增加普通文本渲染断言。原教学浏览器回归随本项执行，专项负载及完整注入用例仍待验收，3.1 保持未完成。
+
+## 2026-11-16 工具撤权与审计保护（2.3 部分，SR-F06）
+
+在隔离 Compose 上复用真实 MySQL、MCP 服务、合成班级和确定性模型替身，按 `project-add-tests` 与 `project-review` 对照 SR-F06、SEC-02、SEC-15、AI-02 和 TEST-07。原样合法请求确认工具返回成功。发送前停用连接时，MCP 调用计数不变，流响应报告 `rejected/unavailable`。MySQL 按本次执行标识查得恰好一条相同结果，私有工具明细同样只保留拒绝状态。模拟调用审计写入故障时，流报告 `error/audit`，MCP 调用计数和公开审计条数不变，MySQL 查无该次工具尝试记录。
+
+`uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k controlled_tool_dialogue` 退出 0，1 项通过，22.82 秒。Ruff 格式和检查通过。改动仅为现有工具流程补充断言，未改变模型、业务接口或数据结构。课程独立评分写入等价与综合权限验收仍缺证据，2.3 保持未完成。

@@ -107,3 +107,7 @@
 ## 2026-11-15 锁定依赖审计（4.2，SEC-06）
 
 以 `openspec-apply-change` 和 `project-review` 对照 SEC-06、SEC-16、REV-05，读取 PR #33 的实际 CI 日志并核对三个 Git 锁文件对象。固定 Trivy 在 GitHub Actions 中首次下载漏洞库并执行含开发依赖的锁文件扫描，High 与 Critical 均为 0。锁文件与第 9 课基线和最新主干完全一致。结果、判定和 CI 链接已归档到[扫描基线](../../reports/security-baseline.md#2026-11-15-锁定依赖复验安全修复-42)。4.3 仍须用隔离资产复验完整门禁。人工评审待执行。
+
+## 2026-11-15 资产门禁红绿对照（4.3，SEC-06）
+
+按 `project-review` 对照 SR-F11、SEC-16、OPS-03、REV-05 与 REV-08。现有 `make check-security` 的扫描范围、阻断条件和分项退出规则保持原样。独立 CI 采集实际候选后执行同一命令两次，验证红轮前端命中 1 项且其他六个范围有完整结果，绿轮七项均通过，Make 分别退出 2、0。依赖用同一版本漏洞库，High/Critical 两轮均为 0。README 已同步复跑入口，Git 忽略规则只放行脱敏报告。见[实际输出与提交号](../../reports/gate-red-green.md)。数据库、业务接口、提示词与发布流程不涉及本项。人工评审待执行。

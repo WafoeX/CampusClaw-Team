@@ -131,3 +131,18 @@
 按 `project-review` 对照 SEC-10、TEST-08、REV-05。在本地关联 worktree 执行 `make check-secrets` 时，原脚本把工作目录挂给容器，容器无法解析指向宿主主仓库的 Git 路径。原日志为 Git 128、Gitleaks 扫描 0 条提交，即使扫描器退出 0，也不计为历史通过。脚本改为在临时目录镜像本地可达历史并比较 Git 计数，扫描器只读取镜像；工作区文件按原规则单独复制和扫描。
 
 在 `ae2655e` 工作区复跑 `make check-secrets` 退出 0。Git 本地可达计数为 182，镜像计数相同，Gitleaks 报告扫描了 130 条提交，历史及工作区均零发现。另在深度 1 的临时克隆运行同一脚本，确认在启动扫描器前以明确错误退出 1。`ruff check scripts/check_secrets.py` 通过。此项只覆盖凭据门禁，6.1 的候选四步演示及完整回归仍单独验收。
+
+## 2026-11-15 四步安全走查（6.1，SR-N03）
+
+按 `openspec-apply-change`、`project-add-tests`、`project-review` 对照 SR-N03、SR-F14、SEC-11、TEST-09 和 REV-05。基于 `8920297` 加本项测试改动，用隔离 Compose、真实 MySQL 8.4 和 Kafka 4.1.2、合成 A/B 班与固定模型替身。Compose 为隔离实例使用随机构建标识，Git 基线见上文。
+
+| 步骤 | 隔离环境实测 |
+| --- | --- |
+| 登录 | A 班教师通过实际登录入口取得会话，HTTP 200。B 班教师也使用独立登录会话，HTTP 200。 |
+| 任务受理 | A 班提交同班讲义的候选题任务，HTTP 202，任务 `68586ba8-fecd-4dc2-8543-70bef0683c2a`，`Location` 与任务查询路径一致。 |
+| 查询状态 | 原会话按顺序观测 `pending → running → succeeded`。MySQL 中该任务仅有一条发件和一条结果，Kafka 正常投递一次，无孤立任务。 |
+| 换班查讲义 | B 班读取本班资料为 200，读取 A 班讲义和缺失讲义均为 404/1300，公开响应字段同构，请求标识按请求独立生成。 |
+
+`uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 退出 0，2 项通过，耗时 90.89 秒。该轮 Kafka 崩溃后重投递 2 次、首任务提交 1 批；22 次受理 P95 为 9.98 ms，两次完成分别为 5583.64 ms、42.75 ms。结果为替身模型下的异步工程回归数据。
+
+同轮候选静态检查和 467 项单元/API 通过。在默认沙箱中，启动测试绑定回环端口被拒，`make` 退出 2。放开回环限制后，4 项启动检查与 Git 历史/工作区凭据扫描均通过。完整门禁与整套注入回归仍按 6.1 独立验收，6.1 保持未完成。业务路由、持久结构、公共函数和错误映射沿用现状，此项变动限于测试及证据。人工评审待执行。

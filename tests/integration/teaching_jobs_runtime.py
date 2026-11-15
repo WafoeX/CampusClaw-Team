@@ -107,7 +107,7 @@ def login(name):
         {"login_name": name, "password": settings.mysql_password},
     )
     assert result.status_code == 200, result.json
-    return client
+    return client, result.status_code
 
 
 def view(job_id, client=None):
@@ -250,9 +250,9 @@ def event_log(name, **fields):
     observed.append((name, fields))
 
 
-teacher, student, outsider = map(
-    login, ("demo_a_teacher", "demo_a_student", "demo_b_teacher")
-)
+teacher, teacher_login_status = login("demo_a_teacher")
+student, _ = login("demo_a_student")
+outsider, outsider_login_status = login("demo_b_teacher")
 source = material(teacher, "candidate-source")
 empty = material(teacher, "candidate-empty")
 foreign = material(outsider, "candidate-foreign")
@@ -467,8 +467,13 @@ assert question["source_snapshot"]["text"] == quote
 assert model.complete_once.call_count == 0
 assert request(teacher, "POST", JOB + job_id + "/replays", {}).status_code == 409
 
-# 课末预检：消费者尚未开始处理的新任务，正常路径只投递一次。
-clean_job, _, _ = task(source)
+# SR-N03：已登录教师提交任务，并用同一会话逐次查询实际状态。
+accepted = request(teacher, "POST", GENERATION, {"material_id": source, "count": 1})
+assert accepted.status_code == 202, accepted.json
+clean_job = accepted.json["data"]["task_id"]
+assert accepted.headers["Location"] == JOB + clean_job
+pending = view(clean_job)["state"]
+assert pending == "pending"
 clean_event = job_event(clean_job)
 assert outbox_row(clean_event.event_id)["sent_at"] is None
 assert relay_once(repository, tx, event_log)
@@ -477,10 +482,25 @@ clean_record = find_record(
 )
 assert json.loads(clean_record.value)["event_id"] == clean_event.event_id
 claim = repository.claim_job(clean_event)
-assert view(clean_job)["state"] == "running"
+running = view(clean_job)["state"]
+assert running == "running"
 assert service.complete(claim, drafts=service.generate(claim))
 commit(rx, clean_record)
-assert view(clean_job)["state"] == "succeeded"
+succeeded = view(clean_job)["state"]
+assert succeeded == "succeeded"
+
+# B 班教师能读取本班讲义，访问 A 班讲义与访问缺失讲义的响应同构。
+materials_url = "/api/v1/materials/"
+own_material = request(outsider, "GET", materials_url + foreign)
+assert own_material.status_code == 200 and own_material.json["data"]["id"] == foreign
+cross_class = request(outsider, "GET", materials_url + source)
+absent_material = request(outsider, "GET", materials_url + missing)
+assert cross_class.status_code == absent_material.status_code == 404
+assert cross_class.json["code"] == 1300
+assert {
+    key: value for key, value in cross_class.json.items() if key != "request_id"
+} == {key: value for key, value in absent_material.json.items() if key != "request_id"}
+
 with engine.connect() as connection:
     assert (
         connection.scalar(
@@ -517,9 +537,15 @@ print(
     "security_normal_delivery",
     json.dumps(
         {
-            "http": 202,
+            "login_http": teacher_login_status,
+            "http": accepted.status_code,
             "task_id": clean_job,
-            "states": ["pending", "running", "succeeded"],
+            "states": [pending, running, succeeded],
+            "other_class_login_http": outsider_login_status,
+            "own_material_http": own_material.status_code,
+            "cross_class_material_http": cross_class.status_code,
+            "cross_class_material_code": cross_class.json["code"],
+            "missing_material_http": absent_material.status_code,
             "deliveries": len(deliveries),
             "outbox": 1,
             "results": 1,

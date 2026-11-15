@@ -639,6 +639,7 @@ def test_JB_QB_real_kafka_and_candidate_recovery(stack):
     )
     evidence = verify_teaching_jobs(compose)
     assert "teaching_job_evidence" in evidence
+    assert "security_normal_delivery " in evidence
     if os.environ.get("CAMPUSCLAW_REAL_CANDIDATES") == "1":
         assert "teaching_real_gateway_evidence" in evidence
     print(evidence)

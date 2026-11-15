@@ -16,7 +16,7 @@
 ## 3. 三条注入回归
 
 - [ ] 3.1 以 `project-add-tests` 建立 `apitest/cases/` 下的 SQL 注入、XSS、CSRF 可执行用例。先保留真实基线，再补查询参数绑定和结构白名单，核对页面原始 HTML 和渲染副作用。验证 SR-F07、SR-F08。
-- [ ] 3.2 用 `project-data-change` 复核令牌摘要的迁移、清理和回退。同步配置写客户端、服务端和 OpenAPI，分别验证跨站表单、同源缺令牌、重放、合法首次写入与 SameSite 响应证据。保留 SEC-03 原样重放与满足防伪条件的补充角色探测。验证 SR-F04、SR-F09。
+- [x] 3.2 用 `project-data-change` 复核令牌摘要的迁移、清理和回退。同步配置写客户端、服务端和 OpenAPI，分别验证跨站表单、同源缺令牌、重放、合法首次写入与 SameSite 响应证据。保留 SEC-03 原样重放与满足防伪条件的补充角色探测。验证 SR-F04、SR-F09。
 - [ ] 3.3 将三件套纳入 `make check`、现有 pytest 收集和适用静态检查，证明任何一条失效会阻断门禁。在 `reports/security-fix-log.md` 写明三段式及实际用例路径。验证 SR-01。
 
 ## 4. 资产修复与门禁证据

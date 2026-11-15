@@ -111,3 +111,23 @@
 ## 2026-11-15 资产门禁红绿对照（4.3，SEC-06）
 
 按 `project-review` 对照 SR-F11、SEC-16、OPS-03、REV-05 与 REV-08。现有 `make check-security` 的扫描范围、阻断条件和分项退出规则保持原样。独立 CI 采集实际候选后执行同一命令两次，验证红轮前端命中 1 项且其他六个范围有完整结果，绿轮七项均通过，Make 分别退出 2、0。依赖用同一版本漏洞库，High/Critical 两轮均为 0。README 已同步复跑入口，Git 忽略规则只放行脱敏报告。见[实际输出与提交号](../../reports/gate-red-green.md)。数据库、业务接口、提示词与发布流程不涉及本项。人工评审待执行。
+
+## 2026-11-15 配置写入 CSRF 防护（3.2，SR-F04 与 SR-F09）
+
+以 `fe2dc24` 为候选基线，按 `openspec-apply-change`、`project-data-change`、`project-add-tests` 与 `project-review` 核对受保护路由、数据字典和评审准入。新增 0014 迁移、签发接口与一次消费约束。教师页面和同源试调自动取令牌，直接 API 客户端按 OpenAPI 获取。启用前先迁移数据库，再切换应用和 API 客户端。
+
+| 核查项 | 隔离候选结果 |
+| --- | --- |
+| 接口与授权 | OpenAPI 登记八个配置写操作，签发 action 枚举与这些 operationId 一致。未知 action 为 400/1000。三个学生配置写同时保留原样与带有效令牌对照，全部为 403/1200，配置和修订未变，相关拒绝审计仍保留。 |
+| 业务与错误 | 合法同源首次写成功。跨来源表单、同源缺令牌、过期令牌、动作或会话不匹配均为 403/1200。并发消费一枚令牌时为 200 和 403，各一次，仅增加一条修订；再次提交为 403 且数据快照相同。 |
+| 数据库 | MySQL 实测 0014 升级、幂等重跑、合成库回退 0013 并重升。物理回退验证保留审计表和原账号。过期布置与有界清理实测删除一条过期摘要。 |
+| 公共函数与安全 | 浏览器共用取令牌函数，OpenAPI 试调按 operationId 取值。签发响应带 `Cache-Control: no-store`，登录 Cookie 保持 `SameSite=Strict`、`Secure`、`HttpOnly`。响应头无令牌原值，表仅存摘要。 |
+| 性能 | 每次配置写增加一次签发和一次按摘要主键删除。签发沿用用户限流并有独立计数。并发正确性已实测，专项负载测试未执行。 |
+
+独立预检与 OpenAPI 断言通过，1 项通过、16.11 秒。放入测试容器的客户端初版改变了场景追溯要求的 Compose 入口参数，恢复既有入口并让测试容器加载辅助模块后，`make check-static CHANGE=2026-11-04-remediate-security-findings` 通过。首轮完整集成发现代理收尾时恢复助手配置未取令牌，返回 403；同步该客户端后，`uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py` 8 项通过、282.15 秒。`make check-test` 467 项单元/API 和 4 项启动检查通过。渲染后的教师配置、技能管理和 Swagger 脚本均经 `node --check` 验证。人工浏览器验收与评审留待对应环节。
+
+## 2026-11-15 修复 Git worktree 凭据扫描（6.1 部分）
+
+按 `project-review` 对照 SEC-10、TEST-08、REV-05。在本地关联 worktree 执行 `make check-secrets` 时，原脚本把工作目录挂给容器，容器无法解析指向宿主主仓库的 Git 路径。原日志为 Git 128、Gitleaks 扫描 0 条提交，即使扫描器退出 0，也不计为历史通过。脚本改为在临时目录镜像本地可达历史并比较 Git 计数，扫描器只读取镜像；工作区文件按原规则单独复制和扫描。
+
+在 `ae2655e` 工作区复跑 `make check-secrets` 退出 0。Git 本地可达计数为 182，镜像计数相同，Gitleaks 报告扫描了 130 条提交，历史及工作区均零发现。另在深度 1 的临时克隆运行同一脚本，确认在启动扫描器前以明确错误退出 1。`ruff check scripts/check_secrets.py` 通过。此项只覆盖凭据门禁，6.1 的候选四步演示及完整回归仍单独验收。

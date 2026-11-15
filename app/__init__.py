@@ -36,6 +36,7 @@ from app.api.auth import (
     resolve_session,
 )
 from app.api.chapters import CHAPTER_POLICIES, install_chapters
+from app.api.csrf import CSRF_POLICIES, install_csrf
 from app.api.http import install_http
 from app.api.index_builds import INDEX_POLICIES, install_index_builds
 from app.api.material_pages import PAGE_POLICIES, install_material_pages, login_redirect
@@ -267,6 +268,7 @@ def create_app(
         policies = {
             **(policies or {}),
             **AUTH_POLICIES,
+            **CSRF_POLICIES,
             **MATERIAL_POLICIES,
             **CHAPTER_POLICIES,
             **PAGE_POLICIES,
@@ -299,6 +301,7 @@ def create_app(
     )
     if origin is not None:
         install_auth(app, auth, origin, limiter)
+        install_csrf(app, auth)
         install_materials(app, materials)
         if indexing is not None:
             install_index_builds(app, indexing)

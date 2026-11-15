@@ -15,6 +15,7 @@ from app.adapters.assistant_schema_v8 import (
     template_revisions,
 )
 from app.adapters.assistant_schema_v9 import config_requests, templates
+from app.adapters.csrf_schema_v14 import csrf_tokens
 from app.adapters.feedback_repository import FeedbackRepositoryMixin
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.material_schema_v2 import materials
@@ -446,10 +447,16 @@ class AIRepository(
             )
             tool_audit = cleanup_tool_audit(connection, now)
             operation_audit_expired = self.cleanup_operation_audit(connection, now)
+            csrf_expired = connection.execute(
+                delete(csrf_tokens)
+                .where(csrf_tokens.c.expires_at <= now)
+                .with_dialect_options(mysql_limit=100)
+            ).rowcount
         return {
             "operations": len(ids),
             "sessions": session_count,
             "configuration_requests": result.rowcount,
             "operation_audit_expired": operation_audit_expired,
+            "csrf_tokens_expired": csrf_expired,
             **tool_audit,
         }

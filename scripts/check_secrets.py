@@ -32,6 +32,25 @@ def scan(image, folder, mode, *options):
     )
 
 
+def scan_history(image, root, scratch):
+    def git(folder, *args):
+        return subprocess.check_output(
+            ["git", "-C", str(folder), *args], text=True
+        ).strip()
+
+    if git(root, "rev-parse", "--is-shallow-repository") != "false":
+        raise SystemExit("凭据历史扫描需要完整 Git 历史。")
+    expected = git(root, "rev-list", "--all", "--count")
+    mirror = scratch / "history.git"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--mirror", "--no-local", str(root), str(mirror)],
+        check=True,
+    )
+    if expected == "0" or git(mirror, "rev-list", "--all", "--count") != expected:
+        raise SystemExit("凭据历史扫描副本未包含全部可达提交。")
+    scan(image, mirror, "git", "--log-opts=--all")
+
+
 def main():
     image = sys.argv[1]
     root = Path(__file__).resolve().parents[1]
@@ -39,9 +58,11 @@ def main():
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=root,
     )
-    scan(image, root, "git", "--log-opts=--all")
     with tempfile.TemporaryDirectory(prefix="campusclaw-secrets-") as directory:
-        target = Path(directory)
+        scratch = Path(directory)
+        scan_history(image, root, scratch)
+        target = scratch / "working-files"
+        target.mkdir()
         for entry in entries.split(b"\0"):
             if not entry:
                 continue

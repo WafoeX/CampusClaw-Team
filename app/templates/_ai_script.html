@@ -1,4 +1,5 @@
 (() => {
+{% include "_csrf_script.html" %}
 const $ = id => document.getElementById(id), status = $('ai-status');
 let templatePage=1, page=1, total=0, templates=[], selected=null, materialPage=1, materialTotal=0;
 let chosenMaterials=new Set(), chosenSkills=new Set(), createKey=crypto.randomUUID(), runKey=crypto.randomUUID(), runInput='';
@@ -7,6 +8,12 @@ function tell(text,error=false){status.textContent=text; status.classList.toggle
 async function api(path,method='GET',payload,requestKey){
  const headers={}; if(method!=='GET'){headers['Content-Type']='application/json';headers['X-CampusClaw-Request']='same-origin';}
  if(requestKey)headers['Idempotency-Key']=requestKey;
+ const configPath=path.match(/^\/api\/v1\/(prompt-templates|assistants)(\/[0-9a-f-]+)?$/);
+ if(configPath && method!=='GET'){
+  const kind=configPath[1]==='prompt-templates'?'templates':'assistants';
+  const action=method==='DELETE'?'delete_ai_template':(configPath[2]?'update_':'create_')+kind;
+  headers['X-CampusClaw-CSRF']=await configurationToken(action);
+ }
  const response=await fetch(path,{method,headers,credentials:'same-origin',body:payload===undefined?undefined:JSON.stringify(payload)});
  let data;try{data=await response.json();}catch{throw new Error('服务响应无法读取，请重试。');}
  if(data.code!==0){if(response.status===401)location.assign('/login?next='+encodeURIComponent(location.pathname));throw new Error(data.message+'；请检查输入或刷新后重试。请求标识：'+data.request_id);}

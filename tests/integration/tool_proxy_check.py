@@ -19,9 +19,25 @@ def verify_tools(request, json_request, frame, cookies, compose, password):
         value.split(";", 1)[0] for key, value in headers if key.lower() == "set-cookie"
     )
 
-    def api(method, path, cookie=teacher, body=None, key=None, expected=200):
+    def api(
+        method, path, cookie=teacher, body=None, key=None, expected=200, *, action=None
+    ):
+        extra_headers = None
+        if action:
+            token = api(
+                "POST",
+                "/api/v1/auth/csrf-tokens",
+                cookie=cookie,
+                body={"action": action},
+            )["token"]
+            extra_headers = {"X-CampusClaw-CSRF": token}
         code, reply, _, _ = json_request(
-            method, path, cookie=cookie, body=body, key=key
+            method,
+            path,
+            cookie=cookie,
+            body=body,
+            key=key,
+            header_overrides=extra_headers,
         )
         assert code == expected, reply
         return reply["data"]
@@ -62,6 +78,7 @@ def verify_tools(request, json_request, frame, cookies, compose, password):
             "steps": [{"type": "model", "instruction": "遵循资料依据。"}],
         },
         expected=201,
+        action="create_skill",
     )
     assistant_path = "/api/v1/assistants/" + assistant_id
     original = api("GET", assistant_path)
@@ -72,6 +89,7 @@ def verify_tools(request, json_request, frame, cookies, compose, password):
     api(
         "PATCH",
         assistant_path,
+        action="update_assistants",
         body=config
         | {
             "prompt": "",
@@ -152,6 +170,7 @@ def verify_tools(request, json_request, frame, cookies, compose, password):
         api(
             "PATCH",
             assistant_path,
+            action="update_assistants",
             body=config | {"prompt": "", "revision": assistant["revision"]},
         )
 

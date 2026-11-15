@@ -40,7 +40,7 @@
 
 单独运行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k security_precheck`，退出 0，1 项通过，耗时 14.93 秒。2.1 复核通过，当前策略未发现需要改动的授权缺口。3.2 引入一次性令牌后需要复跑适用令牌条件的角色对照。人工评审待执行。
 
-## 2026-11-14 固定基线复跑（1.1、1.2 部分）
+## 2026-11-14 固定基线复跑（1.1、1.2）
 
 本次 Codex 会话在首个修复前固定主干 `bc591b4c00fe01614db912842f62ab333268911b`。使用 Docker 29.9.2、Compose 5.6.1、arm64、10 个 Docker 虚拟 CPU、锁定 MySQL 8.4、Qdrant 1.15.3、Kafka 4.1.2 和合成 A/B 班。候选资产留在忽略目录 `reports/security-remediation-bc591b4`，应用与 MCP 镜像标签和对应 `revision` 文件均指向该提交。
 
@@ -57,7 +57,9 @@
 
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` 单独复跑退出 0，2 项通过，耗时 87.24 秒。固定模型替身下，22 次受理的 P95 为 11.76 ms，两次完成为 5621.98 ms 与 38.56 ms。停止消费者后恢复，崩溃后实际重投递 2 次，首个任务只生效写入 1 批。资产采集与 Kafka 合并运行时出现过隔离镜像标签不匹配，按 README 分开复跑通过。此处的延迟只对应隔离替身回归。
 
-依赖漏洞审计缺有效结果，1.1 保持未完成。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+基线执行当天未取得依赖漏洞计数。后续同锁文件的复验见下文 4.2。完整基线门禁已留退出结果，1.2 继续等待 SEC-08 基线证据。
+
+2026-11-15 再核对固定候选的 `revision` 与脱敏 `observations.json`，SEC-01–05 技术对照与上表一致，SEC-07 的日志关联缺口归操作审计。SEC-06 按 SR-F01 补同字节锁文件的后续真实扫描，High/Critical 各为 0，保留首次下载失败及复验日期。1.1 到此具备 SEC-01–07 可追溯记录及三项异步实测。采用先校验权限与数据归属，再验证输入防护的实施顺序。SEC-04 课程等价和 SEC-08 四步基线分别留在 2.3 和 1.2。
 
 ## 2026-11-14 凭据与落库检查（4.1，SEC-05）
 
@@ -101,3 +103,11 @@
 | 性能 | 班级时间、操作者与技能查询具备组合索引，清理每批至多 100 条。未执行压测。 |
 
 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue or cold_start_and_recovery'` 两轮退出 0。加入单行 JSON、0013 单步回退和恢复清理后，最终轮 3 项通过、耗时 90.13 秒。隔离 Compose 使用真实 MySQL 8.4 与 Qdrant，技能调用使用固定替身。`make check-static check-test CHANGE=2026-11-04-remediate-security-findings` 退出 0，12 项严格 OpenSpec、分层及追溯、467 项单元/API、4 项启动检查通过。新一轮本地 Trivy 官方源下载 7 分钟超时，依赖扫描单列到 4.2；完整候选门禁由后续 CI 复核。人工评审待执行。
+
+## 2026-11-15 锁定依赖审计（4.2，SEC-06）
+
+以 `openspec-apply-change` 和 `project-review` 对照 SEC-06、SEC-16、REV-05，读取 PR #33 的实际 CI 日志并核对三个 Git 锁文件对象。固定 Trivy 在 GitHub Actions 中首次下载漏洞库并执行含开发依赖的锁文件扫描，High 与 Critical 均为 0。锁文件与第 9 课基线和最新主干完全一致。结果、判定和 CI 链接已归档到[扫描基线](../../reports/security-baseline.md#2026-11-15-锁定依赖复验安全修复-42)。4.3 仍须用隔离资产复验完整门禁。人工评审待执行。
+
+## 2026-11-15 资产门禁红绿对照（4.3，SEC-06）
+
+按 `project-review` 对照 SR-F11、SEC-16、OPS-03、REV-05 与 REV-08。现有 `make check-security` 的扫描范围、阻断条件和分项退出规则保持原样。独立 CI 采集实际候选后执行同一命令两次，验证红轮前端命中 1 项且其他六个范围有完整结果，绿轮七项均通过，Make 分别退出 2、0。依赖用同一版本漏洞库，High/Critical 两轮均为 0。README 已同步复跑入口，Git 忽略规则只放行脱敏报告。见[实际输出与提交号](../../reports/gate-red-green.md)。数据库、业务接口、提示词与发布流程不涉及本项。人工评审待执行。

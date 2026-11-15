@@ -385,6 +385,8 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 
 要复跑教学事务与 Kafka 恢复，用 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'`。课程等价、红项和独立人工复验状态见[预检报告](reports/security-precheck.md)。
 
+采集候选资产后，以 `uv run --locked python scripts/check_security_control.py reports/security-assets` 复验资产门禁。命令只在临时产物副本中写入不可用的扫描占位标记。第一轮须命中 1 项且 Make 非零，移除标记后须退出 0。两轮都核对锁定依赖、候选镜像与其他范围，使用同一版本的未过期漏洞库。输出只保留分项计数和退出码。
+
 ### 班级操作审计
 
 启用安全修复候选前，用 `docker compose exec app python -m app.auth_admin upgrade` 应用 0013。教师使用本班会话访问 `GET /api/v1/operation-audits`，可按 `actor_id`、`skill_id` 和 UTC 时间窗口筛选。默认读取最近 7 天，`days` 接受 1–7，`end` 可指定过去 90 天内的 UTC 秒级时刻。窗口包含开始时刻、排除结束时刻。按返回的 ID 调用 `GET /api/v1/operation-audits/{event_id}` 读取本班审计元数据。列表和详情均禁止缓存，学生读取返回 403，跨班和不存在的审计详情均返回 404。

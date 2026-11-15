@@ -1,5 +1,6 @@
 """显式浏览器回归：一次性 MySQL、HTTPS 应用与 Chromium，结束清理。"""
 
+import os
 import secrets
 import subprocess
 import tempfile
@@ -93,13 +94,14 @@ def main():
                 "-e",
                 "CAMPUSCLAW_ISOLATED_DATABASE=1",
                 "-e",
-                f"CAMPUSCLAW_SEED_PASSWORD={password}",
+                "CAMPUSCLAW_SEED_PASSWORD",
                 "app",
                 "python",
                 "-m",
                 "app.auth_admin",
                 "seed",
                 capture=True,
+                env={**os.environ, "CAMPUSCLAW_SEED_PASSWORD": password},
             )
             run(
                 *base,
@@ -127,7 +129,7 @@ def main():
                 "-v",
                 f"{ROOT}:/workspace:ro",
                 "-e",
-                f"CAMPUS_BROWSER_PASSWORD={password}",
+                "CAMPUS_BROWSER_PASSWORD",
                 "--entrypoint",
                 "sh",
                 browser_image,
@@ -136,7 +138,11 @@ def main():
                 "chromium --headless --no-sandbox --ignore-certificate-errors --remote-debugging-port=0 --user-data-dir=/tmp/teaching-browser about:blank >/tmp/chrome.log 2>&1 &\n"
                 f"node /workspace/tests/browser/teaching.mjs {origin}",
             )
-            run(*browser, timeout=90)
+            run(
+                *browser,
+                timeout=90,
+                env={**os.environ, "CAMPUS_BROWSER_PASSWORD": password},
+            )
             print("TEACHING_BROWSER_RUNTIME_OK")
         finally:
             subprocess.run(

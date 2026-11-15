@@ -170,3 +170,9 @@
 在隔离 Compose 上复用真实 MySQL、MCP 服务、合成班级和确定性模型替身，按 `project-add-tests` 与 `project-review` 对照 SR-F06、SEC-02、SEC-15、AI-02 和 TEST-07。原样合法请求确认工具返回成功。发送前停用连接时，MCP 调用计数不变，流响应报告 `rejected/unavailable`。MySQL 按本次执行标识查得恰好一条相同结果，私有工具明细同样只保留拒绝状态。模拟调用审计写入故障时，流报告 `error/audit`，MCP 调用计数和公开审计条数不变，MySQL 查无该次工具尝试记录。
 
 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k controlled_tool_dialogue` 退出 0，1 项通过，22.82 秒。Ruff 格式和检查通过。改动仅为现有工具流程补充断言，未改变模型、业务接口或数据结构。课程独立评分写入等价与综合权限验收仍缺证据，2.3 保持未完成。
+
+## 2026-11-16 浏览器测试口令脱敏（SEC-05，6.3 取证）
+
+按 `project-review` 对照 SEC-10、OPS-06、REV-07 检查讲义标题的红灯输出。旧浏览器运行器将一次性合成口令作为 `docker run` 参数，断言失败后异常堆栈打印了该参数值。账号初始化和浏览器两处调用改为由子进程环境提供口令，CLI 参数只保留变量名。
+
+在隔离 Docker 环境，以同一临时标题故障复跑 `uv run --locked python -m tests.browser.run_teaching`。修复前后均在标题断言处退出 1，修复后日志仍保留断言差异，合成口令模式命中 0。恢复正常标题赋值后同一命令退出 0。Ruff 格式和检查通过。变更范围为测试运行器，使用的口令仅属于自动清理的合成库。原始输出未入 Git。

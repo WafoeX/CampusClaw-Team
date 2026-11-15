@@ -41,6 +41,8 @@ htmlcov/
 /reports/*
 !/reports/security-precheck.md
 !/reports/security-baseline.md
+!/reports/security-fix-log.md
+!/reports/security-rework.md
 !/reports/gate-red-green.md
 !/reports/risk-authz.md
 !/reports/risk-concurrency.md

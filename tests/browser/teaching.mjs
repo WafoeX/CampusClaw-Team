@@ -45,8 +45,9 @@ async function login(name) {
   await js(`document.getElementById("login-name").value=${JSON.stringify(name)}; document.getElementById("password").value=${JSON.stringify(password)}; document.querySelector("button[type=submit]").click()`);
   await wait(() => js('location.pathname !== "/login"'));
 }
-async function api(path, method = "GET", data) {
-  const expression = `fetch(${JSON.stringify(path)}, {method:${JSON.stringify(method)}, headers:{'Content-Type':'application/json','X-CampusClaw-Request':'same-origin'}, ${data === undefined ? "" : `body:JSON.stringify(${JSON.stringify(data)}),`} }).then(async r => ({status:r.status, body:await r.json()}))`;
+async function api(path, method = "GET", data, headers = {}) {
+  const requestHeaders = {"Content-Type": "application/json", "X-CampusClaw-Request": "same-origin", ...headers};
+  const expression = `fetch(${JSON.stringify(path)}, {method:${JSON.stringify(method)}, headers:${JSON.stringify(requestHeaders)}, ${data === undefined ? "" : `body:JSON.stringify(${JSON.stringify(data)}),`} }).then(async r => ({status:r.status, body:await r.json()}))`;
   const result = await js(expression);
   assert.ok(result.status < 300, `${path}: ${JSON.stringify(result)}`);
   return result.body.data;
@@ -57,6 +58,10 @@ try {
   await send("Page.bringToFront");
   await navigate("/login");
   await login("demo_a_teacher");
+  const materialTitle = '实验记录 <group-a> & "复测"';
+  const material = await api("/api/v1/materials", "POST", {
+    title: materialTitle, text: "合成讲义原文",
+  }, {"Idempotency-Key": "browser-material-title"});
   const question = await api("/api/v1/questions", "POST", {
     kind: "single_choice", stem: "浏览器草稿恢复题", options: ["甲", "乙"],
     answer: "A", explanation: "合成解析", source_material_id: null,
@@ -72,6 +77,31 @@ try {
   await api("/api/v1/auth/sessions/current", "DELETE");
   await navigate("/login");
   await login("demo_a_student");
+
+  // SR-F08 防御性对照：资料标题由 JSON 传递，并在列表和详情中显示为纯文本。
+  const materialPath = `/materials/${material.id}`;
+  assert.equal((await api(`/api/v1/materials/${material.id}`)).title, materialTitle);
+  for (const path of ["/materials", materialPath]) {
+    const page = await js(`fetch(${JSON.stringify(path)}).then(async response => ({
+      status: response.status,
+      containsTitleMarker: (await response.text()).includes("group-a"),
+    }))`);
+    assert.deepEqual(page, {status: 200, containsTitleMarker: false});
+  }
+  await navigate("/materials");
+  const materialLink = `document.querySelector(${JSON.stringify(`#materials a[href="${materialPath}"]`)})`;
+  await wait(() => js(`!!${materialLink}`));
+  assert.deepEqual(await js(`({text: ${materialLink}.textContent, elements: ${materialLink}.childElementCount})`), {
+    text: materialTitle, elements: 0,
+  });
+  await js(`${materialLink}.click()`);
+  await wait(() => js('document.getElementById("body")?.textContent === "合成讲义原文"'));
+  assert.deepEqual(await js(`({
+    text: document.getElementById("detail-title").textContent,
+    elements: document.getElementById("detail-title").childElementCount,
+  })`), {text: materialTitle, elements: 0});
+  console.log("MATERIAL_TITLE_BROWSER_OK: 页面模板和讲义标题纯文本渲染");
+
   await navigate(`/quizzes/${quiz.id}`);
   await wait(() => js('document.querySelector("#quiz-items input[type=radio]") && document.getElementById("notice").textContent === "已加载。"'));
   await js('document.querySelector("#quiz-items input[type=radio]").click(); document.getElementById("save-draft").click()');

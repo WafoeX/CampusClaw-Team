@@ -55,3 +55,5 @@ PR 合入面板标记 `make check` 为必需，`make check-security` 无必需�
 用 `openspec-apply-change`、`project-review` 对照 L10-04、OPS-01/02/03、SEC-10、REV-05/08。`Build candidate images` 依赖两项门禁，使用同一个事件提交构建应用与 MCP。构建脚本校验源码、镜像标签、OCI 修订与 Buildx 摘要，再以隔离 Compose 启动已构建的镜像，核对容器实际镜像和探针版本。参数只接收 Git 提交，测试数据库、向量和 MCP 配置在隔离运行中生成。工作流保留只读权限，输出不包含配置值。
 
 本地固定 `a0c2a5a` 的构建输入，锁定 Python 3.13 下复跑退出 0，两个镜像身份、依赖就绪和运行版本一致。静态门禁、YAML 两个 `needs` 及 Bash 命令语法检查通过。详细摘要、首轮失败及复跑见[制品运行报告](../../reports/delivery-runtime.md)。3.1 的源码层与构建工具扫描另有判据，人工评审待执行。
+
+推送流水线首轮通过。PR 合并候选的完整门禁与安全门禁通过，构建后拉取依赖镜像时被仓库限流。按 TEST-05、TEST-07 与 REV-05 增加限流专用有界重试，保留固定镜像及最终非零退出。本地真实构建与启动复跑通过，`uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_build_candidate.py` 3 项通过。候选、摘要、失败输出与处置已归档到[制品运行报告](../../reports/delivery-runtime.md#首轮-ci-与依赖仓库限流)。

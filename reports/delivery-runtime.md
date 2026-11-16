@@ -12,3 +12,11 @@
 `/live` 和 `/health` 的 GET、HEAD 均为 200。`/health` 的 MySQL、Qdrant 均为 `ready`，运行版本为上述完整提交。独立 MCP 的容器健康探针通过。隔离容器和卷清理完成。
 
 首次以宿主 Python 3.9 直接运行时，探针辅助模块所用的 `datetime.UTC` 无法导入，复跑改用仓库锁定的 Python 3.13。Buildx 首轮构建成功，但 Docker Desktop 的容器存储返回 OCI 索引摘要，缺少独立的镜像配置摘要字段。根据实际 Buildx 元数据和已加载镜像 ID 校验 OCI 摘要或配置摘要，复跑通过。摘要语义见 [Docker Buildx 元数据说明](https://docs.docker.com/reference/cli/docker/buildx/build/#metadata-file)。
+
+## 首轮 CI 与依赖仓库限流
+
+2026-11-16，推送候选 `13d6a3452301182128009459e0dbd166a7d00815` 的 `make check` 和 `make check-security` 均通过，随后构建和启动通过。应用镜像 `campusclaw-skeleton:13d6a3452301182128009459e0dbd166a7d00815` 的 OCI 摘要为 `sha256:4c2f975828faa9bb0613042715f55f426e22dbe2fa27984b717e2b4d94c0a30d`，MCP 镜像 `campusclaw-mcp:13d6a3452301182128009459e0dbd166a7d00815` 为 `sha256:5ac326732e36d568ee67f8c1c5567a37ae8b1d17cfd872f79ce8f9f02fe69944`。`/live` 和 `/health` 返回 200，运行版本与源码一致。[推送构建 43822312011](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43822312011/job/133150295337)
+
+同一分支的 PR 合并候选 `6f507db51dec20b124215cc0fad434fa7f5f9bf2` 两项门禁通过，应用与 MCP 构建成功，隔离启动拉取依赖时镜像仓库返回 `toomanyrequests: Rate exceeded`，构建作业退出 1。[首轮 PR 构建 43822443769](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43822443769/job/133150766376)
+
+修复后逐一预拉取 Compose 固定摘要的 MySQL、Qdrant 镜像。仅明确限流时在 10 秒及 30 秒后重试，重试耗尽或其他错误仍失败。启动使用本地已取得的镜像。限流后成功、持续限流、非限流错误 3 项断网回归通过。基于 `13d6a34` 的构建输入，按新脚本在本地实际构建、启动并复核版本，双探针为 200，临时容器和数据卷正常清理。

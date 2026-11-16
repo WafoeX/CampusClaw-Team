@@ -20,3 +20,14 @@
 同一分支的 PR 合并候选 `6f507db51dec20b124215cc0fad434fa7f5f9bf2` 两项门禁通过，应用与 MCP 构建成功，隔离启动拉取依赖时镜像仓库返回 `toomanyrequests: Rate exceeded`，构建作业退出 1。[首轮 PR 构建 43822443769](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43822443769/job/133150766376)
 
 修复后逐一预拉取 Compose 固定摘要的 MySQL、Qdrant 镜像。仅明确限流时在 10 秒及 30 秒后重试，重试耗尽或其他错误仍失败。启动使用本地已取得的镜像。限流后成功、持续限流、非限流错误 3 项断网回归通过。基于 `13d6a34` 的构建输入，按新脚本在本地实际构建、启动并复核版本，双探针为 200，临时容器和数据卷正常清理。
+
+## 修复后推送取证（3.2）
+
+2026-11-16，推送 `eb740998083c2c9186d3452404d6493a20aa92ec` 自动触发流水线 `43860255221`。`make check` 通过，12 项 OpenSpec、470 项单元/API、4 项启动和 8 项集成通过。`make check-security` 通过，两项完成后构建作业退出 0。[推送流水线](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43860255221)
+
+| 服务 | 镜像标签 | Buildx 输出摘要 |
+| --- | --- | --- |
+| 应用 | `campusclaw-skeleton:eb740998083c2c9186d3452404d6493a20aa92ec` | `sha256:7b82600984231ccd1edc1801ec7d5f48c41a6574538df6a9c0387a8dd1f47d25` |
+| MCP | `campusclaw-mcp:eb740998083c2c9186d3452404d6493a20aa92ec` | `sha256:3a1c8511db6d53c3dff9304489d2f5c0f90729e73a8141a6f22389f0fe46c4a5` |
+
+两个容器的镜像 ID 与构建结果一致。`/live` 和 `/health` 通过，`/health` 报告运行版本为 `eb740998083c2c9186d3452404d6493a20aa92ec`，MySQL 和 Qdrant 均为 `ready`。此次 CI 未出现限流重试，重试行为由断网用例验证。此组为流水线编排及成品验证，数据库结构与索引无改动，扩迁和物理回退不适用。[构建实测](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43860255221/job/133277811400)

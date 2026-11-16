@@ -245,7 +245,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
 
-当前处于规约阶段。`make check` 是现有入口，独立 `make check-security` 由课末安全预检建立，第 10 课接入同名 CI 双门禁并对候选交付取证。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。差异未经课程方确认时按缺项记录。实际验收将结论与证据指针写入根目录 `report.md`，报告明细使用 `reports/` 固定路径。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
+第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。主干将两项设为必需检查的配置及实际拦截仍待核验。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
 ## 小组协作与增量流程
 

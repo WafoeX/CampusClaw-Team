@@ -16,3 +16,14 @@
 | Make 总退出码 | 2 | 0 |
 
 红轮依赖审计照常完成。项目真实资产的历史扫描另见[扫描基线](security-baseline.md)。本次原始产物留在 CI 隔离工作区并随任务清理，原始文件与合成标记均不纳入 Git。人工评审待执行。
+
+## 2026-11-16 第 10 课本地完整门禁演练（2.3 部分，L10-F03）
+
+候选 `1c6e381`，使用本地工作树、回环启动测试和隔离 Docker。两轮执行 `make check CHANGE=2026-11-04-define-lesson-10-acceptance`。红轮只在本地临时把 `tests/test_startup.py` 的 `test_RT_B04_local_wsgi_process_reaches_probes_and_drains` 中 `/live` 预期状态改为 `201`。绿轮恢复至候选原有的 `200` 断言。
+
+| 轮次 | 实测与退出 |
+| --- | --- |
+| 红轮 | `/live` 实际为 `200`，断言报告 `200 == 201` 失败。启动组 1 项失败、3 项通过，`check-test` 退出 1，`make check` 退出 2。后续扫描与集成子门禁未进入。 |
+| 绿轮 | 核对测试文件与 Git 版本一致后复跑。12 项 OpenSpec、467 项单元/API、4 项启动检查通过。凭据零命中、锁定依赖 High/Critical 各为 0，8 项集成通过、用时 312.45 秒。`make check` 退出 0。 |
+
+原始日志保存在本机临时目录。故障样本未提交，恢复是本地演练的一部分。代码分支的 PR 合并候选 `9663e3db` 已通过本轮[完整门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43815992640/job/133128056661)和[安全门禁](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43815992640/job/133128056334)。临时远端红轮、构建和合入的实际拦截证据待补，2.3 仍未完成。

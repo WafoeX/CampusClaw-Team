@@ -249,6 +249,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 
+应用和 MCP 运行镜像复制构建阶段生成的 Python 3.13 字节码及必要模板，保留现有启动、迁移与管理命令。候选构建会逐层检查项目源码和构建工具，避免文件从镜像的旧层恢复。运行口令仍从环境注入。
+
 ## 小组协作与增量流程
 
 每组实现以[可运行交接](docs/standards/08-评审与完成定义规范.md#分阶段完成定义)为退出条件。实现人在隔离环境验证启动、就绪和本组关键路径，通过后可继续依赖该能力的开发。实现变更收尾完成自动化运行与错误回归。独立安全测试/审计归安全预检和修复，全部真人测试统一由项目最终验收执行；合并前代码评审独立保留。

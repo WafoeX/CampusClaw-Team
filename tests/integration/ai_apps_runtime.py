@@ -10,7 +10,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from configuration_client import configuration_headers
 from sqlalchemy import event, func, insert, inspect, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -39,7 +38,7 @@ from app.adapters.index_clients import IndexDependencyError
 from app.adapters.index_schema_v5 import builds as index_builds
 from app.adapters.index_schema_v5 import chunks
 from app.adapters.index_schema_v5 import materials as indexed_materials
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.model_lease_repository import ModelLeaseRepository
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.api.auth import COOKIE
@@ -61,8 +60,7 @@ engine = mysql_engine(
     password=os.environ["MYSQL_PASSWORD"],
 )
 assert engine.url.database.startswith("campusclaw_test_")
-config = Config()
-config.set_main_option("script_location", str(Path("app/adapters/migrations")))
+config = migration_config()
 with engine.begin() as connection:
     config.attributes["connection"] = connection
     command.downgrade(config, "0008_assistant_storage")

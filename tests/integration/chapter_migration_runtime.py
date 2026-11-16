@@ -1,10 +1,8 @@
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import insert, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
@@ -16,7 +14,7 @@ from app.adapters.chapter_schema_v4 import materials as current_materials
 from app.adapters.database import mysql_engine
 from app.adapters.material_schema_v2 import bodies
 from app.adapters.material_schema_v2 import materials as old_materials
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 
 engine = mysql_engine(
     host=os.environ["MYSQL_HOST"],
@@ -29,10 +27,7 @@ assert engine.url.database.startswith("campusclaw_test_")
 
 
 def down_to_pre_chapters():
-    config = Config()
-    config.set_main_option(
-        "script_location", str(Path("app/adapters/migrations").resolve())
-    )
+    config = migration_config()
     with engine.connect() as connection:
         config.attributes["connection"] = connection
         command.downgrade(config, "0003_request_limits")

@@ -3,18 +3,29 @@ WORKDIR /srv/campusclaw
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project --no-cache
 
-FROM ghcr.io/astral-sh/uv:python3.13-alpine@sha256:7b02bf9f2d812bf1b21b4d790901eb22250523943b82af93e8c543ea54b6b4d5 AS runtime
-WORKDIR /srv/campusclaw
+FROM dependencies AS compiled
+COPY app app
+COPY mcp-server mcp-server
+RUN python -m compileall -q -b app mcp-server \
+    && find app mcp-server -type f -name '*.py' -delete
+
+FROM ghcr.io/astral-sh/uv:python3.13-alpine@sha256:7b02bf9f2d812bf1b21b4d790901eb22250523943b82af93e8c543ea54b6b4d5 AS runtime-files
 RUN python -m pip uninstall --yes pip \
     && rm -rf /usr/local/lib/python3.13/ensurepip \
     && rm -f /usr/local/bin/uv /usr/local/bin/uvx
+
+# 只复制清理后的基础文件系统，避免工具仍可从下层镜像恢复。
+FROM scratch AS runtime
+COPY --from=runtime-files / /
+WORKDIR /srv/campusclaw
 COPY --from=dependencies /srv/campusclaw/.venv .venv
-ENV PATH="/srv/campusclaw/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/srv/campusclaw/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    PYTHONDONTWRITEBYTECODE=1
 
 FROM runtime AS mcp-service
 ARG APP_BUILD_REVISION
 LABEL org.opencontainers.image.revision=$APP_BUILD_REVISION
-COPY mcp-server mcp-server
+COPY --from=compiled /srv/campusclaw/mcp-server mcp-server
 USER 10001:10001
 EXPOSE 8090
 # 会话保存在进程内，单 worker 的线程共享会话与锁。
@@ -22,7 +33,7 @@ CMD ["gunicorn", "--chdir", "mcp-server", "--workers", "1", "--threads", "4", "-
 
 FROM runtime AS app
 ARG APP_BUILD_REVISION
-COPY app app
+COPY --from=compiled /srv/campusclaw/app app
 RUN python -c 'import re, sys; from pathlib import Path; revision = sys.argv[1]; assert re.fullmatch("[0-9a-f]{40}", revision), "APP_BUILD_REVISION"; Path("app/BUILD_VERSION").write_text(revision + "\n")' "$APP_BUILD_REVISION"
 LABEL org.opencontainers.image.revision=$APP_BUILD_REVISION
 USER 10001:10001

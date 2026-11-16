@@ -31,3 +31,9 @@
 | MCP | `campusclaw-mcp:eb740998083c2c9186d3452404d6493a20aa92ec` | `sha256:3a1c8511db6d53c3dff9304489d2f5c0f90729e73a8141a6f22389f0fe46c4a5` |
 
 两个容器的镜像 ID 与构建结果一致。`/live` 和 `/health` 通过，`/health` 报告运行版本为 `eb740998083c2c9186d3452404d6493a20aa92ec`，MySQL 和 Qdrant 均为 `ready`。此次 CI 未出现限流重试，重试行为由断网用例验证。此组为流水线编排及成品验证，数据库结构与索引无改动，扩迁和物理回退不适用。[构建实测](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43860255221/job/133277811400)
+
+## 2026-11-17 运行镜像源码剥离（3.1 部分）
+
+以 `bf854f9` 加运行镜像改动为构建输入，用随机测试标识 `d33db579107ef3b2b95a0c46b46dd62c38f04244` 构建隔离镜像。应用归档 5 层、MCP 归档 4 层，逐层扫描确认无项目 `.py` 和受检工具路径，两个字节码入口均存在。应用和 MCP 容器采用刚构建的镜像，`/live`、`/health` 的 GET 和 HEAD 均为 200，`/health` 版本和测试标识一致。正常运行后回收容器、网络和卷。
+
+`uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_build_candidate.py` 7 项通过，包含早期层写入源码、uv 或 ensurepip 后在后一层隐藏时仍失败的对照。扫描检查 Docker 导出归档而非容器合并视图。固定安全门禁另行检查同一候选资产中的凭据和依赖漏洞。

@@ -219,7 +219,7 @@ uv run --locked pytest -q tests/browser
 1. 从干净克隆检出全组约定的同一源码提交，记录 `git rev-parse HEAD`；不要将未提交的源码改动与该提交号混用。在含骨架代码的提交上将 `.env.example` 复制为 `.env`，填写本机私有的 MySQL 库名、应用账号、应用口令、管理口令和 Qdrant 密钥。应用账号使用普通账号，管理口令只供 MySQL 容器使用。应用宿主端口默认 `8000`，如被占用可填写 `APP_HOST_PORT`。Compose 注入容器内地址 `mysql:3306` 和 `http://qdrant:6333`。
 2. 确认工作区对应要验证的源码提交，执行 `export APP_BUILD_REVISION=$(git rev-parse HEAD)`，再运行 `docker compose up --build -d`。镜像写入该版本；应用缺少必需配置时在监听前退出。
 3. 执行 `curl -fsS http://127.0.0.1:8000/health`，使用自定义端口时替换端口。确认返回版本和 MySQL 状态。仅 Qdrant 不可用时为 200 且 `status=degraded`，MySQL 不可用时为 503。独立的 `/live` 用于确认进程仍可响应。
-   `docker compose up` 返回成功或容器显示 healthy 只说明进程启动/存活。依赖初始化期间允许 `/health` 暂为 503，应等待并确认版本匹配且 `status=ready`、两项依赖均为 `ready`；`degraded` 表示向量依赖不可用，不能作为两项依赖均正常的冷启动验收。
+   Compose 等待 MySQL 健康和 Qdrant 容器启动，再启动应用。应用容器用 `/health` 报告健康状态，`/live` 用于独立检查进程。`docker compose up -d` 返回后，仍须确认运行版本匹配且两个依赖均为 `ready`。Qdrant 不可用时允许 `degraded`，可继续使用确定性教学功能。
 4. 执行 `docker compose logs app` 查看单行 JSON 请求标识日志，使用 `docker compose down` 停止当前项目并保留本机卷。
 
 ### 成员冷启动记录

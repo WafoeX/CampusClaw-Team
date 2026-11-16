@@ -29,8 +29,13 @@ services:
       RETRIEVAL_MIN_SCORE: ${RETRIEVAL_MIN_SCORE:-}
     ports:
       - "127.0.0.1:${APP_HOST_PORT:-8000}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/live', timeout=2).close()"]
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8080/health', timeout=2).close()"]
       interval: 5s
       timeout: 3s
       retries: 5

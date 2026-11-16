@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -13,9 +14,9 @@ from pathlib import Path
 from scripts.verify_runtime import ROOT, VerificationError, inspect_probes
 
 
-def run(*args, env, timeout=60):
+def run(*args, env, timeout=60, stderr=None):
     return subprocess.check_output(
-        args, cwd=ROOT, env=env, text=True, timeout=timeout
+        args, cwd=ROOT, env=env, text=True, timeout=timeout, stderr=stderr
     ).strip()
 
 
@@ -51,6 +52,26 @@ def build_image(target, repository, revision, metadata_path, env):
     return {"tag": tag, "digest": digest, "id": image["Id"]}
 
 
+def pull_dependency(compose, service):
+    for retry_delay in (10, 30, 0):
+        try:
+            compose(
+                "pull",
+                "--policy",
+                "missing",
+                service,
+                stderr=subprocess.PIPE,
+                timeout=180,
+            )
+            return
+        except subprocess.CalledProcessError as error:
+            if not retry_delay or "toomanyrequests" not in error.stderr.lower():
+                print(error.stderr, file=sys.stderr, end="")
+                raise
+            print(f"{service} 镜像仓库限流，{retry_delay} 秒后重试", file=sys.stderr)
+            time.sleep(retry_delay)
+
+
 def start_images(revision, images, env):
     project = "campusclaw-candidate-" + secrets.token_hex(8)
     env = {
@@ -65,7 +86,7 @@ def start_images(revision, images, env):
         "MCP_SERVICE_TOKEN": secrets.token_hex(16),
     }
 
-    def compose(*args, timeout=60):
+    def compose(*args, timeout=60, stderr=None):
         return run(
             "docker",
             "compose",
@@ -80,10 +101,22 @@ def start_images(revision, images, env):
             *args,
             env=env,
             timeout=timeout,
+            stderr=stderr,
         )
 
     try:
-        compose("up", "--no-build", "--wait", "--wait-timeout", "120", timeout=150)
+        for service in ("mysql", "qdrant"):
+            pull_dependency(compose, service)
+        compose(
+            "up",
+            "--no-build",
+            "--pull",
+            "never",
+            "--wait",
+            "--wait-timeout",
+            "120",
+            timeout=150,
+        )
         for service, image in images.items():
             container = compose("ps", "--quiet", service)
             running_image = run(

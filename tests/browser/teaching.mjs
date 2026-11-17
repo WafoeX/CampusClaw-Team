@@ -1,6 +1,9 @@
 // 真实浏览器中的草稿刷新与重新登录恢复；输入仅为隔离服务地址与合成密码。
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { once } from "node:events";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 
 const origin = process.argv[2];
 const password = process.env.CAMPUS_BROWSER_PASSWORD;
@@ -45,10 +48,13 @@ async function login(name) {
   await js(`document.getElementById("login-name").value=${JSON.stringify(name)}; document.getElementById("password").value=${JSON.stringify(password)}; document.querySelector("button[type=submit]").click()`);
   await wait(() => js('location.pathname !== "/login"'));
 }
-async function api(path, method = "GET", data, headers = {}) {
+async function request(path, method = "GET", data, headers = {}) {
   const requestHeaders = {"Content-Type": "application/json", "X-CampusClaw-Request": "same-origin", ...headers};
   const expression = `fetch(${JSON.stringify(path)}, {method:${JSON.stringify(method)}, headers:${JSON.stringify(requestHeaders)}, ${data === undefined ? "" : `body:JSON.stringify(${JSON.stringify(data)}),`} }).then(async r => ({status:r.status, body:await r.json()}))`;
-  const result = await js(expression);
+  return js(expression);
+}
+async function api(path, method = "GET", data, headers = {}) {
+  const result = await request(path, method, data, headers);
   assert.ok(result.status < 300, `${path}: ${JSON.stringify(result)}`);
   return result.body.data;
 }
@@ -56,6 +62,10 @@ async function api(path, method = "GET", data, headers = {}) {
 try {
   await send("Page.enable");
   await send("Page.bringToFront");
+  await send("Emulation.setDeviceMetricsOverride", {
+    mobile: true, width: 390, height: 844, deviceScaleFactor: 2,
+  });
+  await send("Network.enable", { maxPostDataSize: 0 });
   await navigate("/login");
   await login("demo_a_teacher");
   const materialTitle = '实验记录 <group-a> & "复测"';
@@ -77,6 +87,11 @@ try {
   await api("/api/v1/auth/sessions/current", "DELETE");
   await navigate("/login");
   await login("demo_a_student");
+  const sessionPath = "/api/v1/auth/sessions/current";
+  const studentSession = await request(sessionPath);
+  assert.equal(studentSession.status, 200);
+  assert.equal(studentSession.body.data.role, "student");
+  assert.equal(await js("isSecureContext && innerWidth === 390"), true);
 
   // SR-F08 防御性对照：资料标题由 JSON 传递，并在列表和详情中显示为纯文本。
   const materialPath = `/materials/${material.id}`;
@@ -116,8 +131,19 @@ try {
   await wait(() => js('location.pathname.startsWith("/quizzes/") && document.getElementById("notice")?.textContent === "已加载。" && !!document.querySelector("#quiz-items input[type=radio]:checked")'));
   const draft = await api(`/api/v1/quizzes/${quiz.id}/draft`);
   assert.deepEqual(Object.values(draft.answers), ["A"]);
+  let submissionStatus;
+  const submissionUrl = origin + `/api/v1/quizzes/${quiz.id}/submissions`;
+  function observeSubmission({ data }) {
+    const message = JSON.parse(data);
+    if (message.method === "Network.responseReceived" && message.params.response.url === submissionUrl) {
+      submissionStatus = message.params.response.status;
+      socket.removeEventListener("message", observeSubmission);
+    }
+  }
+  socket.addEventListener("message", observeSubmission);
   await js('document.querySelectorAll("#quiz-items input[type=radio]")[1].click(); document.getElementById("submit-quiz").click()');
   await wait(() => js('document.getElementById("notice")?.textContent === "正式提交成功。"'));
+  assert.equal(await wait(async () => submissionStatus), 201);
   assert.equal(await js('document.getElementById("submit-quiz").disabled'), true, "正式提交后按钮应保持禁用");
   assert.equal(await js('document.getElementById("save-draft").disabled'), true, "正式提交后草稿应只读");
   await navigate("/mistakes");
@@ -130,6 +156,50 @@ try {
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 1 / 1")'), true);
   console.log("TEACHING_BROWSER_OK: 草稿恢复、正式提交、答案门控和看板统计");
+
+  // L10-F07：在同一浏览器里比较合法来源、未登记来源及两个班的可见数据。
+  const materialApi = `/api/v1/materials/${material.id}`;
+  assert.equal((await api(materialApi)).id, material.id);
+  const other = createServer((_request, response) => {
+    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    response.end("<!doctype html><title>合成 H5 来源</title>");
+  });
+  other.listen(0, "127.0.0.1");
+  try {
+    await once(other, "listening");
+    const otherOrigin = `http://127.0.0.1:${other.address().port}`;
+    await send("Page.navigate", { url: otherOrigin });
+    await wait(() => js(`location.origin === ${JSON.stringify(otherOrigin)}`));
+    for (const [path, method] of [[materialApi, "GET"], [sessionPath, "DELETE"]]) {
+      const result = await js(`fetch(${JSON.stringify(origin + path)}, {
+        method: ${JSON.stringify(method)}, credentials: "include"
+      }).then(() => "readable", error => error.name)`);
+      assert.equal(result, "TypeError", `未登记来源应拒绝 ${method}`);
+    }
+  } finally {
+    other.closeAllConnections();
+    await new Promise(resolve => other.close(resolve));
+  }
+  await navigate("/materials");
+  await wait(() => js(`location.origin === ${JSON.stringify(origin)} && location.pathname === "/materials"`));
+  assert.equal((await api(sessionPath)).role, "teacher");
+  await api(sessionPath, "DELETE");
+  await navigate("/login");
+  await login("demo_b_teacher");
+  assert.notEqual((await api(sessionPath)).class_id, studentSession.body.data.class_id);
+  const own = await api("/api/v1/materials", "POST", {
+    title: "B 班合成讲义", text: "B 班合成内容",
+  }, {"Idempotency-Key": "h5-class-b-material"});
+  assert.equal((await api(`/api/v1/materials/${own.id}`)).id, own.id);
+  const absent = await request(`/api/v1/materials/${randomUUID()}`);
+  const denied = await request(materialApi);
+  assert.equal(absent.status, 404);
+  assert.equal(denied.status, 404);
+  assert.equal(denied.body.code, 1300);
+  delete absent.body.request_id;
+  delete denied.body.request_id;
+  assert.deepEqual(denied.body, absent.body);
+  console.log("H5_BROWSER_CONTRACT_OK: 390px HTTPS, login=200, quiz=201, cross-origin=blocked, cross-class=404/1300");
 } finally {
   socket.close();
 }

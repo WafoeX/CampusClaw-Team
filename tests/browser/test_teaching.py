@@ -17,3 +17,4 @@ def test_SB_B02_browser_draft_survives_relogin():
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "TEACHING_BROWSER_RUNTIME_OK" in result.stdout
+    assert "H5_BROWSER_CONTRACT_OK" in result.stdout

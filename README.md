@@ -248,6 +248,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。主干将两项设为必需检查的配置及实际拦截仍待核验。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
+运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、测验交卷 `201`、来源限制和换班讲义隔离。测试使用合成账号并清理临时容器和数据卷。真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
+
 两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 
 应用和 MCP 运行镜像复制构建阶段生成的 Python 3.13 字节码及必要模板，保留现有启动、迁移与管理命令。候选构建会逐层检查项目源码和构建工具，避免文件从镜像的旧层恢复。运行口令仍从环境注入。

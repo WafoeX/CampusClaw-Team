@@ -153,3 +153,25 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 本机执行 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery`。首轮 1 项失败、118.76 秒，原因是夹具误把错题列表视为单元素集合，未作答题也会进入列表。改按目标题目 ID 断言，复跑 1 项通过、148.88 秒，退出 0。静态门禁及 OpenSpec 严格校验通过。[验收矩阵](../../reports/acceptance-matrix.md)
 
 教师改分优先仍缺改分入口和可释放的迟到评分结果。现有错题回顾提供开放后的发布快照，通用解题引导支持用户输入错误思路。独立错题讲解的交互及课程等价仍待确认。1.2 保持未完成，完整技能走查由最终验收继续。新增断言限于请求、持久结果、隔离和失败边界，性能、迁移和真实模型效果沿各自验收项取证。代码待人工评审。
+
+## 2026-11-17 H5 回归与试用准备（4.3 部分）
+
+以主干 `efac0c2` 及本次测试增量为候选，复用真实 Chromium、容器内 HTTPS、一次性 MySQL 和 A/B 两班合成数据。浏览器以 390 × 844 CSS 像素运行，`APP_PUBLIC_ORIGIN` 设置为隔离应用的 HTTPS 来源。未登记来源由同一浏览器测试容器中的临时本机页面提供。服务端采用既有精确来源校验，浏览器按现有 CORS 响应执行来源隔离。
+
+| 场景 | 实际结果 |
+| --- | --- |
+| L10-N07 已实现部分 | Chromium 验证 HTTPS 登录后同源会话返回 200、测验提交响应 201、换班后外班讲义 404/1300。Kafka 集成确认候选题受理返回 202 与任务地址，并观察到 `pending → running → succeeded`。安全预检集成通过请求 ID 核对技能执行的操作者、时间、请求 ID、技能 ID、结果、token 和耗时。 |
+| L10-F07 | 可信来源可读取本班讲义。未登记来源的跨源读取与注销均被 Chromium 拦截，回到可信来源时原会话仍有效。已认证请求的错误来源由安全预检另行断言为 403/1200。B 班自有讲义读取成功，A 班讲义与不存在讲义均返回 404/1300，除请求 ID 外业务响应一致。 |
+| L10-F08 | [试用反馈](../../reports/feedback.md)已准备记录结构。真实试用 0 名，最终验收 4.5 负责收集及处置。 |
+
+| 命令 | 实际结果 |
+| --- | --- |
+| `uv run --locked python -m tests.browser.run_teaching` | 首轮退出 0，保留草稿恢复、交卷、答案门控、讲义纯文本和看板断言。将交卷断言临时改为 202 后，浏览器读到 201，命令退出 1。恢复后由下行入口复验。 |
+| `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` | 恢复后退出 0，1 项通过，22.94 秒。 |
+| `uv run --locked python scripts/check_pytest.py -q --disable-socket tests/api/test_sessions.py -k valid_session_wrong_origin` | 退出 0，1 项通过。 |
+| `uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/integration/test_compose.py -k 'real_kafka or security_precheck'` | 退出 0，2 项通过，105.42 秒。使用隔离 MySQL、Kafka 和固定模型替身，分别核对候选题状态与技能审计。 |
+| `make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` | 退出 0，12 项 OpenSpec 严格校验全过，目标规格、格式、分层和可执行映射通过。 |
+
+按 OpenSpec 实施流程、`project-add-tests` 和 `project-review` 核对规约、现有浏览器和集成测试、测试规范、安全开发与评审规范。接口检查覆盖同源写入、状态码、会话与班级资源边界。业务及数据库检查复用真实 MySQL 的草稿、评分副作用和 Kafka 任务对照。公共函数核对浏览器请求共用响应解析；错误处理核对同构的 404；安全核查覆盖浏览器来源隔离、不记录认证凭据和已认证的错误来源拒绝。未修改生产路径及数据结构，性能与迁移验证不适用。试用报告只跟踪指定 Markdown，原始报告仍由忽略规则覆盖。代码与跟踪规则待同伴人工评审。
+
+现有测验交卷与候选题生成是两个业务入口，技能审计也来自独立执行。作业 202、同一 H5 作业的三态和七列审计关联，以及课程登录口径仍待确认，因此 4.3 保持未完成。手机人工走查和三人试用由最终验收执行。

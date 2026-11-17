@@ -744,6 +744,40 @@ assert (
     == 0
 )
 
+# 0015 索引在已有结果的数据上扩展、降级再重升，核对行值和应用查询。
+query_index = "ix_quizzes_class_created_id"
+assert query_index in {item["name"] for item in inspect(engine).get_indexes("quizzes")}
+with engine.connect() as connection:
+    existing_results = connection.execute(
+        select(quiz_results.c.submission_id, quiz_results.c.score).order_by(
+            quiz_results.c.submission_id
+        )
+    ).all()
+assert existing_results
+existing_list = request(teacher, "GET", "/api/v1/quizzes").json["data"]
+config = migration_config()
+with engine.connect() as connection:
+    config.attributes["connection"] = connection
+    command.downgrade(config, "0014_csrf_tokens")
+    connection.commit()
+assert query_index not in {
+    item["name"] for item in inspect(engine).get_indexes("quizzes")
+}
+assert request(teacher, "GET", "/api/v1/quizzes").json["data"] == existing_list
+migrate(engine)
+migrate(engine)
+assert query_index in {item["name"] for item in inspect(engine).get_indexes("quizzes")}
+assert request(teacher, "GET", "/api/v1/quizzes").json["data"] == existing_list
+with engine.connect() as connection:
+    assert (
+        connection.execute(
+            select(quiz_results.c.submission_id, quiz_results.c.score).order_by(
+                quiz_results.c.submission_id
+            )
+        ).all()
+        == existing_results
+    )
+
 # 合成库物理回退只移除本组结构，保留上游账号，再重升到 head。
 with engine.connect() as connection:
     account_count = connection.scalar(select(func.count()).select_from(accounts))

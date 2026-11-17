@@ -288,6 +288,14 @@ if phase == "setup":
         assert opened.status_code == 200
         source = opened.json["data"]
         assert source["source_text"][item["start"] : item["end"]] == item["text"]
+        # L10-F02：同一检索链路先用各班仅有的资料校验正向可用，再核对 A 对 B 隔离。
+        own_b = search("紫铜螺旋仪", mode=mode, client=outsider)
+        assert own_b.status_code == 200 and own_b.json["code"] == 0
+        assert len(own_b.json["data"]["items"]) == 1
+        assert "紫铜螺旋仪" in own_b.json["data"]["items"][0]["text"]
+        hidden_a = search("蓝鲸", mode=mode, client=outsider)
+        assert hidden_a.status_code == 200 and hidden_a.json["code"] == 0
+        assert hidden_a.json["data"] == {"mode": mode, "items": []}
     sql_queries = []
 
     def capture_keyword(_connection, _cursor, statement, _parameters, context, _many):

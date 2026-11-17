@@ -101,7 +101,7 @@ def test_RT_B04_local_wsgi_process_reaches_probes_and_drains(
                     pytest.fail(f"WSGI 提前退出，退出码 {proc.returncode}")
                 time.sleep(0.1)
             else:
-                assert code == 200 and live["status"] == "alive"
+                assert code == 201 and live["status"] == "alive"
                 break
         else:
             pytest.fail("WSGI 进程未监听")

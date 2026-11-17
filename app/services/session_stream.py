@@ -329,7 +329,13 @@ class SessionStreamService:
             },
             request_id=request_id,
             validate_final=validate_final,
-            on_abort=lambda: self.sessions.abort(identity, ticket, code=failure[0]),
+            on_abort=lambda stream_code: self.sessions.abort(
+                identity,
+                ticket,
+                code=failure[0],
+                request_id=request_id,
+                failed=stream_code in (1500, 1501),
+            ),
             prepare_metadata=(
                 (lambda context: {"tools": tool_runner.run(context)})
                 if tool_runner

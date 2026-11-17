@@ -409,7 +409,7 @@ def load_worker():
                 recheck=recheck,
                 commit=commit,
                 validate_final=validate_final,
-                on_abort=lambda: aborted.append(identifier),
+                on_abort=lambda _code: aborted.append(identifier),
                 metadata={"run_id": identifier, "citations": [1]},
                 request_id=g.request_id,
             )

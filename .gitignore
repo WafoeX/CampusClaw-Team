@@ -47,6 +47,7 @@ htmlcov/
 !/reports/security-self-review-browser.md
 !/reports/gate-red-green.md
 !/reports/delivery-runtime.md
+!/reports/acceptance-matrix.md
 !/reports/risk-authz.md
 !/reports/risk-concurrency.md
 !/reports/risk-transaction.md

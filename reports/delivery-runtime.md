@@ -31,3 +31,36 @@
 | MCP | `campusclaw-mcp:eb740998083c2c9186d3452404d6493a20aa92ec` | `sha256:3a1c8511db6d53c3dff9304489d2f5c0f90729e73a8141a6f22389f0fe46c4a5` |
 
 两个容器的镜像 ID 与构建结果一致。`/live` 和 `/health` 通过，`/health` 报告运行版本为 `eb740998083c2c9186d3452404d6493a20aa92ec`，MySQL 和 Qdrant 均为 `ready`。此次 CI 未出现限流重试，重试行为由断网用例验证。此组为流水线编排及成品验证，数据库结构与索引无改动，扩迁和物理回退不适用。[构建实测](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43860255221/job/133277811400)
+
+## 2026-11-17 运行镜像源码剥离（3.1 部分）
+
+以 `bf854f9` 加运行镜像改动为构建输入，用随机测试标识 `d33db579107ef3b2b95a0c46b46dd62c38f04244` 构建隔离镜像。应用归档 5 层、MCP 归档 4 层，逐层扫描确认无项目 `.py` 和受检工具路径，两个字节码入口均存在。应用和 MCP 容器采用刚构建的镜像，`/live`、`/health` 的 GET 和 HEAD 均为 200，`/health` 版本和测试标识一致。正常运行后回收容器、网络和卷。
+
+`uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_build_candidate.py` 7 项通过，包含早期层写入源码、uv 或 ensurepip 后在后一层隐藏时仍失败的对照。扫描检查 Docker 导出归档而非容器合并视图。固定安全门禁另行检查同一候选资产中的凭据和依赖漏洞。
+
+本地真实集成 8 项通过，311.93 秒，覆盖字节码镜像中的 0001–0014 迁移和旧库回退重升、MCP 与 Kafka。PR #41 的干净检出候选 `80e8f8cabfd3b8713c955fb660024936ba09fc3a` 两项门禁和构建作业均通过。应用镜像摘要为 `sha256:425d8a46c87a685e2743ee0265ff59c3f37749cf2e975d25361812bfac290c7f`，MCP 为 `sha256:b9e0a9e29ff6f217ae388a05452e417face3c8fa4444fefb3065ffd0102f9a66`。构建作业再次检查应用 5 层和 MCP 4 层，`/live`、`/health` 均为 200，运行版本与候选一致。[CI 构建日志](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43914670990/job/133470099552)
+
+## 2026-11-17 Compose 就绪与依赖故障（3.1 部分）
+
+以 `05e4926` 加 Compose 改动执行 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery`。Compose 等待 MySQL 健康才启动应用，Qdrant 保留启动依赖和运行降级契约。应用容器探针使用 `/health`，`/live` 单独确认进程还在服务。
+
+| 场景 | 隔离环境实测 |
+| --- | --- |
+| 冷启动 | MySQL 容器健康后启动应用，`/live`、`/health` 返回 200，运行版本和两项依赖状态通过核对。 |
+| 运行镜像缺配置 | 将一次性应用容器的 `MYSQL_PASSWORD` 留空，进程退出 1，结构化诊断定位该配置键。 |
+| MySQL 停止和恢复 | `/health` 返回 503、`/live` 返回 200，容器由 `healthy` 变为 `unhealthy`。恢复 MySQL 后 `/health` 为 200，容器重新 `healthy`。 |
+| Qdrant 停止 | `/health` 返回 200 和 `degraded`，确定性教学流程继续通过。 |
+
+首轮上述就绪与恢复断言已执行，后续已有 SSE 取消用例在终态前断开，测试退出 1。保持同一 Compose 和断言复跑，1 项通过、171.30 秒。原始结果保留在本机临时日志。入口运行中按就绪状态撤流仍需独立实证，3.1 保持待验收。
+
+## 2026-11-17 HTTPS 入口撤流与恢复（3.1）
+
+以 `8dcd9f0` 的运行制品为基线，在隔离 MySQL、Gunicorn 和仓库锁定的真实 NGINX 容器中执行 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery`。网关后台独立探测 `/health`，请求仅检查本地就绪标记。
+
+| 检查 | HTTPS 实际结果 |
+| --- | --- |
+| 正常启动 | `/health` 为 `ready`，登录页返回 `200` 并带有应用的 `X-Request-ID`。 |
+| 停止 MySQL | `/health` 返回 `503`，`/live` 返回 `200`。网关临时撤流，登录页返回 `503`，响应没有应用的 `X-Request-ID`。 |
+| 恢复 MySQL | `/health` 回到 `ready`，登录页重新返回 `200` 并恢复应用请求标识。 |
+
+首轮夹具在已挂载的只读目录内再挂载脚本，容器启动退出 `125`。修正为复制脚本至已有夹具目录。临时克隆保留旧 NGINX 配置时，新断言在登录页撤流处失败，退出 `1`，137.21 秒。当前网关配置通过全部冷启动、撤流、恢复及后续 SSE 回归，退出 `0`，1 项通过、147.99 秒。Compose 演示配置语法校验通过。原始日志仅保存在本机临时目录。

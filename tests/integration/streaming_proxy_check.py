@@ -59,6 +59,9 @@ def verify_streaming_proxy(compose, folder):
     (folder / "nginx.conf").write_text(
         (ROOT / "deploy/nginx.conf").read_text().replace("app:8080", "app:8081")
     )
+    (folder / "gateway-entrypoint.sh").write_bytes(
+        (ROOT / "deploy/gateway-entrypoint.sh").read_bytes()
+    )
     context = ssl.create_default_context(cafile=str(folder / "tls/localhost.crt"))
     worker_file = Path(__file__).with_name("streaming_probe_worker.py")
     compose(
@@ -108,10 +111,10 @@ def verify_streaming_proxy(compose, folder):
                 "--security-opt",
                 "no-new-privileges:true",
                 "--entrypoint",
-                "nginx",
+                "/bin/sh",
                 NGINX,
-                "-g",
-                "daemon off;",
+                "/etc/campusclaw/gateway-entrypoint.sh",
+                "http://app:8081/health",
             ],
             check=True,
             capture_output=True,
@@ -224,6 +227,29 @@ def verify_streaming_proxy(compose, folder):
             raise AssertionError("流式夹具未在时限内达到预期")
 
         eventually(lambda: json_request("GET", "/health")[1].get("status") == "ready")
+
+        def login_page():
+            connection, response = request("GET", "/login", write_headers=False)
+            try:
+                response.read()
+                return response.status, response.getheader("X-Request-ID")
+            finally:
+                connection.close()
+
+        # L10-F04：使用无需访问数据库的登录页区分网关撤流与业务失败。
+        eventually(lambda: login_page()[0] == 200)
+        assert login_page()[1]
+        compose("stop", "mysql")
+        try:
+            eventually(lambda: json_request("GET", "/health")[0] == 503)
+            assert json_request("GET", "/live")[0] == 200
+            eventually(lambda: login_page() == (503, None))
+        finally:
+            compose("start", "mysql")
+        eventually(lambda: json_request("GET", "/health")[1].get("status") == "ready")
+        eventually(lambda: login_page()[0] == 200)
+        assert login_page()[1]
+
         cookies = []
         for index in range(20):
             status, body, _, headers = json_request(

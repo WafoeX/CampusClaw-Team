@@ -7,17 +7,49 @@ import re
 import secrets
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 from pathlib import Path
 
 from scripts.verify_runtime import ROOT, VerificationError, inspect_probes
 
+PROJECT_CODE = ("srv/campusclaw/app/", "srv/campusclaw/mcp-server/")
+BUILD_TOOL = re.compile(
+    r"usr/(?:local/)?bin/(?:uvx?|pip(?:3(?:\.\d+)?)?|gcc|g\+\+|cc|make)"
+)
+PACKAGING_MODULES = (
+    "usr/local/lib/python3.13/ensurepip/",
+    "usr/local/lib/python3.13/site-packages/pip/",
+    "srv/campusclaw/.venv/lib/python3.13/site-packages/pip/",
+)
+
 
 def run(*args, env, timeout=60, stderr=None):
     return subprocess.check_output(
         args, cwd=ROOT, env=env, text=True, timeout=timeout, stderr=stderr
     ).strip()
+
+
+def inspect_runtime_layers(archive_path, entrypoint):
+    found = False
+    with tarfile.open(archive_path) as archive:
+        manifest = json.load(archive.extractfile("manifest.json"))
+        (image,) = manifest
+        for layer in image["Layers"]:
+            with tarfile.open(fileobj=archive.extractfile(layer), mode="r|*") as files:
+                for member in files:
+                    path = member.name.removeprefix("./").lstrip("/")
+                    if (
+                        (path.startswith(PROJECT_CODE) and path.endswith(".py"))
+                        or BUILD_TOOL.fullmatch(path)
+                        or path.startswith(PACKAGING_MODULES)
+                    ):
+                        raise VerificationError(f"镜像层含有不应交付的文件：{path}")
+                    found |= path == entrypoint and member.isfile()
+    if not found:
+        raise VerificationError(f"镜像缺少可运行的字节码入口：{entrypoint}")
+    return len(image["Layers"])
 
 
 def build_image(target, repository, revision, metadata_path, env):
@@ -49,7 +81,15 @@ def build_image(target, repository, revision, metadata_path, env):
         or tag not in image["RepoTags"]
     ):
         raise VerificationError("构建摘要、镜像标签和源码修订不一致")
-    return {"tag": tag, "digest": digest, "id": image["Id"]}
+    archive = metadata_path.with_suffix(".tar")
+    run("docker", "image", "save", "--output", str(archive), tag, env=env, timeout=180)
+    entrypoint = (
+        "srv/campusclaw/app/__main__.pyc"
+        if target == "app"
+        else "srv/campusclaw/mcp-server/teaching_server.pyc"
+    )
+    layers = inspect_runtime_layers(archive, entrypoint)
+    return {"tag": tag, "digest": digest, "id": image["Id"], "layers_checked": layers}
 
 
 def pull_dependency(compose, service):

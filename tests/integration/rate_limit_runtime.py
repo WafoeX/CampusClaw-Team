@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import event, inspect, select
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -16,7 +15,7 @@ from app import create_app
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import mysql_engine
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.rate_limit_repository import RateLimitRepository
 from app.adapters.rate_limit_schema_v3 import request_limits
 from app.config import Settings
@@ -179,8 +178,7 @@ assert login(clients[1]).status_code == 401
 AuthRepository(engine).seed_demo_accounts("synthetic-unused-password-hash")
 with engine.connect() as connection:
     before = connection.execute(select(accounts).order_by(accounts.c.id)).all()
-config = Config()
-config.set_main_option("script_location", str(Path("app/adapters/migrations")))
+config = migration_config()
 with engine.begin() as connection:
     config.attributes["connection"] = connection
     command.downgrade(config, "0002_materials")

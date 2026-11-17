@@ -11,7 +11,6 @@ from time import monotonic
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import event, func, insert, inspect, select, update
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
@@ -20,7 +19,7 @@ from app import create_app
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import DatabaseError, mysql_engine
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import (
     quiz_items,
@@ -748,10 +747,7 @@ assert (
 # 合成库物理回退只移除本组结构，保留上游账号，再重升到 head。
 with engine.connect() as connection:
     account_count = connection.scalar(select(func.count()).select_from(accounts))
-config = Config()
-config.set_main_option(
-    "script_location", str(Path("app/adapters/migrations").resolve())
-)
+config = migration_config()
 with engine.connect() as connection:
     config.attributes["connection"] = connection
     command.downgrade(config, "0009_app_configuration")

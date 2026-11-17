@@ -2,18 +2,16 @@
 
 import os
 from datetime import datetime, timedelta
-from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import insert, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.adapters.assistant_schema_v8 import accounts
 from app.adapters.auth_schema_v1 import classes
 from app.adapters.database import mysql_engine
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.tool_audit import append_tool_result, cleanup_tool_audit
 from app.adapters.tool_schema_v11 import (
     TABLES,
@@ -213,10 +211,7 @@ with engine.begin() as connection:
         == []
     )
 
-config = Config()
-config.set_main_option(
-    "script_location", str(Path("app/adapters/migrations").resolve())
-)
+config = migration_config()
 with engine.connect() as connection:
     config.attributes["connection"] = connection
     command.downgrade(config, "0010_teaching_core")

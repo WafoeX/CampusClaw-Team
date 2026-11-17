@@ -86,6 +86,7 @@ uv run --locked pytest -q tests/browser
 - 入口：[本机登录](https://localhost:8443/login)，账号 `demo_a_teacher`、`demo_a_student`、`demo_b_teacher`、`demo_b_student`。共用演示口令只保存在 `.env` 的 `CAMPUSCLAW_SEED_PASSWORD`，聊天及文档不输出值。
 - `DEMO_UID`、`DEMO_GID` 自动取本机身份，用于非 root 网关读取本机证书。私钥保存在忽略目录 `runtime/tls/` 且权限 600；自签证书有效 30 天，浏览器首次会提示本机证书未受信任，脚本不会修改系统信任库。证书到期后停止网关并移走这两份演示证书，再运行脚本生成。
 - 真实校验：`curl --cacert runtime/tls/localhost.crt https://localhost:8443/health`。只映射应用及 HTTPS 的回环端口；MySQL/Qdrant 不向宿主机映射端口。该覆盖仅用于本机展示，公网发布另走发布流程。
+- 网关后台每秒检查应用就绪，业务请求只读取本地就绪标记。MySQL 不可用时，新业务请求在网关收到 `503`，恢复就绪后自动重新接流。HTTPS `/health` 与 `/live` 仍可查询，便于区分依赖故障和进程退出。
 - 停止并保留数据：`docker compose -p campusclaw-demo -f docker-compose.yml -f docker-compose.demo.yml down`。继续启动仍使用同一脚本；不要加 `-v` 删除展示数据。
 
 `RETRIEVAL_MIN_SCORE=0.449357` 来自[独立小型真实网关调参](docs/eval/2026-11-06-retrieval-calibration.md)，每路召回20、输出最多8、RRF k=60。问答只发送当前问题和最多12000码点证据，空命中零对话调用，不保存会话。依赖失败与合法空结果分别显示；数值/单位或引用校验失败拒绝输出，来源在生成期间变化返回409。请求模型为课程指定标识；嵌入响应未提供模型版本，提供方不可变版本及实际教学语义质量仍待上线/最终验收核对。[工程评测](docs/eval/2026-11-07-retrieval-engineering.md)与[本次交付证据](docs/changes/2026-11-04-add-traceable-retrieval.md)区分替身、真实网关和人工未执行项。
@@ -219,7 +220,7 @@ uv run --locked pytest -q tests/browser
 1. 从干净克隆检出全组约定的同一源码提交，记录 `git rev-parse HEAD`；不要将未提交的源码改动与该提交号混用。在含骨架代码的提交上将 `.env.example` 复制为 `.env`，填写本机私有的 MySQL 库名、应用账号、应用口令、管理口令和 Qdrant 密钥。应用账号使用普通账号，管理口令只供 MySQL 容器使用。应用宿主端口默认 `8000`，如被占用可填写 `APP_HOST_PORT`。Compose 注入容器内地址 `mysql:3306` 和 `http://qdrant:6333`。
 2. 确认工作区对应要验证的源码提交，执行 `export APP_BUILD_REVISION=$(git rev-parse HEAD)`，再运行 `docker compose up --build -d`。镜像写入该版本；应用缺少必需配置时在监听前退出。
 3. 执行 `curl -fsS http://127.0.0.1:8000/health`，使用自定义端口时替换端口。确认返回版本和 MySQL 状态。仅 Qdrant 不可用时为 200 且 `status=degraded`，MySQL 不可用时为 503。独立的 `/live` 用于确认进程仍可响应。
-   `docker compose up` 返回成功或容器显示 healthy 只说明进程启动/存活。依赖初始化期间允许 `/health` 暂为 503，应等待并确认版本匹配且 `status=ready`、两项依赖均为 `ready`；`degraded` 表示向量依赖不可用，不能作为两项依赖均正常的冷启动验收。
+   Compose 等待 MySQL 健康和 Qdrant 容器启动，再启动应用。应用容器用 `/health` 报告健康状态，`/live` 用于独立检查进程。`docker compose up -d` 返回后，仍须确认运行版本匹配且两个依赖均为 `ready`。Qdrant 不可用时允许 `degraded`，可继续使用确定性教学功能。
 4. 执行 `docker compose logs app` 查看单行 JSON 请求标识日志，使用 `docker compose down` 停止当前项目并保留本机卷。
 
 ### 成员冷启动记录
@@ -248,6 +249,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。主干将两项设为必需检查的配置及实际拦截仍待核验。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
 两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
+
+应用和 MCP 运行镜像复制构建阶段生成的 Python 3.13 字节码及必要模板，保留现有启动、迁移与管理命令。候选构建会逐层检查项目源码和构建工具，避免文件从镜像的旧层恢复。运行口令仍从环境注入。
 
 ## 小组协作与增量流程
 

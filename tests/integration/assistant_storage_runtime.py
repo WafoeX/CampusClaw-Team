@@ -9,7 +9,6 @@ from threading import Barrier
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import event, insert, inspect, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -37,7 +36,7 @@ from app.adapters.chapter_schema_v4 import chapters
 from app.adapters.database import mysql_engine
 from app.adapters.material_repository import MaterialRepository
 from app.adapters.material_schema_v2 import bodies, deletions, materials
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.config import Settings
 
 engine = mysql_engine(
@@ -48,8 +47,7 @@ engine = mysql_engine(
     password=os.environ["MYSQL_PASSWORD"],
 )
 assert engine.url.database.startswith("campusclaw_test_")
-config = Config()
-config.set_main_option("script_location", str(Path("app/adapters/migrations")))
+config = migration_config()
 now = datetime.now(UTC).replace(tzinfo=None)
 expires = now + timedelta(days=30)
 

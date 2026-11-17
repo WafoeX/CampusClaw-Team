@@ -9,7 +9,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from configuration_client import configuration_headers
 from session_proxy_worker import install
 from sqlalchemy import event, insert, inspect, select, update
@@ -31,7 +30,7 @@ from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.csrf_schema_v14 import csrf_tokens
 from app.adapters.database import mysql_engine
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.teaching_schema_v10 import quiz_results, quiz_submissions
 from app.adapters.teaching_schema_v12 import jobs, outbox
@@ -556,10 +555,7 @@ assert cleanup.cleanup_expired(future)["operation_audit_expired"] == len(audit_b
 assert cleanup.cleanup_expired(future)["operation_audit_expired"] == 0
 
 prior_accounts = snapshot(accounts)
-config = Config()
-config.set_main_option(
-    "script_location", str(Path("app/adapters/migrations").resolve())
-)
+config = migration_config()
 with engine.connect() as connection:
     config.attributes["connection"] = connection
     command.downgrade(config, "0013_operation_audit")

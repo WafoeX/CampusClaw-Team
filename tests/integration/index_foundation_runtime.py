@@ -2,11 +2,9 @@
 
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import event, insert, inspect, select, text
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -16,7 +14,7 @@ from app.adapters.chapter_schema_v4 import materials as old_materials
 from app.adapters.database import mysql_engine
 from app.adapters.index_schema_v5 import builds, chunks, cleanups, materials
 from app.adapters.material_schema_v2 import bodies
-from app.adapters.migrations.runner import migrate
+from app.adapters.migrations.runner import migrate, migration_config
 from app.services.chunking import ChunkConfig, split_source
 from app.services.index_scope import IndexScope
 
@@ -28,8 +26,7 @@ engine = mysql_engine(
     password=os.environ["MYSQL_PASSWORD"],
 )
 assert engine.url.database.startswith("campusclaw_test_")
-config = Config()
-config.set_main_option("script_location", str(Path("app/adapters/migrations")))
+config = migration_config()
 
 
 def down_to_chapters():

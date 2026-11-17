@@ -519,6 +519,15 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     port = int(compose("port", "app", "8080").rsplit(":", 1)[1])
     observed = inspect_probes(port, version)
     assert set(observed) == {"/health", "/live"}
+
+    # L10-F04：成品缺运行配置时，应用进程在监听前以非零退出。
+    with pytest.raises(subprocess.CalledProcessError) as missing_config:
+        compose("run", "--rm", "--no-deps", "-e", "MYSQL_PASSWORD=", "app")
+    assert missing_config.value.returncode == 1
+    invalid = json.loads(missing_config.value.stdout)
+    assert invalid["invalid_key"] == "MYSQL_PASSWORD"
+    assert invalid["level"] == "ERROR"
+
     verify_auth_migration(compose)
     verify_chapter_migration(compose)
     verify_chapter_api(compose)
@@ -534,8 +543,19 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     code, unready, _ = status("not_ready")
     assert code == 503 and request("/live")[0] == 200
     assert unready["dependencies"] == {"mysql": "unavailable", "qdrant": "ready"}
+    eventually(
+        lambda: (
+            json.loads(compose("ps", "--format", "json", "app"))["Health"]
+            == "unhealthy"
+        )
+    )
     compose("start", "mysql")
     assert status("ready")[0] == 200
+    eventually(
+        lambda: (
+            json.loads(compose("ps", "--format", "json", "app"))["Health"] == "healthy"
+        )
+    )
 
     compose("stop", "qdrant")
     code, degraded, _ = status("degraded")

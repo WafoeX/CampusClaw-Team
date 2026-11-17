@@ -7,13 +7,20 @@ from alembic.util import CommandError
 from sqlalchemy import func, select
 
 
+def migration_config():
+    config = Config()
+    config.set_main_option("script_location", str(Path(__file__).parent))
+    if Path(__file__).suffix == ".pyc":
+        config.set_main_option("sourceless", "true")
+    return config
+
+
 def migrate(engine, *, downgrade=False):
     database = engine.url.database
     if downgrade and not database.startswith("campusclaw_test_"):
         raise ValueError("只允许在隔离测试库执行数据库降级")
     lock_name = sha256(f"campusclaw-migrations:{database}".encode()).hexdigest()
-    config = Config()
-    config.set_main_option("script_location", str(Path(__file__).parent))
+    config = migration_config()
     with engine.connect() as connection:
         acquired = connection.scalar(select(func.get_lock(lock_name, 4)))
         if acquired != 1:

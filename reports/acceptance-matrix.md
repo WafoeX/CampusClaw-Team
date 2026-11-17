@@ -26,6 +26,7 @@
 | 实现组可运行 | `uv run --locked python -m scripts.evaluate_controlled_tools`，按证据说明启用私有课程模型配置 | 真实网关提议、本机 MCP 一次调用及审核提示 | 2026-11-11，基于 `7d581d5` 的 MCP 候选退出 0，单样本烟测。当前基线未重跑。[MCP 评测](../docs/eval/2026-11-11-controlled-tools.md) | MCP 实施人 |
 | 课程专项 | `uv run --locked python scripts/calibrate_retrieval.py` 和 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k cold_start_and_recovery` | 调参与固定 34 题工程用例分离，比较三模式与拒答 | 2026-11-06 调参退出 0。2026-11-07 基于 `e18c193` 的检索候选记录固定 34 题工程结果。冻结题集和人工裁决待最终验收 2.4。[调参](../docs/eval/2026-11-06-retrieval-calibration.md) · [工程评测](../docs/eval/2026-11-07-retrieval-engineering.md) | 资料与检索实施人 |
 | 课程专项 | 临时分支执行 `make check CHANGE=2026-11-04-define-lesson-10-acceptance`，查对应 PR 两轮 CI | 反例时构建及合入阻断，恢复后二者转绿 | 2026-11-17，`e0bfdb4` 的 PR 合并候选退出 2，`67ca589` 的候选双门禁与构建成功。[红绿记录](gate-red-green.md) | 实施人 |
+| 课程专项 | 按报告设置 `CAMPUSCLAW_BENCH_*`，运行 `uv run --locked python scripts/check_pytest.py -q -s tests/bench/test_teaching_bench.py` | 同口径对照提交、查询、检索、候选受理及完成，核对分页优化 | 2026-11-17，`96a7eee`、`7a2f6f9` 两轮各 1 项通过，达到预登记判据。[压测取证](bench.md) | 性能实施人 |
 | 课程专项 | `uv run --locked python scripts/check_security_control.py reports/security-control-source` | 受检资产出现检测标记时非零，恢复后零退出 | 2026-11-15，合并候选 `996ac8a` 红轮退出 2、绿轮退出 0。[资产对照](gate-red-green.md) | 安全负责人 |
 | 正式人工评测 | 干净检出、按 README 启动，再执行 `uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/cold-start-member-a.json` | 三名成员独立核对版本、依赖与双探针 | 成员独立记录未执行。工具使用及过往证据见[骨架验收](../docs/lesson-07/acceptance.md)。 | 复验同伴 |
 | 正式人工评测 | 依最终验收 2.1–2.10、4.1–4.5 操作固定候选 | 功能、人工意图、跨设备、真实用户和反馈均有记录 | 未执行，等 5.1 冻结。[最终验收清单](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md) | 验收人、复验同伴 |
@@ -93,7 +94,7 @@
 | L10-F03 | 同一断言前后执行 `make check` 和 CI，核对合入与构建的阻断及恢复。 | 实测通过。主干必需检查只有 `make check`，双门禁准入待 2.1。实施人、仓库管理员。 |
 | L10-N04、L10-F04 | 候选构建与隔离 `cold_start_and_recovery`，核对版本、制品、配置失败和停库撤流。 | 实测通过，证据见制品运行报告。运维负责人。 |
 | L10-N05、L10-F05 | 4.1，观察分技能调用量、错误率、P95、队列和真实告警送达及恢复。 | 缺面板和通知实测，未执行。运维负责人。 |
-| L10-N06、L10-F06 | 4.2 同口径两轮，按提交、查询、检索和消费吞吐核对饱和与改进。 | 缺压测入口和对照结果，未执行。性能实施人。 |
+| L10-N06、L10-F06 | 4.2 同口径两轮，按提交、查询、检索和消费吞吐核对饱和与改进。 | 两轮有效测量通过。最初环境与夹具失败保留，未纳入对照。性能实施人。[压测取证](bench.md) |
 | L10-N07、L10-F07 | 4.3 自动化 H5 及最终验收 4.4 四步，核对同源、三态、跨班 404 与审计。 | 后端对照已有实测，H5 及作业 202 课程口径待补。教学实施人、复验同伴。 |
 | L10-F08 | 最终验收 4.5，三名实际使用者的反馈、接口与处置可查。 | 未执行。验收人。 |
 | L10-N08、L10-F09 | 5.1–5.4 和最终验收，在同一候选综合判定、独立复验、签署和返工。 | 未执行。验收人和复验同伴。 |

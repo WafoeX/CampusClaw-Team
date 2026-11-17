@@ -4,8 +4,10 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
 from dataclasses import replace
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 from uuid import uuid4
 
@@ -1553,6 +1555,130 @@ for path_name, question in (
         threading.Event().wait(0.01)
     assert service.capacity.active == 0
 session_chat.failure = None
+
+# L10-N05 数据来源：同一已登录会话分别执行三个真实绑定技能。
+learning_plan = next(
+    item
+    for item in request("a_teacher", "GET", "/api/v1/skills").json["data"]["items"]
+    if item["builtin_key"] == "learning_plan"
+)
+learning_enabled = request(
+    "a_teacher",
+    "PATCH",
+    "/api/v1/skills/" + learning_plan["id"],
+    {"revision": learning_plan["revision"], "enabled": True},
+)
+assert learning_enabled.status_code == 200
+observed_skill = request(
+    "a_teacher",
+    "POST",
+    "/api/v1/skills",
+    BUILTINS["problem_guidance"] | {"name": "合成观测技能", "conditions": ["检视"]},
+)
+assert observed_skill.status_code == 201
+skill_cases = {
+    builtin["id"]: "题目 合成原文",
+    learning_plan["id"]: "复习 合成原文",
+    observed_skill.json["data"]["id"]: "检视 合成原文",
+}
+observation_assistant = request(
+    "a_teacher",
+    "POST",
+    "/api/v1/assistants",
+    assistant_payload | {"name": "观测合成助手", "skill_ids": list(skill_cases)},
+    "observability-assistant",
+)
+assert observation_assistant.status_code == 201
+observation_session = request(
+    "session",
+    "POST",
+    "/api/v1/sessions",
+    {
+        "assistant_id": observation_assistant.json["data"]["id"],
+        "mode": "problem_guidance",
+    },
+    "observability-session",
+)
+assert observation_session.status_code == 201
+observation_path = f"/api/v1/sessions/{observation_session.json['data']['id']}/messages"
+captured = StringIO()
+expected_observations = {}
+with redirect_stdout(captured):
+    for index, (identifier, question) in enumerate(skill_cases.items()):
+        payload = {"question": question}
+        key = f"observe-{index}"
+        outcome = frames(request("session", "POST", observation_path, payload, key))
+        assert outcome[0][1]["data"]["skill"]["id"] == identifier
+        assert outcome[-1][0] == "done"
+        expected_observations[outcome[-1][1]["request_id"]] = (identifier, "succeeded")
+        repeat = frames(request("session", "POST", observation_path, payload, key))
+        assert repeat[0][1]["data"]["replayed"]
+    session_chat.failure = "invalid"
+    payload = {"question": skill_cases[builtin["id"]]}
+    failed = frames(
+        request("session", "POST", observation_path, payload, "observe-fail")
+    )
+    assert failed[-1][0] == "error" and failed[-1][1]["code"] == 1501
+    expected_observations[failed[-1][1]["request_id"]] = (builtin["id"], "failed")
+    for _ in range(100):
+        if service.capacity.active == 0:
+            break
+        threading.Event().wait(0.01)
+    assert service.capacity.active == 0
+    session_chat.failure = None
+    session_chat.pause = True
+    session_chat.entered.clear()
+    session_chat.release.clear()
+    disconnected = request(
+        "session", "POST", observation_path, payload, "observe-close"
+    )
+    try:
+        assert (
+            disconnected.status_code == 200
+            and disconnected.mimetype == "text/event-stream"
+        )
+        assert session_chat.entered.wait(3)
+    finally:
+        disconnected.close()
+        session_chat.release.set()
+        session_chat.pause = False
+    expected_observations[disconnected.headers["X-Request-ID"]] = (
+        builtin["id"],
+        "interrupted",
+    )
+for _ in range(100):
+    if service.capacity.active == 0:
+        break
+    threading.Event().wait(0.01)
+assert service.capacity.active == 0
+observations = [
+    row
+    for line in captured.getvalue().splitlines()
+    if (row := json.loads(line))["module"] == "skill_execution"
+]
+assert len(observations) == len(expected_observations)
+assert {
+    row["request_id"]: (row["skill_id"], row["status"]) for row in observations
+} == (expected_observations)
+assert all(
+    row.keys()
+    == {
+        "ts",
+        "level",
+        "module",
+        "version",
+        "request_id",
+        "skill_id",
+        "status",
+        "completed_at",
+        "duration_ms",
+    }
+    and type(row["duration_ms"]) is int
+    and row["duration_ms"] >= 0
+    for row in observations
+)
+print("L10_N05_SKILL_OBSERVATIONS_OK: skills=3 succeeded=3 failed=1 interrupted=1")
+
 # ST-B01/F04：真实召回超过4片，截取仍只在绑定材料内；检索失败在流前拒绝且无消息写入。
 boundary_text = "边界证据" * 3000
 boundary_source = request(

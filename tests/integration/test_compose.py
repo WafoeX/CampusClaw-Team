@@ -364,6 +364,19 @@ def test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck(stack):
         if row.get("module") == "http" and row.get("request_id") == audit["request_id"]
     ]
     assert len(http_rows) == 1 and http_rows[0]["status"] == 200
+    skill_rows = [row for row in logs if row.get("module") == "skill_execution"]
+    assert len(skill_rows) == 1
+    assert skill_rows[0] == {
+        "ts": skill_rows[0]["ts"],
+        "level": "INFO",
+        "module": "skill_execution",
+        "version": version,
+        "request_id": audit["request_id"],
+        "skill_id": audit["skill_id"],
+        "status": "succeeded",
+        "completed_at": audit["created_at"],
+        "duration_ms": audit["duration_ms"],
+    }
     model_rows = [row for row in logs if row.get("module") == "model"]
     assert len(model_rows) == 1 and model_rows[0]["total_tokens"] == 30
     audit["usage_linked_by_request"] = (

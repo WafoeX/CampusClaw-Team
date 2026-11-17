@@ -52,3 +52,15 @@
 | Qdrant 停止 | `/health` 返回 200 和 `degraded`，确定性教学流程继续通过。 |
 
 首轮上述就绪与恢复断言已执行，后续已有 SSE 取消用例在终态前断开，测试退出 1。保持同一 Compose 和断言复跑，1 项通过、171.30 秒。原始结果保留在本机临时日志。入口运行中按就绪状态撤流仍需独立实证，3.1 保持待验收。
+
+## 2026-11-17 HTTPS 入口撤流与恢复（3.1）
+
+以 `8dcd9f0` 的运行制品为基线，在隔离 MySQL、Gunicorn 和仓库锁定的真实 NGINX 容器中执行 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery`。网关后台独立探测 `/health`，请求仅检查本地就绪标记。
+
+| 检查 | HTTPS 实际结果 |
+| --- | --- |
+| 正常启动 | `/health` 为 `ready`，登录页返回 `200` 并带有应用的 `X-Request-ID`。 |
+| 停止 MySQL | `/health` 返回 `503`，`/live` 返回 `200`。网关临时撤流，登录页返回 `503`，响应没有应用的 `X-Request-ID`。 |
+| 恢复 MySQL | `/health` 回到 `ready`，登录页重新返回 `200` 并恢复应用请求标识。 |
+
+首轮夹具在已挂载的只读目录内再挂载脚本，容器启动退出 `125`。修正为复制脚本至已有夹具目录。临时克隆保留旧 NGINX 配置时，新断言在登录页撤流处失败，退出 `1`，137.21 秒。当前网关配置通过全部冷启动、撤流、恢复及后续 SSE 回归，退出 `0`，1 项通过、147.99 秒。Compose 演示配置语法校验通过。原始日志仅保存在本机临时目录。

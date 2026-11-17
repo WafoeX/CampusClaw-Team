@@ -86,6 +86,7 @@ uv run --locked pytest -q tests/browser
 - 入口：[本机登录](https://localhost:8443/login)，账号 `demo_a_teacher`、`demo_a_student`、`demo_b_teacher`、`demo_b_student`。共用演示口令只保存在 `.env` 的 `CAMPUSCLAW_SEED_PASSWORD`，聊天及文档不输出值。
 - `DEMO_UID`、`DEMO_GID` 自动取本机身份，用于非 root 网关读取本机证书。私钥保存在忽略目录 `runtime/tls/` 且权限 600；自签证书有效 30 天，浏览器首次会提示本机证书未受信任，脚本不会修改系统信任库。证书到期后停止网关并移走这两份演示证书，再运行脚本生成。
 - 真实校验：`curl --cacert runtime/tls/localhost.crt https://localhost:8443/health`。只映射应用及 HTTPS 的回环端口；MySQL/Qdrant 不向宿主机映射端口。该覆盖仅用于本机展示，公网发布另走发布流程。
+- 网关后台每秒检查应用就绪，业务请求只读取本地就绪标记。MySQL 不可用时，新业务请求在网关收到 `503`，恢复就绪后自动重新接流。HTTPS `/health` 与 `/live` 仍可查询，便于区分依赖故障和进程退出。
 - 停止并保留数据：`docker compose -p campusclaw-demo -f docker-compose.yml -f docker-compose.demo.yml down`。继续启动仍使用同一脚本；不要加 `-v` 删除展示数据。
 
 `RETRIEVAL_MIN_SCORE=0.449357` 来自[独立小型真实网关调参](docs/eval/2026-11-06-retrieval-calibration.md)，每路召回20、输出最多8、RRF k=60。问答只发送当前问题和最多12000码点证据，空命中零对话调用，不保存会话。依赖失败与合法空结果分别显示；数值/单位或引用校验失败拒绝输出，来源在生成期间变化返回409。请求模型为课程指定标识；嵌入响应未提供模型版本，提供方不可变版本及实际教学语义质量仍待上线/最终验收核对。[工程评测](docs/eval/2026-11-07-retrieval-engineering.md)与[本次交付证据](docs/changes/2026-11-04-add-traceable-retrieval.md)区分替身、真实网关和人工未执行项。

@@ -187,3 +187,18 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 `make check-test` 通过，474 项单元/API 与 4 项启动用例通过；`make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` 通过，12 项全仓 OpenSpec 严格校验及分层、追溯检查成功。
 
 按 OpenSpec 实施流程、`project-add-tests`、`project-review` 及七类自审核对。接口沿用当前 Cookie 会话、SSE 终态和授权策略；业务检查覆盖三种独立技能、失败、断开与重放；数据库检查核对真实 MySQL 写入与审计，新增日志在事务提交后输出。公共函数检查覆盖共用流的清理与租约释放。错误检查区分 SSE 1501 与主动断开，安全检查核对日志的完整字段白名单和已有审计权限。没有新增迁移、外部模型或公开采集端点。面板查询、采集延迟和压测未执行。代码待同伴人工评审。
+
+## 2026-11-18 运行观测面板（4.1 部分）
+
+用同一候选的技能终态、业务接口响应准备时间和教学投递器队列日志生成本地 HTML。明确五分钟窗口、缺样与零值、错误率分母及 P95 取位。可切换重叠分线并展开数值表。SSE 的完整执行耗时继续沿用技能事件。
+
+| 验证 | 实际结果 |
+| --- | --- |
+| `uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_observability_dashboard.py` | 2 项通过。覆盖跨候选过滤、时间窗边界、错误率、乱序队列样本与缺样。将 P95 取位临时改成 P90 后，退出 1，期望 19 ms 实际 18 ms，恢复后退出 0。 |
+| 设置 `CAMPUSCLAW_OBSERVABILITY_HTML` 后执行 `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k 'cold_start_and_recovery or real_kafka'` | 退出 0，2 项通过，247.13 秒。同一隔离候选采到 3 种技能、8 条业务接口样本和实际 Kafka 队列深度。实际数值见[运行取证](../../reports/delivery-runtime.md#2026-11-18-隔离面板实测)。 |
+| 容器 Chromium 本地文件走查 | 初次宿主字体路径未共享，Docker 退出 125。移至临时夹具后，断网复验退出 0。1120／390px 布局、分线切换、数值表均核对通过。 |
+| `make check-test` 与 `make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` | 均退出 0。476 项单元/API、4 项启动用例，12 项 OpenSpec 严格校验和格式、分层、场景映射均通过。 |
+
+按 OpenSpec 实施流程、`project-add-tests`、`project-review` 及七类核查自审。接口仅登记匹配的路由模板，现有权限行为由门禁复验。业务与数据库核对真实的技能终态计数、既有只读队列采样，无迁移。公共函数核对 UTC 分桶，错误处理区分错误入参、无效日志和缺样。安全检查核对同一版本、输出字段最小化、断网浏览与报告忽略规则。性能核对最近秩 P95、真实样本量和窗口间队列取值，专项压测仍由 4.2 负责。页面清单与脚本待人工复核。
+
+面板部分验证通过。4.1 保持未完成，待确认告警阈值和接收端并实测触发、送达、漏达及恢复。

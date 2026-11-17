@@ -1651,11 +1651,8 @@ for _ in range(100):
         break
     threading.Event().wait(0.01)
 assert service.capacity.active == 0
-observations = [
-    row
-    for line in captured.getvalue().splitlines()
-    if (row := json.loads(line))["module"] == "skill_execution"
-]
+observation_logs = [json.loads(line) for line in captured.getvalue().splitlines()]
+observations = [row for row in observation_logs if row["module"] == "skill_execution"]
 assert len(observations) == len(expected_observations)
 assert {
     row["request_id"]: (row["skill_id"], row["status"]) for row in observations
@@ -1677,6 +1674,13 @@ assert all(
     and row["duration_ms"] >= 0
     for row in observations
 )
+http_observations = [row for row in observation_logs if row["module"] == "http"]
+assert {
+    row["route"]
+    for row in http_observations
+    if row["request_id"] in expected_observations
+} == {"/api/v1/sessions/<session_id>/messages"}
+print("OBSERVABILITY_CAPTURE " + json.dumps(observations + http_observations))
 print("L10_N05_SKILL_OBSERVATIONS_OK: skills=3 succeeded=3 failed=1 interrupted=1")
 
 # ST-B01/F04：真实召回超过4片，截取仍只在绑定材料内；检索失败在流前拒绝且无消息写入。

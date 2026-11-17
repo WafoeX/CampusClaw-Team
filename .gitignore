@@ -48,6 +48,7 @@ htmlcov/
 !/reports/gate-red-green.md
 !/reports/delivery-runtime.md
 !/reports/acceptance-matrix.md
+!/reports/bench.md
 !/reports/risk-authz.md
 !/reports/risk-concurrency.md
 !/reports/risk-transaction.md

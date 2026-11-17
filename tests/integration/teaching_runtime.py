@@ -499,6 +499,11 @@ second_submit = request(
     key="second-final",
 )
 assert second_submit.status_code == 201, second_submit.json
+# L10-N03 前置边界：本人确有错题，答案开放后才可取冻结结果与解析。
+mistakes_path = f"/api/v1/quizzes/{new_quiz_id}/my-mistakes"
+closed_mistakes = request(student2, "GET", mistakes_path)
+assert closed_mistakes.status_code == 200 and closed_mistakes.json["code"] == 0
+assert closed_mistakes.json["data"] == {"open": False, "items": []}
 with engine.connect() as connection:
     assert (
         connection.scalar(
@@ -518,8 +523,8 @@ with engine.begin() as connection:
             - timedelta(seconds=1)
         )
     )
-wrong = request(student2, "GET", f"/api/v1/quizzes/{new_quiz_id}/my-mistakes")
-assert wrong.status_code == 200
+wrong = request(student2, "GET", mistakes_path)
+assert wrong.status_code == 200 and wrong.json["code"] == 0
 assert wrong.json["data"]["open"] is True
 assert {item["item_id"] for item in wrong.json["data"]["items"]} == {
     item["id"]
@@ -527,6 +532,20 @@ assert {item["item_id"] for item in wrong.json["data"]["items"]} == {
         "items"
     ]
 }
+wrong_item = next(
+    item for item in wrong.json["data"]["items"] if item["item_id"] == new_item
+)
+assert wrong_item["submitted_answer"] == "A"
+assert (
+    wrong_item["answer"] == "B" and wrong_item["explanation"] == choice["explanation"]
+)
+unsubmitted_mistakes = request(again, "GET", mistakes_path)
+assert (
+    unsubmitted_mistakes.status_code == 200 and unsubmitted_mistakes.json["code"] == 0
+)
+assert unsubmitted_mistakes.json["data"] == {"open": False, "items": []}
+teacher_mistakes = request(teacher, "GET", mistakes_path)
+assert teacher_mistakes.status_code == 403 and teacher_mistakes.json["code"] == 1200
 new_insights = request(teacher, "GET", f"/api/v1/quizzes/{new_quiz_id}/insights")
 assert new_insights.status_code == 200
 assert new_insights.json["data"]["participants"] == 3

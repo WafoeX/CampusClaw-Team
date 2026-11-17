@@ -997,6 +997,7 @@ for who in ("student", "other", "a_teacher", "b_teacher", "session_b_student"):
 class SessionChat:
     def __init__(self):
         self.calls = []
+        self.guidance = None
         self.failure = None
         self.pause = False
         self.entered = threading.Event()
@@ -1017,6 +1018,8 @@ class SessionChat:
         if self.failure == "second_step" and data.get("step_ordinal") == 2:
             raise IndexDependencyError("synthetic-step-timeout")
         if "instruction_data" in data:
+            if self.guidance is not None:
+                return {"hints": [next(self.guidance)]}
             return {"hints": ["identify"]}
         return {
             "insufficient": False,
@@ -1319,7 +1322,7 @@ except AccessDenied as error:
 else:
     raise AssertionError("陈旧执行者获准提交")
 ss.abort(owner, new_ticket)
-# SK-N01/B01/B02：实际会话选择技能、私有步骤记录与即时停用。
+# SK-N01/B01/B02、L10-N01：实际会话选择技能、两轮引导及私有步骤记录。
 guide = request(
     "session",
     "POST",
@@ -1329,17 +1332,54 @@ guide = request(
 )
 assert guide.status_code == 201
 guide_path = "/api/v1/sessions/" + guide.json["data"]["id"] + "/messages"
-guide_frames = frames(
-    request("session", "POST", guide_path, {"question": "合成原文"}, "guide-two")
+session_chat.guidance = iter(("identify", "relate", "plan", "check"))
+questions_for_guidance = (
+    "合成原文题目：7 组各 6 件，一共有多少件？请直接给我标准答案。",
+    "合成原文：我把组数和每组数量相加了。这个思路哪里错了？请告诉我最后的总数。",
 )
+try:
+    guide_frames, follow_up = [
+        frames(request("session", "POST", guide_path, {"question": question}, key))
+        for key, question in zip(
+            ("guide-two", "guide-follow-up"), questions_for_guidance, strict=True
+        )
+    ]
+finally:
+    session_chat.guidance = None
 assert [name for name, _ in guide_frames] == ["meta", "delta", "delta", "done"], (
     guide_frames
 )
 assert guide_frames[0][1]["data"]["skill"]["id"] == skill_ids["a"]
+assert [name for name, _ in follow_up] == ["meta", "delta", "delta", "done"]
+assert follow_up[0][1]["data"]["skill"]["id"] == skill_ids["a"]
+assert all(
+    frame[-1][1]["data"]["citations"] == [] for frame in (guide_frames, follow_up)
+)
+changes = [
+    packet["data"]["text"]
+    for turn in (guide_frames, follow_up)
+    for event_type, packet in turn
+    if event_type == "delta"
+]
+assert changes == [
+    "先找出题目要求与已知条件，用自己的话重述问题。",
+    "\n回顾相关概念，说明已知条件之间可能存在的联系。",
+    "把任务拆成小步骤，先尝试其中一步并记录思路。",
+    "\n检查每一步是否符合条件，并说明仍有疑问的地方。",
+]
+guide_history = request("session", "GET", guide_path.removesuffix("/messages"))
+assert guide_history.status_code == 200
+assistant_replies = [
+    item["content"]
+    for item in guide_history.json["data"]["messages"]
+    if item["role"] == "assistant"
+]
+assert assistant_replies == ["".join(changes[:2]), "".join(changes[2:])]
 guide_record = request(
     "session", "GET", "/api/v1/runs/" + guide_frames[-1][1]["data"]["run_id"]
 ).json["data"]
 assert [item["ordinal"] for item in guide_record["result"]["steps"]] == [1, 2]
+assert guide_record["result"]["text"] == assistant_replies[0]
 assert (
     request("a_teacher", "GET", "/api/v1/runs/" + guide_record["id"]).status_code == 404
 )

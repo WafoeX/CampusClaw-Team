@@ -5,11 +5,14 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 from app.config import ChatSettings, ConfigError
+from app.teaching_job_contract import CLASS_CAPACITY
+from scripts.observability_dashboard import render, summarize, utc
 from scripts.verify_runtime import inspect_probes
 from tests.integration.streaming_proxy_check import verify_streaming_proxy
 
@@ -547,7 +550,8 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     verify_index_foundation(compose)
     verify_index_builds(compose)
     verify_assistant_storage(compose)
-    verify_ai_apps(compose)
+    report = verify_observability_panel(verify_ai_apps(compose), version)
+    assert all(window["pending"] is None for window in report["windows"])
     verify_rate_limits(compose)
     verify_retrieval(compose, "setup")
     verify_evaluation(compose)
@@ -660,7 +664,7 @@ def verify_teaching_core(compose):
 
 
 def test_JB_QB_real_kafka_and_candidate_recovery(stack):
-    compose, _, status, _ = stack
+    compose, _, status, version = stack
     compose("up", "-d", "kafka-topics", teaching=True)
     eventually(
         lambda: (
@@ -692,7 +696,24 @@ def test_JB_QB_real_kafka_and_candidate_recovery(stack):
             == 2
         )
     )
-    compose("up", "-d", "teaching-relay", "teaching-worker", teaching=True)
+    compose("up", "-d", "teaching-relay", teaching=True)
+
+    def backlog_sample():
+        output = compose("logs", "--no-log-prefix", "teaching-relay", teaching=True)
+        return next(
+            (
+                row
+                for line in output.splitlines()
+                if line.startswith("{")
+                and (row := json.loads(line)).get("module") == "teaching_backlog"
+            ),
+            None,
+        )
+
+    backlog = eventually(backlog_sample)
+    assert backlog["version"] == version
+    assert backlog["states"]["pending"] == CLASS_CAPACITY
+    compose("up", "-d", "teaching-worker", teaching=True)
     eventually(
         lambda: (
             compose("logs", "--no-log-prefix", "teaching-worker", teaching=True).count(
@@ -724,6 +745,15 @@ def test_JB_QB_real_kafka_and_candidate_recovery(stack):
     assert compose("ps", "--status", "exited", "-q", "kafka", teaching=True)
     assert status("ready")[0] == 200
     verify_teaching_core(compose)
+
+    if report_path := os.environ.get("CAMPUSCLAW_OBSERVABILITY_HTML"):
+        report = verify_observability_panel(
+            [*verify_ai_apps(compose), backlog], version
+        )
+        assert backlog["states"]["pending"] in [
+            window["pending"] for window in report["windows"]
+        ]
+        Path(report_path).write_text(render(report), encoding="utf-8")
 
 
 def verify_teaching_jobs(compose):
@@ -839,7 +869,7 @@ def verify_ai_apps(compose):
         "from pathlib import Path; import sys; Path('/tmp/feedback_runtime.py').write_text(sys.argv[1])",
         Path(__file__).with_name("feedback_runtime.py").read_text(),
     )
-    compose(
+    evidence = compose(
         "exec",
         "-T",
         "app",
@@ -848,3 +878,44 @@ def verify_ai_apps(compose):
         "import sys; sys.path.insert(0, '/tmp'); exec(sys.argv[1])",
         Path(__file__).with_name("ai_apps_runtime.py").read_text(),
     )
+    return json.loads(
+        next(
+            line.removeprefix("OBSERVABILITY_CAPTURE ")
+            for line in evidence.splitlines()
+            if line.startswith("OBSERVABILITY_CAPTURE ")
+        )
+    )
+
+
+def verify_observability_panel(rows, version):
+    stamps = [utc(row.get("completed_at", row["ts"])) for row in rows]
+    skills = sorted(
+        {row["skill_id"] for row in rows if row["module"] == "skill_execution"}
+    )
+    report = summarize(
+        map(json.dumps, rows),
+        version=version,
+        skills=skills,
+        start=min(stamps),
+        end=max(stamps) + timedelta(microseconds=1),
+    )
+    windows = report["windows"]
+    assert len(skills) == 3
+    assert sorted(
+        sum(window["skills"][skill]["calls"] for window in windows) for skill in skills
+    ) == [1, 1, 3]
+    assert (
+        sum(slot["failed"] for window in windows for slot in window["skills"].values())
+        == 1
+    )
+    assert (
+        sum(
+            slot["interrupted"]
+            for window in windows
+            for slot in window["skills"].values()
+        )
+        == 1
+    )
+    assert sum(window["api_samples"] for window in windows) == 8
+    assert any(window["api_p95_ms"] is not None for window in windows)
+    return report

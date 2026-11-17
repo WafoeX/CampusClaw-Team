@@ -598,6 +598,8 @@ report = {
     },
     "skill_audit": {
         "request_id": run_response.headers.get("X-Request-ID"),
+        "skill_id": execution["skill_id"],
+        "created_at": execution["created_at"],
         "run_fields": sorted(private_run),
         "status": private_run.get("status"),
         "duration_ms": private_run.get("duration_ms"),

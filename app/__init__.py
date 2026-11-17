@@ -314,7 +314,9 @@ def create_app(
         practice = (
             UnitPractice(signing_key, time.time) if len(signing_key) >= 32 else None
         )
-        install_sessions(app, ai_apps, retrieval, tool_connectors, practice)
+        install_sessions(
+            app, ai_apps, retrieval, tool_connectors, practice, version=settings.version
+        )
         install_material_pages(app)
         install_openapi(app)
         install_teaching(app, teaching, candidate_jobs)

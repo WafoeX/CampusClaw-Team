@@ -256,6 +256,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 验收矩阵记录各命令的最近可核对版本、异步三判据、逐场景用例与待补证据。冻结前按责任变更处理缺项，并在正式候选上复核适用结果。[验收矩阵](reports/acceptance-matrix.md)
 
+技能会话在数据库确认终态后，通过应用的结构化日志记录 `skill_execution`。运维可用 `docker compose logs --no-log-prefix app` 查看，按技能 ID、状态和完成时间汇总。成功记录可用请求 ID 与第 9 课操作审计对照。分类规则、可复跑用例和面板、告警进度见[技能观测记录](reports/delivery-runtime.md#第-10-课技能观测数据源41-部分)。
+
 教学压测复用隔离 Compose，可用环境配置控制并发、样本数和合成数据量。复跑参数、分页索引效果及回退验证见[压测报告](reports/bench.md)。
 
 ## 小组协作与增量流程

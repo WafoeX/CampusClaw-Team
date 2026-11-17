@@ -147,7 +147,7 @@ class ValidatedStream:
         metadata,
         request_id,
         validate_final,
-        on_abort=lambda: None,
+        on_abort=lambda _code: None,
         clock=time.monotonic,
         deadline=None,
         prepare_metadata=None,
@@ -176,6 +176,7 @@ class ValidatedStream:
         self._worker_done = False
         self._closed = False
         self._committed = False
+        self._error_code = None
         self._iterator = self._events()
 
     def __iter__(self):
@@ -305,6 +306,7 @@ class ValidatedStream:
         except StreamCancelled:
             return
         except AccessDenied as error:
+            self._error_code = error.code
             yield (
                 "event: error\ndata: "
                 + json.dumps(
@@ -320,6 +322,7 @@ class ValidatedStream:
             ).encode("utf-8")
         except Exception:
             error = dependency_error()
+            self._error_code = error.code
             yield (
                 "event: error\ndata: "
                 + json.dumps(
@@ -345,7 +348,7 @@ class ValidatedStream:
         self.context.cancel()
         try:
             if not self._committed:
-                self.on_abort()
+                self.on_abort(self._error_code)
         finally:
             if release:
                 self.reservation.release()

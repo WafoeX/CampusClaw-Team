@@ -6,6 +6,7 @@ from app.api.ai_apps import body, key, pagination
 from app.api.auth import COOKIE
 from app.api.http import success
 from app.api.streaming import stream_response
+from app.observability import log_event
 from app.services.ai_contracts import AI_CONFIGURE, AI_USE, bad, identifier
 from app.services.feedback import FeedbackService
 from app.services.session_stream import SessionStreamService
@@ -31,8 +32,23 @@ SESSION_POLICIES.update(
 SESSION_POLICIES[("handle_teaching_feedback", "PATCH")] = AI_CONFIGURE
 
 
-def install_sessions(app, ai_apps, retrieval, tool_connectors=None, unit_practice=None):
-    service = SessionService(ai_apps, retrieval, tool_connectors, unit_practice)
+def install_sessions(
+    app, ai_apps, retrieval, tool_connectors=None, unit_practice=None, *, version
+):
+    def observe_skill(**fields):
+        try:
+            log_event("skill_execution", version, **fields)
+        except OSError:
+            # 观测输出不可用时，已落库的业务结果仍按既有契约返回。
+            pass
+
+    service = SessionService(
+        ai_apps,
+        retrieval,
+        tool_connectors,
+        unit_practice,
+        on_skill_result=observe_skill,
+    )
     app.extensions["private_sessions"] = service
     feedback = FeedbackService(service)
     app.extensions["teaching_feedback"] = feedback

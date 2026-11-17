@@ -76,12 +76,33 @@ def valid_key(key):
 
 
 class SessionService:
-    def __init__(self, ai_apps, retrieval, tool_connectors=None, unit_practice=None):
+    def __init__(
+        self,
+        ai_apps,
+        retrieval,
+        tool_connectors=None,
+        unit_practice=None,
+        *,
+        on_skill_result=None,
+    ):
         self.ai = ai_apps
         self.repository = ai_apps.repository
         self.retrieval = retrieval
         self.tool_connectors = tool_connectors
         self.unit_practice = unit_practice
+        self.on_skill_result = on_skill_result
+
+    def _observe_skill(self, ticket, request_id, status, now, duration_ms):
+        skill = ticket["selected_skill"]
+        if skill is None or request_id is None or self.on_skill_result is None:
+            return
+        self.on_skill_result(
+            skill_id=skill["id"],
+            request_id=request_id,
+            status=status,
+            completed_at=now.isoformat() + "Z",
+            duration_ms=duration_ms,
+        )
 
     def issue_practice(self, identity, cookie, session_id, key):
         valid_key(key)
@@ -664,16 +685,18 @@ class SessionService:
                         usage_status=usage_status,
                         duration_ms=duration_ms,
                     )
-                return {
-                    "message_id": ticket["message_id"],
-                    "run_id": ticket["run_id"],
-                    "citations": cited,
-                    "operation_id": row["id"],
-                }
+                operation_id = row["id"]
         except self.ai.database_error:
             raise unavailable() from None
+        self._observe_skill(ticket, request_id, "succeeded", now, duration_ms)
+        return {
+            "message_id": ticket["message_id"],
+            "run_id": ticket["run_id"],
+            "citations": cited,
+            "operation_id": operation_id,
+        }
 
-    def abort(self, identity, ticket, *, code=1500):
+    def abort(self, identity, ticket, *, code=1500, request_id=None, failed=False):
         if code not in (1000, 1100, 1200, 1300, 1400, 1500, 1501, 1600):
             code = 1500
         try:
@@ -685,16 +708,23 @@ class SessionService:
                     operation_id=ticket["operation_id"],
                 )
                 if (
-                    row is not None
-                    and row["status"] == "running"
-                    and row["lease_token"] == ticket["token"]
+                    row is None
+                    or row["status"] != "running"
+                    or row["lease_token"] != ticket["token"]
                 ):
-                    self.repository.finish_attempt(
-                        connection,
-                        ticket,
-                        status="interrupted",
-                        error_code=code,
-                        now=self.ai.clock(),
-                    )
+                    return
+                now = self.ai.clock()
+                duration_ms = round((time.monotonic() - ticket["started"]) * 1000)
+                self.repository.finish_attempt(
+                    connection,
+                    ticket,
+                    status="interrupted",
+                    error_code=code,
+                    duration_ms=duration_ms,
+                    now=now,
+                )
         except self.ai.database_error:
             raise unavailable() from None
+        self._observe_skill(
+            ticket, request_id, "failed" if failed else "interrupted", now, duration_ms
+        )

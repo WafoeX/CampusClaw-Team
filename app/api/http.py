@@ -101,6 +101,7 @@ def install_http(
         response.headers["X-Request-ID"] = g.request_id
         if request.endpoint in PUBLIC_PROBES:
             response.headers["Cache-Control"] = "no-store"
+        rule = request.url_rule.rule if request.url_rule is not None else ""
         log_event(
             "http",
             version,
@@ -108,5 +109,6 @@ def install_http(
             request_id=g.request_id,
             status=response.status_code,
             duration_ms=round((monotonic() - g.started_at) * 1000, 2),
+            **({"route": rule} if rule.startswith("/api/v1/") else {}),
         )
         return response

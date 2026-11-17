@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>CampusClaw 运行观测</title>
+<style>
+  :root { color-scheme: light; color: #18252d; background: #eef2f4; font: 16px/1.5 "Inter", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  main { max-width: 1080px; margin: auto; padding: 24px 16px 40px; }
+  header { padding: 4px 4px 10px; }
+  h1 { margin: 0; font-size: 1.7rem; }
+  h2 { margin: 0; font-size: 1.2rem; }
+  h3 { margin: 12px 0 0; font-size: 1rem; }
+  p { margin: 4px 0; color: #4a5e69; }
+  code { overflow-wrap: anywhere; }
+  section { margin-top: 14px; padding: 16px; border: 1px solid #ccd7dc; border-radius: 10px; background: #fff; }
+  .paired { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  canvas { display: block; width: 100%; height: 154px; }
+  ul { padding: 0; margin: 8px 0 0; gap: 8px 20px; display: flex; flex-wrap: wrap; list-style: none; }
+  li { min-width: 0; }
+  label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  input { accent-color: #006c68; }
+  .skill-label { white-space: nowrap; }
+  .key { flex: 0 0 18px; border-top: 3px solid currentColor; }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-weight: 600; }
+  summary:focus-visible { outline: 2px solid #006c68; outline-offset: 4px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  th, td { padding: 8px; border-bottom: 1px solid #dbe3e8; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  @media (max-width: 640px) { .paired { grid-template-columns: 1fr; } }
+</style>
+<main>
+  <header>
+    <h1>CampusClaw 运行观测</h1>
+    <p id="range"></p>
+    <p>候选 <code id="version"></code></p>
+    <ul id="legend" aria-label="技能图例"></ul>
+  </header>
+  <section>
+    <h2>技能调用量</h2>
+    <p>每五分钟记录到的终态次数。</p>
+    <canvas id="calls" aria-label="按技能显示调用量" role="img"></canvas>
+  </section>
+  <section>
+    <h2>技能错误率</h2>
+    <p>失败次数除以同窗口调用次数。零次调用显示无样本。</p>
+    <canvas id="errors" aria-label="按技能显示错误率" role="img"></canvas>
+  </section>
+  <section>
+    <h2>接口响应与教学队列</h2>
+    <div class="paired">
+      <div>
+        <h3>接口 P95 · 毫秒</h3>
+        <p>接口生成响应所需时间。</p>
+        <canvas id="p95" aria-label="接口响应准备时间 P95" role="img"></canvas>
+      </div>
+      <div>
+        <h3>教学队列深度 · 待处理</h3>
+        <p>使用每个窗口内最近一次采样。</p>
+        <canvas id="pending" aria-label="教学队列待处理任务数" role="img"></canvas>
+      </div>
+    </div>
+    <details>
+      <summary>查看全部数值</summary>
+      <div class="scroll"><table aria-label="观测窗口数值" id="data-table"></table></div>
+    </details>
+  </section>
+  <noscript><p>打开脚本支持后可查看图表和数据表。</p></noscript>
+</main>
+<script type="application/json" id="snapshot">__OBSERVABILITY_DATA__</script>
+<script>
+  const byId = id => document.getElementById(id);
+  const report = JSON.parse(byId("snapshot").textContent);
+  const windows = report.windows;
+  const number = new Intl.NumberFormat("zh-CN", {maximumFractionDigits: 2});
+  const display = (value, unit = "") => value === null ? "无样本" : number.format(value) + unit;
+  const utc = stamp => stamp.slice(0, 19).replace("T", " ");
+  byId("range").textContent = utc(windows[0].start) + " 至 " + utc(report.end) + " UTC";
+  byId("version").textContent = report.version;
+  const colors = ["#006c68", "#975717", "#7354a1", "#235abf", "#a03457", "#4e6b17"];
+  const dash = [[], [6, 4], [2, 3], [9, 3, 2, 3]];
+  const skills = report.skills.map((id, index) => {
+    const color = colors[index % colors.length];
+    const item = document.createElement("li");
+    const control = document.createElement("label");
+    const enabled = document.createElement("input");
+    enabled.type = "checkbox";
+    enabled.checked = true;
+    enabled.addEventListener("change", draw);
+    const key = document.createElement("span");
+    key.className = "key";
+    key.style.color = color;
+    key.style.borderTopStyle = ["solid", "dashed", "dotted"][index % 3];
+    const label = "技能 " + (index + 1);
+    const caption = document.createElement("span");
+    caption.className = "skill-label";
+    caption.textContent = label;
+    const name = document.createElement("code");
+    name.textContent = id;
+    control.append(enabled, key, caption, name);
+    item.append(control);
+    byId("legend").append(item);
+    return {id, label, color, enabled, dash: dash[index % dash.length]};
+  });
+
+  function row(target, tag, values) {
+    const record = target.insertRow();
+    values.forEach(value => {
+      const cell = document.createElement(tag);
+      if (tag === "th") cell.scope = "col";
+      cell.textContent = value;
+      record.append(cell);
+    });
+  }
+  const table = byId("data-table");
+  row(table.createTHead(), "th", [
+    "窗口起点 UTC",
+    ...skills.flatMap(skill => [skill.label + " 调用／失败／中断", skill.label + " 错误率"]),
+    "接口样本", "P95 (ms)", "待处理",
+  ]);
+  const body = table.createTBody();
+  windows.forEach(window => row(body, "td", [
+    utc(window.start),
+    ...skills.flatMap(({id}) => {
+      const skill = window.skills[id];
+      return [[skill.calls, skill.failed, skill.interrupted].join("／"), display(skill.error_percent, "%")];
+    }),
+    window.api_samples, display(window.api_p95_ms), display(window.pending),
+  ]));
+
+  function chart(id, lines, unit = "") {
+    const canvas = byId(id);
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const ratio = Math.min(window.devicePixelRatio, 2);
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(ratio, ratio);
+    ctx.font = "12px system-ui";
+    const values = lines.flatMap(line => line.values).filter(value => value !== null);
+    ctx.fillStyle = "#4a5e69";
+    if (!values.length) {
+      ctx.fillText(lines.length ? "本时段无采样数据" : "选择技能后显示数据", 12, height / 2);
+      return;
+    }
+    const limit = unit === "%" ? 100 : Math.max(1, ...values);
+    const left = Math.max(36, ctx.measureText(display(limit, unit)).width + 8);
+    const right = width - 12;
+    const top = 14;
+    const bottom = height - 25;
+    const x = index => windows.length === 1 ? (left + right) / 2 :
+      left + index / (windows.length - 1) * (right - left);
+    const y = value => bottom - value / limit * (bottom - top);
+    const middle = id === "calls" || id === "pending" ? Math.ceil(limit / 2) : limit / 2;
+    for (const value of new Set([0, middle, limit])) {
+      const ordinate = y(value);
+      ctx.strokeStyle = "#dbe3e8";
+      ctx.beginPath();
+      ctx.moveTo(left, ordinate);
+      ctx.lineTo(right, ordinate);
+      ctx.stroke();
+      ctx.fillText(display(value, unit), 0, ordinate + 4);
+    }
+    ctx.textAlign = "center";
+    for (const index of new Set([0, Math.floor((windows.length - 1) / 2), windows.length - 1])) {
+      const label = windows[index].start.slice(11, 16);
+      ctx.fillText(label, Math.min(right - 11, x(index)), height - 5);
+    }
+    for (const line of lines) {
+      ctx.strokeStyle = line.color;
+      ctx.fillStyle = line.color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash(line.dash);
+      ctx.beginPath();
+      let connected = false;
+      line.values.forEach((value, index) => {
+        if (value === null) {
+          connected = false;
+          return;
+        }
+        if (connected) ctx.lineTo(x(index), y(value));
+        else ctx.moveTo(x(index), y(value));
+        connected = true;
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      line.values.forEach((value, index) => {
+        if (value === null) return;
+        ctx.beginPath();
+        ctx.arc(x(index), y(value), 2.4, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    }
+  }
+  function draw() {
+    const skillLines = field => skills.filter(skill => skill.enabled.checked).map(skill => ({
+      ...skill, values: windows.map(window => window.skills[skill.id][field]),
+    }));
+    chart("calls", skillLines("calls"));
+    chart("errors", skillLines("error_percent"), "%");
+    chart("p95", [{color: colors[0], dash: [], values: windows.map(window => window.api_p95_ms)}]);
+    chart("pending", [{color: colors[1], dash: [], values: windows.map(window => window.pending)}]);
+  }
+  draw();
+  window.addEventListener("resize", draw);
+</script>
+</html>

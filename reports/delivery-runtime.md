@@ -78,3 +78,41 @@
 同一已完成请求的幂等重放不增加技能执行计数；未选中技能的会话不产生该事件。日志只记录运行元数据。数据库未确认终态、进程退出遗漏和日志采集故障可能缺样，缺样不能作为错误率为零的证据。
 
 本轮交付数据源。三张面板、错误率时间窗与阈值、收件端、送达时限和恢复演练留待 4.1 后续取证。候选冻结和最终验收状态沿用任务清单。
+
+## 第 10 课运行观测面板（4.1 部分）
+
+运维在部署工作目录生成本地报告。沿用教学 Compose 扩展和环境配置，取同一候选的完整 `APP_BUILD_REVISION`，填写三个已登记的技能 ID。样本窗口使用带时区的 `OBS_START`、`OBS_END`，采用左闭右开区间，最长 24 小时。
+
+```sh
+set -o pipefail
+mkdir -p reports/observability
+docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile teaching \
+  logs --no-log-prefix --since "$OBS_START" --until "$OBS_END" app teaching-relay |
+  uv run --locked python -m scripts.observability_dashboard \
+    --version "$APP_BUILD_REVISION" --start "$OBS_START" --end "$OBS_END" \
+    --skill "$SKILL_ID_A" --skill "$SKILL_ID_B" --skill "$SKILL_ID_C" \
+    > reports/observability/panel.html
+```
+
+成功后在本地浏览器打开 `reports/observability/panel.html`。面板按起始时刻每五分钟分桶，时间以 UTC 显示。
+
+| 面板 | 采样与判据 |
+| --- | --- |
+| 技能调用量 | 按 `completed_at` 归属窗口。每条分线为一个已登记技能，成功、失败及中断均计入观测次数。 |
+| 技能错误率 | 每个技能用该窗口 `failed / calls × 100%`。观测次数为零时标记无样本。 |
+| 接口 P95 与待处理队列 | 接口采用已登记 `/api/v1/` 路由的响应准备耗时，按最近秩计算 P95。SSE 时长以技能事件单列。队列取每个窗口内最近一条投递器观测的 `pending` 数。已观测到空队列显示为 0，缺采样保留为空。 |
+
+报告只含候选、技能 ID、时间窗与聚合数值，可展开数据表核对。生成文件沿用报告目录忽略规则。告警采用独立的滚动窗口和通知流程，阈值、收件端及送达恢复证据待后续验收。
+
+### 2026-11-18 隔离面板实测
+
+源码基线为 `5f3d99a`。用同一个隔离 Compose 候选 `00000000a0a24dff2a864d0986fb8a057f99c08d` 的技能终态、实际 Flask 接口日志和 Kafka 教学投递器日志生成报告。采用合成班级及固定模型替身。样本时间为 2026-11-18 00:11:01 至 00:11:22（Asia/Shanghai），落在一个不足五分钟的窗口内。
+
+| 观测 | 实际值 |
+| --- | --- |
+| 三种技能调用量 | 3、1、1 次，其中第一种有 1 次失败、1 次中断。 |
+| 三种技能错误率 | 33.33%、0%、0%。 |
+| 接口 P95 | 8 条接口样本，25.29 ms。 |
+| 教学队列 | 投递器实际观测到 20 项待处理。 |
+
+在断网 Chromium 中核对图例切换、数值表和 1120／390px 两种布局。宽屏并排显示 P95 和队列，窄屏按同一顺序堆叠。脱敏报告和截图留在本机忽略目录 `reports/observability/`。

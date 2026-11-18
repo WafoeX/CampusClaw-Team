@@ -124,3 +124,19 @@ docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile te
 采用设计中初拟规则，每 15 秒评估一次此前五分钟的技能完成记录，窗口为左开右闭。至少 20 次调用且失败率严格大于 1% 时进入 `pending`；连续满足五分钟后进入 `firing` 并标记 `notification=required`。失败率回落进入 `normal`；不足 20 次调用进入 `no_data`，重置持续计时。样本不足单独记录，通知流程应继续核对告警的收件状态。相同候选、输入与时间范围可重复计算相同转换，调用者应保留转换时间作为后续投递幂等依据。
 
 规则沿用技能完成时间与结果分类，输出只有候选、技能 ID、窗口口径、状态和计数。验证使用合成日志与注入时间，覆盖触发、恢复、缺样和阈值边界。初拟阈值与接收端配置待评审，真实连续失败、通知送达和恢复演练待执行，4.1 保持未完成。
+
+## 第 10 课通知投递与回执（4.1 部分）
+
+源码基线为 `9821161`。部署负责人登记收件端与负责人后，通过环境设置 `ALERT_RECEIVER_URL`、`ALERT_RECEIVER_TOKEN`、`ALERT_PANEL_URL`。两个地址采用 HTTPS，排除地址内凭据、查询和片段。令牌仅通过 Authorization 发送至配置的收件端。投递采用标准库 HTTPS，核验证书，每次请求超时五秒，重定向作为失败处理。
+
+```sh
+uv run --locked python -m scripts.deliver_skill_alerts \
+  < reports/observability/alerts.json \
+  > reports/observability/deliveries.json
+```
+
+每个触发事件及后继恢复事件通过候选、技能 ID、转换时间与状态生成稳定的 `event_id`，请求头 `Idempotency-Key` 使用该值。请求正文仅包含这些字段及面板链接。接收端须保存事件、按该键去重，并在重复请求时返回首次收件的同一回执。
+
+接收端确认格式为 `{"event_id":"匹配请求","delivered":true,"received_at":"带时区的首次收件时间"}`，HTTP 为 200 或 201，正文至多 8 KiB。时间不得早于触发时间或晚于本机确认时间五秒以上。首次收件在触发后两分钟内记为 `delivered`，超过时限记为 `late`。网络故障、缺回执、错误标识或重定向记为 `failed`。命令逐项处理，任一失败或迟到均非零退出，输出仅含事件 ID、状态与已确认时间。失败后可使用同一报告重跑，最终结论结合接收端留存记录复核。
+
+样本不足的转换保持待核对收件状态；恢复通知须在曾触发后出现 `normal` 才生成。本次使用环回 HTTP 合成接收端测试标准库传输，生产命令仅接受 HTTPS 配置。实名负责人、正式收件端、阈值确认及真实连续故障和送达演练仍待完成。

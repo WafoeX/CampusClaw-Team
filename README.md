@@ -262,6 +262,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 同一份日志可交给 `uv run --locked python -m scripts.evaluate_skill_alerts`，使用相同的候选、技能及起止时间参数，离线核对持续失败告警。输出记录触发、恢复或样本不足的状态，取证方式见[告警规则评估](reports/delivery-runtime.md#第-10-课告警规则评估41-部分)。
 
+通知投递入口为 `uv run --locked python -m scripts.deliver_skill_alerts`，从标准输入读取告警报告。部署负责人先通过环境配置接收端、令牌与面板链接，按[通知回执契约](reports/delivery-runtime.md#第-10-课通知投递与回执41-部分)核对实际收件与时限。
+
 教学压测复用隔离 Compose，可用环境配置控制并发、样本数和合成数据量。复跑参数、分页索引效果及回退验证见[压测报告](reports/bench.md)。
 
 ## 小组协作与增量流程

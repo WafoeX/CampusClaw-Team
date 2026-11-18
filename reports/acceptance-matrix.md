@@ -17,7 +17,7 @@
 | 实现组可运行 | `uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'` | 见下节三项判据 | `878a2a0`，2026-11-17 15:29 结束，退出 0，2 项通过、107.19 秒。使用真实 MySQL/Kafka 与固定模型替身。[异步三判据](#异步三判据) | 异步教学实施人 |
 | 实现组可运行 | `CAMPUSCLAW_REAL_CANDIDATES=1 uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k real_kafka` | 真实网关生成待审草稿、保留授权原文区间 | 2026-11-12，基于 `6538600` 的异步收尾候选复跑退出 0，1 项通过。当前基线未重跑真实网关。[真实模型记录](../docs/changes/2026-11-04-add-async-teaching-workflows.md#2026-11-12-异步教学收尾复验) | 异步教学实施人 |
 | 实现组可运行 | `uv run --locked pytest -q tests/browser/test_chapters.py`，先按 README 配置本地 Chromium | 章节、检索、出处及窄屏状态 | 2026-11-06 至 07 的检索交付候选通过，退出 0。当前基线未重跑该浏览器用例。[检索交付](../docs/changes/2026-11-04-add-traceable-retrieval.md) | 资料与检索实施人 |
-| 实现组可运行 | `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 或 `uv run --locked python -m tests.browser.run_teaching` | 390px Chromium 验证 HTTPS 会话、交卷、教学回归、来源及换班隔离 | 2026-11-17，基于 `efac0c2` 的 H5 增量在隔离 Chromium/MySQL 中通过。[H5 实测记录](../docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-17-h5-回归与试用准备43-部分) | 教学实施人 |
+| 实现组可运行 | `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 或 `uv run --locked python -m tests.browser.run_teaching` | 390px Chromium 验证 HTTPS 会话、候选题三态、成功停询、刷新只读、交卷、来源及换班隔离 | 2026-11-18，基于 `20db163` 的增量在隔离 Chromium/MySQL 中通过。固定模型、文件闸门推进，Kafka 单列。[H5 异步实测](../docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-18-h5-候选题三态回归43-部分) | 教学实施人 |
 | 实现组可运行 | `uv run --locked python scripts/start_demo.py`，核对本地 HTTPS 就绪；按私有配置运行 `scripts/demo_smoke.py` | 合成资料构建、三路检索、问答与出处可回查 | 2026-11-06 至 07，检索候选启动与真实烟测均退出 0。当前基线未重跑。[检索交付](../docs/changes/2026-11-04-add-traceable-retrieval.md) | 资料与检索实施人 |
 | 实现组可运行 | `uv run --locked python apitest/run_all.py` | 按 HTTP 路径和方法收集，请求、响应与必要持久副作用正确 | 2026-11-11 的 MCP 交付候选退出 0，77 项通过。当前基线未重跑此独立入口。[MCP 交付](../docs/changes/2026-11-04-add-controlled-mcp-tools.md) | MCP 实施人 |
 | 实现组可运行 | `uv run --locked python -m scripts.evaluate_ai_apps`，加 `--real` 可单独跑授权网关烟测 | 固定结构回归和三条合成网关输入 | 2026-11-08 的同步应用候选两轮退出 0，替身结构 20 项通过。当前基线未重跑。[应用评测](../docs/eval/2026-11-08-class-apps.md) | 流式助手实施人 |
@@ -100,7 +100,7 @@
 | L10-N05、L10-F05 的轮询衔接 | `tests/unit/test_alert_watcher.py` 和既有 HTTPS 集成核对自动评估、未确认重试及恢复顺序。 | 注入时间回归、一轮真实 TLS 命令和下行的实际时间演练通过。[轮询入口](delivery-runtime.md#第-10-课告警轮询入口41-部分) |
 | L10-N05、L10-F05 的实际时间演练 | `tests/drills/test_skill_alert_drill.py`，隔离 MySQL、真实应用入口、固定故障替身与本地 HTTPS。 | 690.43 秒演练通过，53 次失败和 33 次成功，1 次拒收后重试确认及恢复确认。正式负责人收件与阈值待确认。[实际取证](delivery-runtime.md#2026-11-18-实际结果) |
 | L10-N06、L10-F06 | 4.2 同口径两轮，按提交、查询、检索和消费吞吐核对饱和与改进。 | 两轮有效测量通过。最初环境与夹具失败保留，未纳入对照。性能实施人。[压测取证](bench.md) |
-| L10-N07 | `tests/browser/teaching.mjs` 实测登录、交卷与换班。Kafka 集成对照候选题 202 和三态，安全预检集成核对七列技能审计。 | 测验交卷实测为 201。尚缺作业 202 以及同一 H5 作业链路的三态和审计关联。教学实施人、复验同伴。 |
+| L10-N07 | `tests/browser/teaching.mjs`、`candidates.mjs` 实测登录、候选题 202 与三态、停询、刷新、交卷及换班。Kafka 投递和七列技能审计由各自集成回归覆盖。 | 同一 H5 候选题链路三态通过，持久任务、结果及草稿批一致。测验交卷为 201，作业 202 和同一链路的七列审计关联仍缺。教学实施人、复验同伴。 |
 | L10-F07 | `tests/browser/test_teaching.py` 验证未登记来源访问及合法来源跨班/缺失对照。安全预检集成验证服务器对错误来源返回 403/1200。 | 自动化通过。同源正向成功，跨来源读写被浏览器拦截，非本班与不存在的讲义公开响应相同。教学实施人。 |
 | L10-F08 | [试用反馈](feedback.md)记录脱敏会话代号、接口、实际、预期与处置。最终验收 4.5 核对三名真实使用者。 | 记录结构已准备，真实试用未执行。验收人。 |
 | L10-N08、L10-F09 | 5.1–5.4 和最终验收，在同一候选综合判定、独立复验、签署和返工。 | 未执行。验收人和复验同伴。 |

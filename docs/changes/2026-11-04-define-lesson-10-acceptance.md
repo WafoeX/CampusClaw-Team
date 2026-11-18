@@ -236,3 +236,13 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 `uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_alert_watcher.py` 退出 0，4 项通过。临时移除顺序保护时，恢复通知先于重试触发通知发出，用例退出 1；恢复后 4 项通过，退出 0。`uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_https.py` 退出 0，1 项通过、1.66 秒，用真实子进程验证新轮询入口复用 TLS 回执，接收端事件总数保持两条。时间窗口为合成日志，未声称完成真实五分钟故障演练。
 
 本轮初次常规测试 495 项单元/API、4 项启动用例通过，其后增加的顺序用例单独复跑通过。静态门禁及 OpenSpec 严格校验通过。按 `openspec-apply-change`、`project-add-tests`、`project-review` 完成七类自审，接口为实际命令，业务为轮询及顺序，公共函数为共享配置与既有评估，错误为未确认及日志截短，安全为输出脱敏与既有 HTTPS 约束。数据库、迁移不适用；轮询每次按完整日志重建，运行跨度有上限，部署采集规模和持续故障仍待实际演练。4.1 保持未完成，代码及运维入口待人工评审。
+
+## 2026-11-18 实际时间故障与恢复演练（4.1 部分）
+
+基于 `807ee59`，新增显式演练入口，复用隔离 Compose、三种技能与既有会话准备。原有常规回归保持原默认超时，只有本次显式演练请求 900 秒执行时限。应用入口实际发起失败及成功请求，MySQL 保存结果，原有技能终态日志进入轮询和 HTTPS 投递，面板使用同一批日志。
+
+执行 `uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/drills/test_skill_alert_drill.py`。首次因 Docker 未运行退出 1；第二次缺少初始迁移，第三次临时私钥归属错误，分别退出 1。修正隔离启动与归属后，退出 0、1 项通过、721.28 秒。实际故障与恢复运行 690.43 秒，共 53 次失败、33 次成功，临时收件端首次 503 后用同事件重试成功，最后恢复确认。失败和实际时间见[运行证据](../../reports/delivery-runtime.md#第-10-课实际时间故障演练41-部分)。
+
+`make check-test` 退出 0，496 项单元/API 与 4 项启动用例；`make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` 退出 0，12 项严格规格校验及格式、分层、追溯通过。演练运行产生的本地 HTML、回执和逐轮记录依既有规则忽略。
+
+按 `openspec-apply-change`、`project-add-tests`、`project-review` 自审。接口核查实际 Cookie 会话及 1501/SSE 终态；业务核查真实经过的持续条件、重试与恢复顺序；数据库核查复用真实 MySQL 结果和迁移初始化；公共函数核查既有评估、日志与投递；错误核查实际 503 和收件记录；安全核查临时证书、私钥 0600、合成身份和脱敏输出；性能核查本次采样口径，专项负载结论继续沿 4.2。正式阈值与负责人收件待确认，4.1 保持未完成。本轮代码、显式时限参数和证据待人工评审。

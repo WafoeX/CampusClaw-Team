@@ -17,11 +17,13 @@
 
 3.2 的用例在 [`tests/integration/security_precheck_runtime.py`](../tests/integration/security_precheck_runtime.py)，令牌签发接口另有 [`apitest` 用例](../apitest/cases/api/v1/auth/csrf-tokens/POST.json)。合法同源首次写入成功。跨来源表单、缺失或过期令牌、动作或会话不匹配为 403/1200。两个请求并发消费同一枚令牌时，一个 200、一个 403，配置只增加一条修订。再次提交为 403，数据库快照相同。
 
-[`tests/integration/retrieval_runtime.py`](../tests/integration/retrieval_runtime.py) 已在真实 MySQL 上确认普通含撇号的检索值与班级值均独立绑定，额外排序字段返回 400/1000 且未执行全文检索 SQL。完整 SQL 注入、XSS 及三件套的门禁阻断证据仍待补，3.1、3.3 保持未完成。人工冷启动、跨机器独立复验和评审待执行。
+[`tests/integration/retrieval_runtime.py`](../tests/integration/retrieval_runtime.py) 前序已在真实 MySQL 上确认普通含撇号的检索值与班级值均独立绑定，额外排序字段返回 400/1000 且未执行全文检索 SQL。2026-11-18 补齐课程原注入词及完整三件套，实测和门禁阻断见下表；人工冷启动、跨机器独立复验和评审待执行。
 
 [`tests/browser/teaching.mjs`](../tests/browser/teaching.mjs) 已在 Chromium 核对普通含尖括号的讲义标题。两页原始 HTML 不带标题标记，JSON 返回原值，学生列表和详情按纯文本显示且标题容器无子元素。临时移除详情标题赋值时，同一命令退出 1，恢复后退出 0。
 
 ## 6.3 可重复复验索引
+
+2026-11-18 增补：注入三件套可用 `make check-injection`，详见[本轮取证](#2026-11-18-三段式与阻断复验)。下表保留此前候选与执行记录。
 
 以代码候选 `546a954` 运行，按 [README 的隔离环境](../README.md#课末安全预检)准备 Docker、uv 和 OpenSpec。工程门禁以该候选的 [GitHub Actions](https://github.com/WafoeX/CampusClaw-Team/actions/runs/43742209674/job/132897628672) 为证，`make check` 已通过。其他运行按其报告登记候选与环境。
 
@@ -35,4 +37,18 @@
 
 技术自审各有一份实际发现、处置和复测记录，见[关联工作树历史扫描](security-self-review-git.md)和[浏览器回归失败输出](security-self-review-browser.md)。其他实际失败及复测见[返工记录](security-rework.md)。资产归档、日志及漏洞库缓存保留在 Git 忽略目录。`reports/sec08-experiment.md` 尚缺必做实验实测，当前索引如实保留缺项。
 
-6.3 技术复验索引和两份自审已归档。课程验收仍待完整注入回归、SEC-08、直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
+6.3 技术复验索引和两份自审已归档，注入三件套技术回归于 2026-11-18 补齐。课程验收仍待 SEC-08、直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
+
+## 2026-11-18 三段式与阻断复验
+
+基线 `cd695bd`。代码提交为 SQL `fa8aa12`、脚本标题 `663227a`、门禁及清单 `183bb51`。运行 `make check-injection`，从下列实际清单收集共享 pytest，第一次 23 项通过、200.73 秒，故意破坏并恢复后再次 23 项通过、200.86 秒。两次 Make 均退出 0。
+
+| 场景与可执行清单 | 前置 → 操作 → 可观测结果 | 破坏与恢复 |
+| --- | --- | --- |
+| SR-F07：[检索 POST](../apitest/cases/api/v1/searches/POST.json) | A/B 班真实已索引数据及正向命中 → 提交 `' OR '1'='1`，再将其放入非法排序字段 → 检索 200/0 空结果，SQL 结构不变、原值及班级独立绑定；排序 400/1000 且无额外全文查询，正向查询仍命中。 | 临时移除额外字段拒绝，定向检索冷启动用例在排序状态断言失败，pytest 退出 1、65.06 秒；恢复后完整复测通过。 |
+| SR-F08：[资料 POST](../apitest/cases/api/v1/materials/POST.json) | 教师创建含 `<script>alert(1)</script>` 的标题 → 学生读取 JSON、原始 HTML 并打开列表/详情 → 标题保留原文，HTML 不嵌入标题标记，DOM 只有文本且无 alert 副作用。 | 临时改为 innerHTML，详情出现两个子元素且文字变化，浏览器 pytest 退出 1、28.76 秒；恢复 textContent 后完整复测通过。 |
+| SR-F09：[模板 PATCH](../apitest/cases/api/v1/prompt-templates/{resource_id}/PATCH.json) | 有效教师会话与真实库快照 → 跨来源表单、同源缺令牌、重放及合法首次写入 → 非法请求 403/1200 且无配置副作用；合法写入一次，并发仅一次成功，Cookie 属性保持 Strict/Secure/HttpOnly。 | 临时绕过令牌消费，缺令牌断言失败，预检 pytest 退出 1、22.87 秒；恢复后完整复测通过。 |
+
+`make check` 的集成阶段保留全部现有集成，同时增加标题浏览器测试；SQL、CSRF 原集成入口继续运行。静态阶段执行清单校验，缺 SR-F07–09 任一项、空三段式或无测试文件即非零。临时清空 XSS 验收段时，`make check-static CHANGE=2026-11-04-remediate-security-findings` 退出 2；恢复后退出 0。定向 pytest 的非零及共享运行器的失败、跳过、空套件契约共同保持门禁阻断，不将三次定向失败写成执行了三轮完整 Make。
+
+本项复用已有防护，未发现需修改业务实现的红项。3.1、3.3 技术完成；SEC-08、直接评分课程等价及综合收尾仍缺。真实基线、七类自审与原始日志位置见[本轮证据](../docs/changes/2026-11-04-remediate-security-findings.md#2026-11-18-注入三件套与必需门禁31-33)。约束文件变更待人工评审。

@@ -38,6 +38,9 @@ def main():
         "docker", "build", "-t", browser_image, str(ROOT / "tests/browser"), timeout=900
     )
     with tempfile.TemporaryDirectory(prefix=project + "-") as folder:
+        control = Path(folder) / "control"
+        control.mkdir(mode=0o777)
+        control.chmod(0o777)  # 临时合成标识闸门，供两个容器用户交接；不写凭据。
         config = Path(folder) / "compose.env"
         config.write_text(
             "\n".join(
@@ -112,10 +115,14 @@ def main():
                 app_name,
                 "-e",
                 f"APP_PUBLIC_ORIGIN={origin}",
+                "-v",
+                f"{control}:/tmp/browser-control",
+                "-v",
+                f"{ROOT / 'tests/browser/teaching_app.py'}:/tmp/teaching_app.py:ro",
                 "app",
                 "python",
                 "-c",
-                "from app import create_app; create_app().run(host='0.0.0.0', port=8443, ssl_context='adhoc')",
+                "import runpy; runpy.run_path('/tmp/teaching_app.py', run_name='__main__')",
                 capture=True,
             )
             browser = (
@@ -128,6 +135,8 @@ def main():
                 project + "_default",
                 "-v",
                 f"{ROOT}:/workspace:ro",
+                "-v",
+                f"{control}:/tmp/browser-control",
                 "-e",
                 "CAMPUS_BROWSER_PASSWORD",
                 "--entrypoint",

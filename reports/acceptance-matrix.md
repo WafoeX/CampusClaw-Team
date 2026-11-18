@@ -97,6 +97,7 @@
 | L10-N04、L10-F04 | 候选构建与隔离 `cold_start_and_recovery`，核对版本、制品、配置失败和停库撤流。 | 实测通过，证据见制品运行报告。运维负责人。 |
 | L10-N05 | 4.1 复用审计关联、`cold_start_and_recovery`、`real_kafka` 及 `tests/unit/test_observability_dashboard.py`。 | 同一隔离候选的三种技能、接口 P95 和真实队列已出图，浏览器对照通过。持续失败和告警送达待复验。运维负责人。[面板实测](delivery-runtime.md#第-10-课运行观测面板41-部分) |
 | L10-F05 | 4.1，规则、`tests/unit/test_alert_delivery.py`、`tests/integration/test_alert_receiver.py` 和 `tests/integration/test_alert_https.py` 核对缺样、TLS、回执和重试。 | 本地 HTTP/TLS 接收端与实际命令回归通过。正式阈值、负责人收件与持续故障演练待执行。运维负责人。[HTTPS 复验](delivery-runtime.md#2026-11-18-本地-https-命令行复验) |
+| L10-N05、L10-F05 的轮询衔接 | `tests/unit/test_alert_watcher.py` 和既有 HTTPS 集成核对自动评估、未确认重试及恢复顺序。 | 注入时间回归和一轮真实 TLS 命令验证通过，持续演练待执行。[轮询入口](delivery-runtime.md#第-10-课告警轮询入口41-部分) |
 | L10-N06、L10-F06 | 4.2 同口径两轮，按提交、查询、检索和消费吞吐核对饱和与改进。 | 两轮有效测量通过。最初环境与夹具失败保留，未纳入对照。性能实施人。[压测取证](bench.md) |
 | L10-N07 | `tests/browser/teaching.mjs` 实测登录、交卷与换班。Kafka 集成对照候选题 202 和三态，安全预检集成核对七列技能审计。 | 测验交卷实测为 201。尚缺作业 202 以及同一 H5 作业链路的三态和审计关联。教学实施人、复验同伴。 |
 | L10-F07 | `tests/browser/test_teaching.py` 验证未登记来源访问及合法来源跨班/缺失对照。安全预检集成验证服务器对错误来源返回 403/1200。 | 自动化通过。同源正向成功，跨来源读写被浏览器拦截，非本班与不存在的讲义公开响应相同。教学实施人。 |

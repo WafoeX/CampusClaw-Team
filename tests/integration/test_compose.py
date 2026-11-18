@@ -185,7 +185,7 @@ def stack(tmp_path_factory):
         *overlay,
     ]
 
-    def compose(*args, check=True, teaching=False):
+    def compose(*args, check=True, teaching=False, timeout=420):
         extension = (
             [
                 "--file",
@@ -203,7 +203,7 @@ def stack(tmp_path_factory):
             check=check,
             stdout=subprocess.PIPE,
             text=True,
-            timeout=420,
+            timeout=timeout,
         ).stdout.strip()
 
     try:

@@ -268,6 +268,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 持续演练可用 `uv run --locked python -m scripts.watch_skill_alerts` 轮询完整候选日志，每 15 秒衔接评估与投递。按[轮询入口](reports/delivery-runtime.md#第-10-课告警轮询入口41-部分)设置固定起点、结束时间和追加中的日志文件。
 
+运行 `uv run --locked python scripts/check_pytest.py -q -s tests/drills/test_skill_alert_drill.py` 可在一次性 Compose 中执行约十三分钟的实际时间演练，使用固定模型故障替身、真实 MySQL 和临时 TLS 收件端。该命令独立于常规门禁，完整经过五分钟持续条件、拒收重试和恢复窗口，脱敏产物写入本机 `reports/observability/drill-*`。
+
 教学压测复用隔离 Compose，可用环境配置控制并发、样本数和合成数据量。复跑参数、分页索引效果及回退验证见[压测报告](reports/bench.md)。
 
 ## 小组协作与增量流程

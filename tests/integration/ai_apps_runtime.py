@@ -1683,6 +1683,20 @@ assert {
 print("OBSERVABILITY_CAPTURE " + json.dumps(observations + http_observations))
 print("L10_N05_SKILL_OBSERVATIONS_OK: skills=3 succeeded=3 failed=1 interrupted=1")
 
+if os.environ.get("CAMPUSCLAW_ALERT_DRILL") == "1":
+    exec(Path("/tmp/skill_alert_drill.py").read_text())
+    globals()["run_skill_alert_drill"](
+        request=request,
+        frames=frames,
+        service=service,
+        model=session_chat,
+        path=observation_path,
+        skills=skill_cases,
+        target=builtin["id"],
+        version=settings.version,
+        initial=observation_logs,
+    )
+
 # ST-B01/F04：真实召回超过4片，截取仍只在绑定材料内；检索失败在流前拒绝且无消息写入。
 boundary_text = "边界证据" * 3000
 boundary_source = request(

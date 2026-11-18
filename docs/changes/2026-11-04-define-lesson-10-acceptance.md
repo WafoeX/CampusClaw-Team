@@ -220,3 +220,11 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_receiver.py` 退出 0，1 项通过，0.53 秒。本地环回合成接收端首次返回 503，重试及再次投递返回确认；接收端仅保留一条事件。该验证覆盖实际 HTTP 传输，部署命令要求的 HTTPS 证书验证及正式收件端仍待实测。`make check-test` 退出 0，492 项单元/API 和 4 项启动测试通过。静态门禁首次发现两处导入排序，修正后复跑通过。
 
 按 `openspec-apply-change`、`project-add-tests`、`project-review` 执行七类自审。接口与公共函数核查配置、事件投影和回执合同；业务核查触发、缺样、恢复、重试及时间边界；错误与安全核查非零退出、固定环境地址、禁止跳转及输出脱敏；数据库与迁移不适用，投递状态由输出和接收端记录核对；性能核查响应上限与连接超时，专项压测不适用。本轮增加运维命令，真实连续故障、负责人、正式通知送达与恢复留待 4.1，整体任务保持未完成。脚本待人工评审。
+
+## 2026-11-18 HTTPS 命令行回归（4.1 部分）
+
+基于 `4f22f2b`，为实际命令增加本地 TLS 集成夹具。使用临时证书、环回监听与合成报告，沿用标准库默认的 TLS 和主机名校验。依次验证两类证书拒绝、可信 TLS 下的 503 与错误令牌、触发和恢复确认、重复命令的回执及收件去重。命令通过独立进程执行，网络拒绝和业务失败均核对非零退出与实际接收端记录。[逐项证据](../../reports/delivery-runtime.md#2026-11-18-本地-https-命令行复验)
+
+`uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_https.py` 首次退出 0，1 项通过，1.22 秒。临时把成功退出码改为错误期望后退出 1，恢复后复跑退出 0，1 项通过、1.27 秒。`make check-test` 通过，492 项单元/API 和 4 项启动用例；`make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` 通过，12 项 OpenSpec 严格校验、格式、分层和追溯检查均成功。
+
+按 `openspec-apply-change`、`project-add-tests`、`project-review` 及七类核查自审。接口为真实 CLI 输入和退出，业务为投递结果与恢复事件，公共函数为既有规则和投递实现，错误为证书拒绝及接收失败，安全为子进程独立信任配置和凭据输出检查；数据库迁移与性能不适用，本轮仅补测试。所有身份、证书和报告均为隔离合成夹具。正式阈值、负责人收件及真实模型持续故障仍待验证，4.1 保持未完成；代码待人工评审。

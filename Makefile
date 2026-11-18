@@ -8,7 +8,7 @@ TRIVY_CACHE := $(CURDIR)/reports/trivy-cache
 SECURITY_ASSETS ?= $(CURDIR)/reports/security-assets
 SECURITY_CANDIDATE ?= $(shell git rev-parse HEAD)
 
-.PHONY: check check-static check-specs check-test check-secrets check-dependencies check-integration check-security
+.PHONY: check check-static check-specs check-test check-secrets check-dependencies check-integration check-injection check-security
 check:
 	$(MAKE) check-static
 	$(MAKE) check-test
@@ -27,6 +27,7 @@ check-static: check-specs
 	$(RUN) ruff check app mcp-server scripts tests apitest
 	$(RUN) python scripts/check_layout.py
 	$(RUN) python scripts/scenario_trace.py
+	$(RUN) python apitest/run_all.py --validate-only
 
 check-test:
 	$(RUN) python scripts/check_pytest.py -q --disable-socket tests/unit tests/api
@@ -41,7 +42,10 @@ check-dependencies:
 
 check-integration:
 	mkdir -p "$(TRIVY_CACHE)"
-	CAMPUSCLAW_IMAGE_SCANNER="$(TRIVY)" CAMPUSCLAW_SCANNER_CACHE="$(TRIVY_CACHE)" $(RUN) python scripts/check_pytest.py -q --tb=short tests/integration
+	CAMPUSCLAW_IMAGE_SCANNER="$(TRIVY)" CAMPUSCLAW_SCANNER_CACHE="$(TRIVY_CACHE)" $(RUN) python scripts/check_pytest.py -q --tb=short tests/integration tests/browser/test_teaching.py
+
+check-injection:
+	$(RUN) python apitest/run_all.py --injection
 
 check-security:
 	$(RUN) python scripts/check_security.py --candidate "$(SECURITY_CANDIDATE)" --assets "$(SECURITY_ASSETS)" --cache "$(TRIVY_CACHE)" --gitleaks "$(GITLEAKS)" --trivy "$(TRIVY)"

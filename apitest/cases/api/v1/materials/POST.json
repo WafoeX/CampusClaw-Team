@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/v1/materials",
+  "pytest": [
+    "tests/browser/test_teaching.py::test_SB_B02_browser_draft_survives_relogin"
+  ],
+  "security_regression": {
+    "scenario": "SR-F08",
+    "given": "隔离 HTTPS 应用、真实 MySQL 与 Chromium 可用，教师可合法创建纯文本资料标题。",
+    "when": "标题包含 <script>alert(1)</script>，以学生身份读取 JSON、列表页和详情页原始 HTML，再实际打开列表和详情。",
+    "then": "JSON 保留原标题，原始 HTML 不含可执行标题片段，页面标题与原值相同且无子元素，无 alert 执行副作用。"
+  }
+}

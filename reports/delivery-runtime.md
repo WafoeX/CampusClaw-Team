@@ -116,3 +116,11 @@ docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile te
 | 教学队列 | 投递器实际观测到 20 项待处理。 |
 
 在断网 Chromium 中核对图例切换、数值表和 1120／390px 两种布局。宽屏并排显示 P95 和队列，窄屏按同一顺序堆叠。脱敏报告和截图留在本机忽略目录 `reports/observability/`。
+
+## 第 10 课告警规则评估（4.1 部分）
+
+源码基线为 `fd42a9f`。离线命令 `uv run --locked python -m scripts.evaluate_skill_alerts` 接受面板命令相同的 `--version`、可重复 `--skill`、`--start` 与 `--end` 参数，从标准输入读取完整结构化日志。输出到运维控制的忽略目录，例如 `reports/observability/alerts.json`。
+
+采用设计中初拟规则，每 15 秒评估一次此前五分钟的技能完成记录，窗口为左开右闭。至少 20 次调用且失败率严格大于 1% 时进入 `pending`；连续满足五分钟后进入 `firing` 并标记 `notification=required`。失败率回落进入 `normal`；不足 20 次调用进入 `no_data`，重置持续计时。样本不足单独记录，通知流程应继续核对告警的收件状态。相同候选、输入与时间范围可重复计算相同转换，调用者应保留转换时间作为后续投递幂等依据。
+
+规则沿用技能完成时间与结果分类，输出只有候选、技能 ID、窗口口径、状态和计数。验证使用合成日志与注入时间，覆盖触发、恢复、缺样和阈值边界。初拟阈值与接收端配置待评审，真实连续失败、通知送达和恢复演练待执行，4.1 保持未完成。

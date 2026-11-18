@@ -25,10 +25,14 @@ await new Promise((resolve, reject) => {
   socket.addEventListener("error", reject, { once: true });
 });
 let sequence = 0;
+let scriptAlerts = 0;
 const pending = new Map();
 socket.addEventListener("message", ({ data }) => {
   const message = JSON.parse(data);
-  if (message.method === "Page.javascriptDialogOpening") send("Page.handleJavaScriptDialog", { accept: true });
+  if (message.method === "Page.javascriptDialogOpening") {
+    if (message.params.type === "alert") scriptAlerts++;
+    send("Page.handleJavaScriptDialog", { accept: true });
+  }
   const callback = pending.get(message.id);
   if (callback) { pending.delete(message.id); callback(message); }
 });
@@ -71,7 +75,7 @@ try {
   await login("demo_a_teacher");
   assert.equal((await request("/live")).status, 200);
   assert.equal((await request("/health")).status, 200);
-  const materialTitle = '实验记录 <group-a> & "复测"';
+  const materialTitle = '实验记录 <script>alert(1)</script> <group-a> & "复测"';
   const material = await api("/api/v1/materials", "POST", {
     title: materialTitle, text: "合成讲义原文",
   }, {"Idempotency-Key": "browser-material-title"});
@@ -119,6 +123,9 @@ try {
     text: document.getElementById("detail-title").textContent,
     elements: document.getElementById("detail-title").childElementCount,
   })`), {text: materialTitle, elements: 0});
+  assert.equal(scriptAlerts, 0, "SR-F08 标题不得触发脚本弹窗");
+  assert.equal(await js('document.querySelectorAll("#detail-title script").length'), 0);
+  console.log("SR_F08_XSS_BROWSER_OK: script title=text, childElements=0, alert=0");
   console.log("MATERIAL_TITLE_BROWSER_OK: 页面模板和讲义标题纯文本渲染");
 
   await navigate(`/quizzes/${quiz.id}`);

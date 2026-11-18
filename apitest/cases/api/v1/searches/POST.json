@@ -3,6 +3,13 @@
   "path": "/api/v1/searches",
   "pytest": [
     "tests/api/test_retrieval.py",
-    "tests/api/test_answers.py"
-  ]
+    "tests/api/test_answers.py",
+    "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery"
+  ],
+  "security_regression": {
+    "scenario": "SR-F07",
+    "given": "隔离 MySQL 中 A/B 班各有已索引资料，本班正向关键词查询命中，跨班查询为空。",
+    "when": "提交 ' OR '1'='1 作为关键词，再将同一 SQL 片段放入未支持的 sort_order 字段，同时捕获真实 SQL 和绑定参数。",
+    "then": "注入词为 200/0 空结果；SQL 结构和班级约束保持不变，原注入词独立绑定；非法排序为 400/1000 且未执行全文检索。"
+  }
 }

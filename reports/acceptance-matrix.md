@@ -80,7 +80,7 @@
 | SR-N01、SR-F01 | 固定候选冷启动，重跑双门禁，核对基线输入及非零结果。[基线与复跑](../docs/changes/2026-11-04-remediate-security-findings.md) | 基线已重放，完整基线收口仍待安全修复 1.2。 |
 | SR-F02、SR-F03、SR-F04 | `test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck` 检查匿名、班级、角色和无副作用。[SEC-01–03](security-fix-log.md) | 自动化有实测，安全负责人及最终验收 4.2 复核。 |
 | SR-F05、SR-F06 | `test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue` 核对撤权和无写入。[SEC-04](security-fix-log.md) | 工具回归已有证据，独立批改入口的课程等价待安全修复 2.3、最终验收 1.5。 |
-| SR-F07、SR-F08、SR-F09 | `test_MP_N01_MP_B01_isolated_compose_teaching_service` 核对绑定，`test_SB_B02_browser_draft_survives_relogin` 核对标题文本，安全预检集成核对同源写入和拒绝。[专项用例与证据](security-fix-log.md#注入回归记录) | 已有防护回归。完整课程三件套和门禁证据待安全修复 3.1、3.3。 |
+| SR-F07、SR-F08、SR-F09 | `make check-injection` 从三份三段式清单选择检索冷启动、标题浏览器与安全预检共享用例。`make check` 的静态和集成阶段强制核对并收集。[专项用例与证据](security-fix-log.md#注入回归记录) | 基于 `cd695bd` 的三件套两轮各 23 项通过，三类故意破坏均退出 1；缺验收段使静态 Make 退出 2，恢复后通过。3.1、3.3 技术交付完成，人工评审待执行。 |
 | SR-F10、SR-F11 | `make check-security` 和资产红绿对照核对七个范围及非零阻断。[红绿记录](gate-red-green.md) | 独立门禁与对照已有实测，安全负责人。 |
 | SR-N02、SR-F12、SR-F13 | 安全预检集成核对七组审计字段、去内容查询、权限与故障无写入。[SEC-07](security-fix-log.md) | 自动化有实测，安全负责人及最终验收 4.2 复核。 |
 | SR-B01、SR-B02 | [安全修复 5.2 和最终验收 4.3](../openspec/changes/2026-11-04-remediate-security-findings/tasks.md)的 SEC-08 必做验收卡。 | 未执行，缺完整实测及报告。安全负责人和复验同伴。 |

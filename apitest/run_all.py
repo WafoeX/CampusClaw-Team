@@ -1,5 +1,6 @@
 """按路径/方法选择共享 pytest；任一失败、跳过或零用例均非零。"""
 
+import argparse
 import html
 import json
 import os
@@ -10,6 +11,50 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "reports/2026-11-04-add-streaming-ai-assistant/apitest"
+INJECTION_SCENARIOS = {"SR-F07", "SR-F08", "SR-F09"}
+
+
+def collect_nodes(*, injection=False):
+    files = sorted((ROOT / "apitest/cases").rglob("*.json"))
+    if not files:
+        raise ValueError("缺少接口用例清单")
+    nodes, covered = set(), set()
+    for path in files:
+        entry = json.loads(path.read_text())
+        selected = entry.get("pytest")
+        if (
+            not isinstance(selected, list)
+            or not selected
+            or any(
+                not isinstance(node, str)
+                or not node.startswith("tests/")
+                or not (ROOT / node.split("::")[0]).is_file()
+                for node in selected
+            )
+        ):
+            raise ValueError("接口用例清单无效：" + str(path.relative_to(ROOT)))
+        regression = entry.get("security_regression")
+        if regression is not None:
+            if (
+                not isinstance(regression, dict)
+                or regression.get("scenario") not in INJECTION_SCENARIOS
+                or any(
+                    not isinstance(regression.get(stage), str)
+                    or not regression[stage].strip()
+                    for stage in ("given", "when", "then")
+                )
+            ):
+                raise ValueError(
+                    "注入回归缺少有效场景或三段式：" + str(path.relative_to(ROOT))
+                )
+            covered.add(regression["scenario"])
+        if not injection or regression is not None:
+            nodes.update(selected)
+    if covered != INJECTION_SCENARIOS:
+        raise ValueError(
+            "注入回归清单缺项：" + ", ".join(sorted(INJECTION_SCENARIOS - covered))
+        )
+    return sorted(nodes)
 
 
 def render_report(xml_path, output, status):
@@ -45,21 +90,18 @@ def render_report(xml_path, output, status):
     )
 
 
-def main():
-    REPORT.mkdir(parents=True, exist_ok=True)
-    xml_path = REPORT / "results.xml"
+def main(*, injection=False, validate_only=False):
+    try:
+        nodes = collect_nodes(injection=injection)
+    except (ValueError, OSError) as error:
+        raise SystemExit(str(error)) from None
+    if validate_only:
+        print(f"接口清单与注入三段式通过，共 {len(nodes)} 个去重入口")
+        return 0
+    report = REPORT / "injection" if injection else REPORT
+    report.mkdir(parents=True, exist_ok=True)
+    xml_path = report / "results.xml"
     xml_path.unlink(missing_ok=True)
-    files = sorted((ROOT / "apitest/cases").rglob("*.json"))
-    if not files:
-        raise SystemExit("缺少接口用例清单")
-    nodes = sorted(
-        {node for path in files for node in json.loads(path.read_text())["pytest"]}
-    )
-    if not nodes or any(
-        not node.startswith("tests/") or not (ROOT / node.split("::")[0]).is_file()
-        for node in nodes
-    ):
-        raise SystemExit("接口用例清单无效")
     env = dict(os.environ)
     env.pop("PYTEST_ADDOPTS", None)
     status = subprocess.run(
@@ -74,10 +116,16 @@ def main():
         env=env,
         check=False,
     ).returncode
-    render_report(xml_path, REPORT / "index.html", status)
-    print("本地 HTML：" + str(REPORT / "index.html"))
+    render_report(xml_path, report / "index.html", status)
+    print("本地 HTML：" + str(report / "index.html"))
     return status
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--injection", action="store_true", help="只复跑课程注入三件套")
+    parser.add_argument("--validate-only", action="store_true", help="只核对清单完整性")
+    options = parser.parse_args()
+    raise SystemExit(
+        main(injection=options.injection, validate_only=options.validate_only)
+    )

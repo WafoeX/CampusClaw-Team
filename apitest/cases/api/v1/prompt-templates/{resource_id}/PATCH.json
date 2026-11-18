@@ -1,0 +1,13 @@
+{
+  "method": "PATCH",
+  "path": "/api/v1/prompt-templates/{resource_id}",
+  "pytest": [
+    "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
+  ],
+  "security_regression": {
+    "scenario": "SR-F09",
+    "given": "隔离 MySQL 与有效教师 Cookie 会话可用，已保存本班模板及修订和审计快照。",
+    "when": "重放跨来源伪造表单、合法同源缺令牌、已消费令牌，再对照带有效令牌的首次写入及并发消费。",
+    "then": "非法请求为 403/1200 且模板/修订/审计快照不变；合法写入成功且仅增加一条修订；同令牌并发只有一次成功；登录 Cookie 含 Strict、Secure、HttpOnly。"
+  }
+}

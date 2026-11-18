@@ -344,12 +344,24 @@ if phase == "setup":
         assert statement == keyword_sql
         assert book_title in parameters.values() and class_a in parameters.values()
 
-        unsupported_sort = post(
-            student, "/api/v1/searches", {"query": book_title, "sort_order": "title"}
-        )
-        assert unsupported_sort.status_code == 400
-        assert unsupported_sort.json["code"] == 1000
-        assert len(sql_queries) == 5
+        # SR-F07：课程原注入词在真实 MySQL 中作为绑定值，不改变查询结构。
+        injected_query = "' OR '1'='1"
+        injected = search(injected_query)
+        assert injected.status_code == 200 and injected.json["code"] == 0
+        assert injected.json["data"] == {"mode": "keyword", "items": []}
+        statement, parameters = sql_queries[-1]
+        assert len(sql_queries) == 6 and statement == keyword_sql
+        assert injected_query in parameters.values() and class_a in parameters.values()
+        for sort in ("title", injected_query):
+            unsupported_sort = post(
+                student, "/api/v1/searches", {"query": book_title, "sort_order": sort}
+            )
+            assert unsupported_sort.status_code == 400
+            assert unsupported_sort.json["code"] == 1000
+            assert len(sql_queries) == 6
+        healthy = search()
+        assert healthy.status_code == 200 and healthy.json["code"] == 0
+        assert len(healthy.json["data"]["items"]) == 1
     finally:
         event.remove(engine, "before_cursor_execute", capture_keyword)
     # QA-N01/B01/F03/F04/F05：实际资料与出处，零调用及结构/数值失败。

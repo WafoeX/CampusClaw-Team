@@ -412,6 +412,8 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 
 要复跑教学事务与 Kafka 恢复，用 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k 'real_kafka or transactions_without_broker'`。课程等价、红项和独立人工复验状态见[预检报告](reports/security-precheck.md)。
 
+注入三件套可用 `make check-injection` 单独复跑。入口从 `apitest/cases/` 的 SR-F07–09 三段式清单选择共享 pytest，覆盖真实 SQL 参数绑定与非法排序、Chromium 中的脚本标题纯文本、同源缺令牌/重放及跨来源 CSRF 拒绝。Docker 会构建隔离 Chromium 镜像，使用一次性合成环境并清理容器和卷；结果 HTML 在本机 `reports/2026-11-04-add-streaming-ai-assistant/apitest/injection/`。`make check` 的静态阶段核对三份清单完整性，集成阶段同时收集 SQL、防伪和标题浏览器回归。任何失败、跳过或空套件均非零退出。
+
 上述命令同时运行第 9 课的四步安全走查。`security_normal_delivery` 记录登录、任务受理、三态查询和跨班访问结果。已复验项目、对应提交和待补证据见[安全修复索引](reports/security-fix-log.md)及[返工记录](reports/security-rework.md)。
 
 采集候选资产后，以 `uv run --locked python scripts/check_security_control.py reports/security-assets` 复验资产门禁。命令只在临时产物副本中写入不可用的扫描占位标记。第一轮须命中 1 项且 Make 非零，移除标记后须退出 0。两轮都核对锁定依赖、候选镜像与其他范围，使用同一版本的未过期漏洞库。输出只保留分项计数和退出码。

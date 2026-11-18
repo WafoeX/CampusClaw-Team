@@ -124,9 +124,15 @@ def test_L10_N05_L10_F05_https_cli_requires_trust_hostname_and_matching_receipt(
         worker = threading.Thread(target=server.serve_forever, daemon=True)
         worker.start()
 
-        def command(host="localhost", trust=cert, token="synthetic-https"):
+        def command(
+            host="localhost",
+            trust=cert,
+            token="synthetic-https",
+            module="scripts.deliver_skill_alerts",
+            extra=(),
+        ):
             result = subprocess.run(
-                [sys.executable, "-m", "scripts.deliver_skill_alerts"],
+                [sys.executable, "-m", module, *extra],
                 cwd=ROOT,
                 input=json.dumps(report),
                 capture_output=True,
@@ -163,6 +169,26 @@ def test_L10_N05_L10_F05_https_cli_requires_trust_hostname_and_matching_receipt(
             assert all(row["status"] == "delivered" for row in delivered)
             code, repeated = command()
             assert code == 0 and repeated == delivered
+            assert len(received) == 2
+            source = tmp_path / "events.jsonl"
+            source.write_text("\n".join(logs), encoding="utf-8")
+            code, watched = command(
+                module="scripts.watch_skill_alerts",
+                extra=(
+                    "--log",
+                    str(source),
+                    "--version",
+                    VERSION,
+                    "--skill",
+                    SKILL,
+                    "--start",
+                    start.isoformat(),
+                    "--until",
+                    (datetime.now(UTC) + timedelta(seconds=3)).isoformat(),
+                ),
+            )
+            assert code == 0 and len(watched) == 1
+            assert watched[0] == delivered[0]
             assert len(received) == 2
         finally:
             server.shutdown()

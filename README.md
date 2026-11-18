@@ -266,6 +266,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 可用 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_https.py` 独立复跑本地 TLS 接收端和真实投递命令，覆盖证书拒绝、主机名不匹配、503、错误令牌及触发／恢复回执去重。临时证书在测试目录内生成并随夹具清理。
 
+持续演练可用 `uv run --locked python -m scripts.watch_skill_alerts` 轮询完整候选日志，每 15 秒衔接评估与投递。按[轮询入口](reports/delivery-runtime.md#第-10-课告警轮询入口41-部分)设置固定起点、结束时间和追加中的日志文件。
+
 教学压测复用隔离 Compose，可用环境配置控制并发、样本数和合成数据量。复跑参数、分页索引效果及回退验证见[压测报告](reports/bench.md)。
 
 ## 小组协作与增量流程

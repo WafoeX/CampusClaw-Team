@@ -228,3 +228,11 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_https.py` 首次退出 0，1 项通过，1.22 秒。临时把成功退出码改为错误期望后退出 1，恢复后复跑退出 0，1 项通过、1.27 秒。`make check-test` 通过，492 项单元/API 和 4 项启动用例；`make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` 通过，12 项 OpenSpec 严格校验、格式、分层和追溯检查均成功。
 
 按 `openspec-apply-change`、`project-add-tests`、`project-review` 及七类核查自审。接口为真实 CLI 输入和退出，业务为投递结果与恢复事件，公共函数为既有规则和投递实现，错误为证书拒绝及接收失败，安全为子进程独立信任配置和凭据输出检查；数据库迁移与性能不适用，本轮仅补测试。所有身份、证书和报告均为隔离合成夹具。正式阈值、负责人收件及真实模型持续故障仍待验证，4.1 保持未完成；代码待人工评审。
+
+## 2026-11-18 告警轮询衔接（4.1 部分）
+
+基于 `c9c1b69`，增加有指定起止时间的日志轮询命令。复用既有评估与投递，提取共享的环境配置读取。每轮输出实际状态，失败通知下轮重试，确认或迟到结果保留；恢复通知等待同技能此前的触发通知确认。重启按固定起点与完整日志重建状态，接收端按原幂等契约去重。运行方式见[轮询入口](../../reports/delivery-runtime.md#第-10-课告警轮询入口41-部分)。
+
+`uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_alert_watcher.py` 退出 0，4 项通过。临时移除顺序保护时，恢复通知先于重试触发通知发出，用例退出 1；恢复后 4 项通过，退出 0。`uv run --locked python scripts/check_pytest.py -q tests/integration/test_alert_https.py` 退出 0，1 项通过、1.66 秒，用真实子进程验证新轮询入口复用 TLS 回执，接收端事件总数保持两条。时间窗口为合成日志，未声称完成真实五分钟故障演练。
+
+本轮初次常规测试 495 项单元/API、4 项启动用例通过，其后增加的顺序用例单独复跑通过。静态门禁及 OpenSpec 严格校验通过。按 `openspec-apply-change`、`project-add-tests`、`project-review` 完成七类自审，接口为实际命令，业务为轮询及顺序，公共函数为共享配置与既有评估，错误为未确认及日志截短，安全为输出脱敏与既有 HTTPS 约束。数据库、迁移不适用；轮询每次按完整日志重建，运行跨度有上限，部署采集规模和持续故障仍待实际演练。4.1 保持未完成，代码及运维入口待人工评审。

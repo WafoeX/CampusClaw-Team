@@ -260,6 +260,8 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 运维可用 `uv run --locked python -m scripts.observability_dashboard` 从当前候选的应用与教学投递器日志生成本地 HTML，查看分技能调用量、错误率以及并排的接口 P95 和待处理队列深度。按[面板生成步骤](reports/delivery-runtime.md#第-10-课运行观测面板41-部分)传入候选、技能和时间窗。
 
+同一份日志可交给 `uv run --locked python -m scripts.evaluate_skill_alerts`，使用相同的候选、技能及起止时间参数，离线核对持续失败告警。输出记录触发、恢复或样本不足的状态，取证方式见[告警规则评估](reports/delivery-runtime.md#第-10-课告警规则评估41-部分)。
+
 教学压测复用隔离 Compose，可用环境配置控制并发、样本数和合成数据量。复跑参数、分页索引效果及回退验证见[压测报告](reports/bench.md)。
 
 ## 小组协作与增量流程

@@ -139,19 +139,24 @@ def deliver(
     return records
 
 
+def configuration():
+    destination = https_url(os.environ.get("ALERT_RECEIVER_URL"))
+    panel = https_url(os.environ.get("ALERT_PANEL_URL"))
+    token = os.environ.get("ALERT_RECEIVER_TOKEN", "")
+    if (
+        not token
+        or len(token) > 4096
+        or any(ord(c) < 33 or ord(c) > 126 for c in token)
+    ):
+        raise ValueError("须配置有效的收件端令牌")
+    return destination, panel, token
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.parse_args(argv)
     try:
-        destination = https_url(os.environ.get("ALERT_RECEIVER_URL"))
-        panel = https_url(os.environ.get("ALERT_PANEL_URL"))
-        token = os.environ.get("ALERT_RECEIVER_TOKEN", "")
-        if (
-            not token
-            or len(token) > 4096
-            or any(ord(c) < 33 or ord(c) > 126 for c in token)
-        ):
-            raise ValueError("须配置有效的收件端令牌")
+        destination, panel, token = configuration()
         events = notifications(json.load(sys.stdin), panel)
     except (ValueError, KeyError, TypeError, RecursionError):
         parser.error(

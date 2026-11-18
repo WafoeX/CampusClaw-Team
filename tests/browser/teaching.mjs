@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { candidates } from "./candidates.mjs";
 
 const origin = process.argv[2];
 const password = process.env.CAMPUS_BROWSER_PASSWORD;
@@ -68,6 +69,8 @@ try {
   await send("Network.enable", { maxPostDataSize: 0 });
   await navigate("/login");
   await login("demo_a_teacher");
+  assert.equal((await request("/live")).status, 200);
+  assert.equal((await request("/health")).status, 200);
   const materialTitle = '实验记录 <group-a> & "复测"';
   const material = await api("/api/v1/materials", "POST", {
     title: materialTitle, text: "合成讲义原文",
@@ -84,6 +87,7 @@ try {
     answers_open_at: answersOpen, items: [{ question_id: question.id, points: 10 }],
   });
   await api(`/api/v1/quizzes/${quiz.id}/publications`, "POST", {});
+  const candidateTask = await candidates({api, request, navigate, js, wait, send, socket});
   await api("/api/v1/auth/sessions/current", "DELETE");
   await navigate("/login");
   await login("demo_a_student");
@@ -199,6 +203,14 @@ try {
   delete absent.body.request_id;
   delete denied.body.request_id;
   assert.deepEqual(denied.body, absent.body);
+  const foreignJob = await request(`/api/v1/teaching-jobs/${candidateTask}`);
+  const missingJob = await request(`/api/v1/teaching-jobs/${randomUUID()}`);
+  assert.equal(foreignJob.status, 404);
+  assert.equal(missingJob.status, 404);
+  assert.equal(foreignJob.body.code, 1300);
+  delete foreignJob.body.request_id;
+  delete missingJob.body.request_id;
+  assert.deepEqual(foreignJob.body, missingJob.body);
   console.log("H5_BROWSER_CONTRACT_OK: 390px HTTPS, login=200, quiz=201, cross-origin=blocked, cross-class=404/1300");
 } finally {
   socket.close();

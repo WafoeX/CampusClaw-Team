@@ -278,3 +278,82 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 | 性能 | 文件等待上限 90 秒，浏览器既有等待上限 12 秒；核对成功后 2.5 秒无新增轮询 | 通过本次有界交接；未重做负载实验，不改 4.2 结论 |
 
 候选题任务目前没有七列技能审计映射，本轮不把数据库一致性当成七列审计通过。正式作业 202 及同一链路审计仍缺，4.3 保持未完成，总进度 6/14。手机真人走查、三人试用、课程等价及独立评审未执行，归最终验收；本轮测试与文档待人工评审。主干保护已核对启用，目前必需检查仍只列 `make check`，2.1 保持未完成。
+
+## 2026-11-19 四技能入口复验与 1.2 收尾（L10-N01、L10-N02、L10-N03、L10-F02）
+
+### 变更说明
+
+在交接候选 `f0f9d47`（应用代码与主干 `e7efe0d` 一致，仅含已合并的 1.2 测试增量和安全交接测试）复跑四项技能入口，核对课程差异与批准口径。教师改分优先和独立错题讲解两项缺实现入口，按任务原文保留缺项：登记到[设计课程行为表](../../openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md#需确认的课程行为)与最终验收 1.5 清单。同步[验收矩阵](../../reports/acceptance-matrix.md)的 L10 行、安全修复行与场景计数（225/236、11 条待办）。
+
+### 验证记录
+
+- `uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k cold_start_and_recovery` 退出 0，1 项通过、161.21 秒。同一命令经 ai_apps/teaching/retrieval 三份运行时核对两轮解题引导、错题开放边界与三模式班级隔离。
+- `make check-static CHANGE=2026-11-04-define-lesson-10-acceptance` 退出 0，12 项 OpenSpec 严格校验、格式、分层、场景映射与接口清单通过。
+- `git diff --check` 通过。
+
+### 自审与交接
+
+| Harness 类别 | 手段、对象、判据及结果 |
+| --- | --- |
+| 接口入口 | 不适用：本轮未改接口，四技能入口均为既有已合并测试。 |
+| 业务逻辑 | 复跑 `cold_start_and_recovery` 核对解题引导 SSE 终态、错题开放前后边界与三模式检索隔离，通过。 |
+| 数据库 | 真实 MySQL 与 Qdrant 沿既有运行时断言，通过；无结构变化。 |
+| 公共函数 | 复用共享 pytest 与场景映射，静态门禁与追溯退出 0，通过。 |
+| 错误处理 | 不适用：本轮无新增错误路径。 |
+| 安全 | 测试复用合成两班与隔离 Compose，不涉凭据与业务实现，通过。 |
+| 性能 | 复跑 161.21 秒与既有记录同量级，不改性能结论。 |
+
+1.2 完成，教师改分优先与独立错题讲解按缺项登记归最终验收 1.5，总进度 7/14。双门禁准入 2.1、告警负责人收件 4.1、H5 作业 202 关联 4.3 与冻结 5.x 保持未完成；本次任务状态、设计与矩阵同步待人工评审。
+
+## 2026-11-19 双门禁实际判据复核（2.1 部分，L10-03）
+
+### 变更说明
+
+按 CI 同一流程在候选 `d7ac3d1` 本地复刻两条命令：先以 `CAMPUSCLAW_SECURITY_ASSETS` 跑安全预检采集候选资产（镜像 tarball、前端、日志与 revision 标识），再运行 `make check-security` 复核七项判据。`make check` 引用 6.1 在 `4743507` 的完整运行；`git diff 4743507..d7ac3d1 --stat -- app tests scripts apitest Makefile .github` 为空，本轮新增提交均为文档，静态阶段已随本日多次 `make check-static` 复验。CI 工作流 `skeleton-check.yml` 已同时包含 `make check` 与 `make check-security` 两个任务并在 PR 与推送时执行。
+
+### 验证记录
+
+- `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-d7ac3d1 uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k security_precheck` 退出 0，1 项通过、32.13 秒。
+- `make check-security SECURITY_ASSETS=reports/security-assets-d7ac3d1 SECURITY_CANDIDATE="$(git rev-parse HEAD)"` 退出 0。七项判据：历史 276 提交零命中、工作区零命中、前端零命中、日志零命中、锁定依赖 High 0/Critical 0（Trivy 库时间戳 2026-11-19 有效）、app.tar 与 mcp-server.tar 秘密扫描零命中。
+- `make check` 由 6.1 在 `4743507` 完整运行退出 0（集成 12 项、462.19 秒）；当前候选与 `4743507` 在 app/tests/scripts/apitest/Makefile/.github 零差异，静态阶段当日复验退出 0。
+- `git diff --check` 通过。
+
+### 自审与交接
+
+| Harness 类别 | 手段、对象、判据及结果 |
+| --- | --- |
+| 接口入口 | 不适用：本轮未改接口。 |
+| 业务逻辑 | 不适用：本轮未改业务实现。 |
+| 数据库 | 依赖判据含 Trivy 漏洞库时间戳与 schema 校验，2026-11-19 有效，通过。 |
+| 公共函数 | 复用 CI 同款资产采集与 check_security 脚本，七范围判据与退出码一致，通过。 |
+| 错误处理 | 门禁任一范围非零即整体非零的判据保留，未降标，通过。 |
+| 安全 | 七范围秘密与漏洞零命中，扫描器版本与 Makefile 锁定摘要一致，通过。 |
+| 性能 | 采集与扫描均在既有超时契约内完成，未做新负载实验，不改结论。 |
+
+两条命令均按实际判据退出 0，CI 双任务已接入。主干准入设置见下一节。
+
+## 2026-11-19 双门禁准入设置完成（2.1 收尾，L10-03、L10-F03）
+
+### 变更说明
+
+仓库管理员 WafoeX 于 2026-11-19 在 GitHub 网页端把 `make check-security` 加入 `main` 分支保护的必需状态检查，与既有 `make check` 并列。至此两条门禁命令均为主干准入条件：PR 合并按钮将要求两项检查全部通过，与 CI 工作流 `skeleton-check.yml` 的双任务一一对应。
+
+### 验证记录
+
+- 设置动作由管理员在网页端完成，经用户确认。代理侧 API 复核受限：`gh api repos/WafoeX/CampusClaw-Team/branches/main/protection` 以 ricemin0216（write 权限，admin:false）返回 404，GitHub 对非管理员不返回保护配置，未能独立读取设置原文。
+- 两项准入对应的 CI 任务名与必需检查同名：`make check`、`make check-security`。后续合并任一 PR 时，合并界面即实际显示两项必需检查及通过状态，作为准入拦截的运行载体。
+- 两条命令按实际判据退出 0 的证据见上一节（候选 `d7ac3d1`，2026-11-19）；L10-F03 红绿实测在此前完成并记录于验收矩阵。
+
+### 自审与交接
+
+| Harness 类别 | 手段、对象、判据及结果 |
+| --- | --- |
+| 接口入口 | 不适用：本轮未改接口。 |
+| 业务逻辑 | 不适用：本轮未改业务实现。 |
+| 数据库 | 不适用：本轮未触及数据。 |
+| 公共函数 | 复用既有 CI 任务与保护规则，无新公共函数，通过。 |
+| 错误处理 | 准入以必需检查承载，任一检查失败合并即被阻断；设置动作属管理员权限，通过。 |
+| 安全 | 必需检查含秘密扫描与依赖审计，与既有 `make check` 并列，未降标，通过。 |
+| 性能 | 双检查在 CI 并行执行，不新增本地负载，通过。 |
+
+2.1 完成，总进度 8/14。告警负责人收件 4.1、H5 作业 202 关联 4.3 与冻结 5.x 保持未完成；API 复核受限的说明保留在证据中，不视为通过依据的替代。

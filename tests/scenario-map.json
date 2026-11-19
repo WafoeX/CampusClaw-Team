@@ -1294,6 +1294,7 @@
   "planned": {
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "本次选择跳过后台索引 202，保留同步接口。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
+    "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
+    "2026-11-19-add-teaching-job-audit/specs/teaching-job-audit/spec.md": "本变更仅完成规划；审计写入、教师查询、数据迁移和隔离回归待本变更 tasks.md 分组实施，完成后逐场景登记真实测试入口。"
   }
 }

@@ -13,13 +13,13 @@
 | 2.3 红绿演练 | [x] | 完成。改坏、阻断与恢复记录见 `reports/gate-red-green.md`。 |
 | 3.1 制品、容器与迁移 | [x] | 完成。镜像无源码/构建工具/秘密、缺配置与停库阻断证据见 `reports/delivery-runtime.md`。 |
 | 3.2 推送后自动门禁与构建 | [x] | 完成。运行编号、源提交、镜像标签与摘要、运行版本见 `reports/delivery-runtime.md` 及下方固定输入。 |
-| 4.1 告警（L10-N05、L10-F05） | [ ] | 证据收口 PR #60 待评审：实际时间演练 690.43 秒（53 失败/33 成功、1 次拒收后重试、恢复确认）已归档 `reports/delivery-runtime.md`。剩正式阈值评审确认并入库、负责人与正式收件通道两项真人项。 |
+| 4.1 告警（L10-N05、L10-F05） | [ ] | 证据收口已合入（PR #60）：实际时间演练 690.43 秒（53 失败/33 成功、1 次拒收后重试、恢复确认）已归档 `reports/delivery-runtime.md`。剩正式阈值评审确认并入库、负责人与正式收件通道两项真人项。 |
 | 4.2 压测（L10-N06、L10-F06） | [x] | 完成。两轮同口径数据、改进与饱和点见 `reports/bench.md`。 |
 | 4.3 H5 四步回归（L10-N07、L10-F07、L10-F08） | [ ] | 自动化四步回归 2026-11-19 复跑通过（1 项、36.62 秒）。七列审计关联与作业 202 等价缺课程方结论，已登记设计表与最终验收 1.5（PR #59 已合入）。三名真实使用者试用与反馈归最终验收 4.5。 |
 
 ## 固定输入（唯一候选）
 
-- 候选提交：`a0dd0a04a0b968c354e79d97ff67d74b87464fb8`（main 顶端，PR #59 合并提交）。
+- 候选提交：`a0dd0a04a0b968c354e79d97ff67d74b87464fb8`（PR #59 合并提交；其后 PR #60 为纯文档，代码与镜像不变）。
 - 门禁 CI 运行：`44506786210`，main 分支，`make check`、`make check-security`、`Build candidate images` 三任务全部成功；验证 JSON 记录 `source_revision` 与 `running_revision` 均为 `a0dd0a04a0b968c354e79d97ff67d74b87464fb8`、`ci_run_id` 为 `44506786210`、`http_status` 就绪检查在场。
 - 镜像标签与摘要：
   - `campusclaw-skeleton:a0dd0a04a0b968c354e79d97ff67d74b87464fb8` = `sha256:46ca3f7c4d06bbb939a88a8cfe866c89cf0c731bac434b1ff1f3a55e9f3286cb`

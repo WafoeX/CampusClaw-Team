@@ -95,8 +95,8 @@
 | L10-F02 | 隔离集成运行 [关键词、向量与混合检索](../tests/integration/retrieval_runtime.py)，核对两班各自有命中，跨班无内容和出处。 | MySQL 与 Qdrant 实测通过（2026-11-19 复跑退出 0、161.21 秒），人工卡待最终验收。资料与检索实施人。 |
 | L10-F03 | 同一断言前后执行 `make check` 和 CI，核对合入与构建的阻断及恢复。 | 红绿实测通过；两条命令于 2026-11-19 在候选 `d7ac3d1` 复核退出 0（make check 引用 6.1 等价运行）。管理员同日将 `make check-security` 加入 main 必需状态检查，与 `make check` 并列，双门禁均为主干准入条件。实施人、仓库管理员。 |
 | L10-N04、L10-F04 | 候选构建与隔离 `cold_start_and_recovery`，核对版本、制品、配置失败和停库撤流。 | 实测通过，证据见制品运行报告。运维负责人。 |
-| L10-N05 | 4.1 复用审计关联、`cold_start_and_recovery`、`real_kafka` 及 `tests/unit/test_observability_dashboard.py`。 | 同一隔离候选的三种技能、接口 P95 和真实队列已出图，浏览器对照通过。持续失败和告警送达待复验。运维负责人。[面板实测](delivery-runtime.md#第-10-课运行观测面板41-部分) |
-| L10-F05 | 4.1，规则、`tests/unit/test_alert_delivery.py`、`tests/integration/test_alert_receiver.py` 和 `tests/integration/test_alert_https.py` 核对缺样、TLS、回执和重试。 | 本地 HTTP/TLS 接收端与实际命令回归通过。正式阈值、负责人收件与持续故障演练待执行。运维负责人。[HTTPS 复验](delivery-runtime.md#2026-11-18-本地-https-命令行复验) |
+| L10-N05 | 4.1 复用审计关联、`cold_start_and_recovery`、`real_kafka` 及 `tests/unit/test_observability_dashboard.py`。 | 同一隔离候选的三种技能、接口 P95 和真实队列已出图，浏览器对照通过。持续失败与本地 HTTPS 告警送达由 2026-11-18 实际时间演练覆盖；剩正式阈值评审确认与负责人收件。运维负责人。[面板实测](delivery-runtime.md#第-10-课运行观测面板41-部分) |
+| L10-F05 | 4.1，规则、`tests/unit/test_alert_delivery.py`、`tests/integration/test_alert_receiver.py` 和 `tests/integration/test_alert_https.py` 核对缺样、TLS、回执和重试。 | 本地 HTTP/TLS 接收端与实际命令回归通过。持续故障演练证据见实际时间演练行；剩正式阈值、负责人收件与正式收件通道登记。运维负责人。[HTTPS 复验](delivery-runtime.md#2026-11-18-本地-https-命令行复验) |
 | L10-N05、L10-F05 的轮询衔接 | `tests/unit/test_alert_watcher.py` 和既有 HTTPS 集成核对自动评估、未确认重试及恢复顺序。 | 注入时间回归、一轮真实 TLS 命令和下行的实际时间演练通过。[轮询入口](delivery-runtime.md#第-10-课告警轮询入口41-部分) |
 | L10-N05、L10-F05 的实际时间演练 | `tests/drills/test_skill_alert_drill.py`，隔离 MySQL、真实应用入口、固定故障替身与本地 HTTPS。 | 690.43 秒演练通过，53 次失败和 33 次成功，1 次拒收后重试确认及恢复确认。正式负责人收件与阈值待确认。[实际取证](delivery-runtime.md#2026-11-18-实际结果) |
 | L10-N06、L10-F06 | 4.2 同口径两轮，按提交、查询、检索和消费吞吐核对饱和与改进。 | 两轮有效测量通过。最初环境与夹具失败保留，未纳入对照。性能实施人。[压测取证](bench.md) |

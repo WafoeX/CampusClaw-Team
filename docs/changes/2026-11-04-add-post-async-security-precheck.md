@@ -73,3 +73,18 @@ PR #29 合入后在 `d50e91b` 复跑真实 MySQL、Kafka 和课程网关，隔�
 `make check CHANGE=2026-11-04-add-post-async-security-precheck TRIVY_CACHE="$PWD/reports/trivy-cache-import"` 退出 0。全仓严格 OpenSpec 12 项、静态与场景追溯、467 项单元/API、4 项启动、凭据及锁定依赖扫描和 8 项隔离 Compose 集成均通过。
 
 使用 `project-review` 按 PSC-N02、PSC-F09、SEC-16、TEST-08 和 REV-08 对照三个扫描入口、固定制品、原始失败及 README。接口、业务逻辑、数据库结构和应用性能无变更。扫描工具与门禁差异待小组人工复核。
+
+## 2026-11-19 任务 1.3 专项矩阵与破坏验证
+
+本轮使用 `openspec-apply-change` 读取 proposal、spec、design、tasks，严格状态为 9/10；按 `project-add-tests` 检查 SEC-03/04、TEST-02/04/07/09，并按 `project-review` 核对真实红绿、矩阵和人工边界。基线为 `bda2c32`，工作区只使用合成两班身份和隔离 MySQL/Qdrant。矩阵逐项链接到[安全预检报告](../../reports/security-precheck.md#2026-11-19-专项矩阵与隔离破坏验证)；前轮授权、工具出站、答案、恢复和注入证据均保留原候选归属。
+
+| 手段与对象 | 判据及实际结果 |
+| --- | --- |
+| 暂移 `TeachingRepository.quiz` 的班级条件，运行 `test_compose.py -k cold_start_and_recovery` | 外班教师洞察须为 404；既有 `teaching_runtime.py:209` 断言失败，pytest 退出 1，1 failed/8 deselected，110.36 秒。随后恢复条件。 |
+| 暂跳过 `TeachingService.publish_quiz` 已发布检查，保留新增重复发布断言，再运行同命令 | 重复发布须为 409/1400；新增 `teaching_runtime.py:201` 断言失败，pytest 退出 1，1 failed/8 deselected，112.08 秒。随后恢复检查。 |
+| 在正确实现上运行同一隔离用例 | 退出 0，1 passed/8 deselected，151.48 秒，`TEACHING_RUNTIME_OK`，隔离容器和卷清理。 |
+| 第一次 `make check CHANGE=2026-11-04-add-post-async-security-precheck TRIVY_CACHE="$PWD/reports/trivy-cache-import"` | 退出 2；静态追溯发现 `PSC-F05` 仍指向已勾选的 1.3，阻止继续运行。将该场景映射到现有预检集成用例；原失败不改写为通过。 |
+
+两处故意破坏的代码已恢复，不进入提交。修正追溯后重跑同一 `make check`，退出 0：全仓严格 OpenSpec 12 项及目标变更校验、Ruff、分层与场景映射、13 个接口清单入口均通过；503 项单元/API、4 项启动、12 项隔离集成与浏览器测试通过。Gitleaks 扫描本地可达历史 208 次提交及工作区均零命中；Trivy 从官方镜像取得漏洞库，`uv.lock` 阻断级漏洞为 0。首次静态失败、两轮破坏红灯和恢复绿灯均保留。跨机器同伴复验仍归项目最终验收 4.1；本会话不能替代人工批准。
+
+七类自审：接口核对跨班洞察 404 与重复发布 409/1400；业务核对发布状态不重复变化；数据库核对班级过滤恢复且仅隔离库受破坏样本影响；公共函数无修改；错误处理核对既有统一业务码；安全核对授权和答案旁路矩阵、秘密扫描；性能仅记录隔离用例耗时，未将其当作容量基准。README、数据字典及生产配置未变；受保护的 OpenSpec 与场景映射变更待小组人工复核。

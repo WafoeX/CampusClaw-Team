@@ -47,3 +47,24 @@ SEC-01 的真实入口是 `GET /api/v1/auth/sessions/current`、`GET /api/v1/mat
 | 撤权与恢复 | 来源撤销不返回旧内容；工具连接在途撤销后不保存结果；任务角色变化后取消；合成审计备份恢复后重新清理到期记录。 | `test_compose.py -k 'cold_start_and_recovery or controlled_tool_dialogue or tool_storage or real_kafka'` |
 
 专项单测共 86 项通过，其中 3 项为新增的出站防御对照。首次测试夹具用普通 Mock 代替响应上下文管理器，改用 `nullcontext` 后复测通过。防御专项覆盖增加，独立破坏授权或发布检查的演练仍未执行，1.3 保留未完成。SEC-08 四步实验按原分工留到后续课次。
+
+### 2026-11-19 专项矩阵与隔离破坏验证
+
+以下矩阵汇总已交付功能的自动化证据。前轮结果适用于各自记录的候选；本轮单独对测验归属和发布规则做破坏与恢复，不将前轮结果写成本轮重跑。SEC-08 四步执行属于第 9 课，见独立报告。
+
+| 范围 | 身份、威胁与可观测判据 | 自动化入口及证据状态 |
+| --- | --- | --- |
+| 资料与检索 | A/B 班资料、跨班与不存在同构；SQL 限班、Qdrant 载荷过滤、授权章节和来源撤销后不得返回旧片段 | 本报告 SEC-02、[权限记录](risk-authz.md)及 `tests/unit/test_retrieval.py`；前轮隔离正向、跨班和单测已通过 |
+| 流式会话 | 本人成功记录可读，同班他人和跨班教师不得读会话、执行正文与出处；撤权后不提交在途结果 | `test_compose.py -k cold_start_and_recovery` 的流式/恢复路径；前轮通过，本轮仅测测验路径 |
+| MCP 与工具 | 只允许审核参数及结果字段；DNS 重绑定、对端地址变化和重定向不得外发至新地址；连接撤销后无私有结果残留 | `tests/unit/test_tool_protocol.py -k CN_F05`、`test_compose.py -k 'controlled_tool_dialogue or tool_storage'`；前轮专项通过 |
+| 题库、测验与任务 | 学生不能发布，外班教师不能读取本班测验洞察；已发布测验不可再次发布；未开放答案不得由页面、提交、出处或工具提前读取；任务改权后取消，重放不产生第二业务结果 | `test_compose.py -k 'cold_start_and_recovery or real_kafka'`、`tests/unit/test_answer_service.py`；既有断言和本轮归属/发布破坏见下 |
+| 输入与副本 | SQL 注入不能扩班，脚本标题仅作文本，跨站配置写无副作用；资料删除、到期清理及恢复后不能复活私人副本 | [安全修复索引](security-fix-log.md)的三件套与恢复回归；在后续修复候选实测，不倒填为第 8 课原候选结果 |
+
+隔离破坏以 `origin/main` 的 `bda2c32` 为起点，使用合成两班数据和真实 MySQL/Qdrant。手段为暂时改坏受保护代码，保持断言，执行 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k cold_start_and_recovery`；每轮退出后测试夹具清理容器和卷。未经修复的变体不提交。
+
+| 破坏对象与判据 | 实际红灯 | 恢复 |
+| --- | --- | --- |
+| `TeachingRepository.quiz` 暂移 `class_id` 条件；外班教师读洞察必须为 404 | 用例在 `teaching_runtime.py:209` 的外班 404 断言失败，pytest 退出 1，1 failed/8 deselected，110.36 秒 | 已恢复 `class_id` 条件；绿轮结果见下 |
+| `TeachingService.publish_quiz` 暂跳过已发布检查；同测验重复发布必须为 409/1400 | 新增重复发布断言在 `teaching_runtime.py:201` 失败，pytest 退出 1，1 failed/8 deselected，112.08 秒 | 已恢复发布检查；绿轮结果见下 |
+
+恢复后的同一隔离用例退出 0，1 passed/8 deselected，151.48 秒；`TEACHING_RUNTIME_OK`，容器和卷已清理。此处只证明两种破坏会被自动化发现，不代表跨机器真人复验已执行。完整门禁结果见[变更证据](../docs/changes/2026-11-04-add-post-async-security-precheck.md)。

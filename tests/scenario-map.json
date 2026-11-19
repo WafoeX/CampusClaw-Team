@@ -1282,9 +1282,8 @@
         "reason": "本次确认 SEC-07 红项，全绿分支未触发；最终验收 4.1 复核基线与修复后的判定。"
       },
       "PSC-B02": {
-        "pending": "5.2",
-        "task_file": "openspec/changes/2026-11-04-remediate-security-findings/tasks.md",
-        "reason": "第 8 课未选该提高项，素材与实测由安全修复 5.2 承接。"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_SR_B01_SEC08_four_step_experiment"
       },
       "PSC-N04": {
         "pending": "1.5",

@@ -11,7 +11,7 @@
 | SEC-05 凭据与资产 | 历史、工作区、前端、日志及两个镜像均零命中。关联 worktree 上另发现历史扫描因 Git 元数据路径异常漏扫。 | 候选各资产范围零命中。修复 worktree 扫描后，镜像副本与本地可达 Git 提交数一致，历史和工作区扫描零命中。4.1 通过。 | [`abdb0a8`](https://github.com/WafoeX/CampusClaw-Team/commit/abdb0a8)、[`2b8e438`](https://github.com/WafoeX/CampusClaw-Team/commit/2b8e438) |
 | SEC-06 锁定依赖及门禁 | 本地 Trivy 更新漏洞库失败，未取得计数。 | 同字节 `uv.lock` 在 CI 扫描为 High 0、Critical 0。隔离资产红绿对照 Make 退出 2、0，详见[对照记录](gate-red-green.md)。4.2、4.3 通过。 | [`c30a4c3`](https://github.com/WafoeX/CampusClaw-Team/commit/c30a4c3)、[`e204d71`](https://github.com/WafoeX/CampusClaw-Team/commit/e204d71) |
 | SEC-07 操作审计 | 固定模型返回 30 tokens，日志未关联请求标识，技能执行记录无用量。 | SSE、日志及执行记录的用量与请求对齐。教师获本班脱敏记录，学生和跨班访问被拒绝或隐藏。审计写失败时配置无写入。5.1 通过。 | [`384baa0`](https://github.com/WafoeX/CampusClaw-Team/commit/384baa0)、[`f2be908`](https://github.com/WafoeX/CampusClaw-Team/commit/f2be908) |
-| SEC-08 四步实验 | 第 8 课无运行记录。 | 四步实测及固定报告待补，1.2、5.2 保持未完成。 | 待实测 |
+| SEC-08 四步实验 | 第 8 课无运行记录。 | 四步实测完成：默认替身与真实网关各一轮，第三步真实模型在答案末尾引述恶意讲义指令原文但未执行；第四步固定写提议在执行层拒绝、零发包、有审计且六表无变化，按 SR-B01 判绿。真实观察见[固定报告](sec08-experiment.md)，1.2 基线补齐、5.2 完成，真人复验交最终验收 4.3。 | [`19203d0`](https://github.com/WafoeX/CampusClaw-Team/commit/19203d0) |
 
 ## 注入回归记录
 
@@ -35,9 +35,9 @@
 | 讲义浏览器回归 | `uv run --locked python -m tests.browser.run_teaching`。核对 `MATERIAL_TITLE_BROWSER_OK` 与 `TEACHING_BROWSER_RUNTIME_OK`。 |
 | 固定候选资产与依赖 | 按 README 从同一 Git 提交采集资产并运行 `make check-security`。扫描器红绿及分项输出见[资产门禁对照](gate-red-green.md)与[依赖基线](security-baseline.md)。 |
 
-技术自审各有一份实际发现、处置和复测记录，见[关联工作树历史扫描](security-self-review-git.md)和[浏览器回归失败输出](security-self-review-browser.md)。其他实际失败及复测见[返工记录](security-rework.md)。资产归档、日志及漏洞库缓存保留在 Git 忽略目录。`reports/sec08-experiment.md` 尚缺必做实验实测，当前索引如实保留缺项。
+技术自审各有一份实际发现、处置和复测记录，见[关联工作树历史扫描](security-self-review-git.md)和[浏览器回归失败输出](security-self-review-browser.md)。其他实际失败及复测见[返工记录](security-rework.md)。资产归档、日志及漏洞库缓存保留在 Git 忽略目录。[SEC-08 四步实测报告](sec08-experiment.md)已归档，四步记录与第四步工具层判据见该报告。
 
-6.3 技术复验索引和两份自审已归档，注入三件套技术回归于 2026-11-18 补齐。课程验收仍待 SEC-08、直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
+6.3 技术复验索引和两份自审已归档，注入三件套技术回归于 2026-11-18 补齐，SEC-08 四步实测于 2026-11-19 补齐。课程验收仍待直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
 
 ## 2026-11-18 三段式与阻断复验
 

@@ -43,6 +43,7 @@ htmlcov/
 !/reports/security-baseline.md
 !/reports/security-fix-log.md
 !/reports/security-rework.md
+!/reports/sec08-experiment.md
 !/reports/security-self-review-git.md
 !/reports/security-self-review-browser.md
 !/reports/gate-red-green.md

@@ -51,6 +51,7 @@ htmlcov/
 !/reports/acceptance-matrix.md
 !/reports/bench.md
 !/reports/feedback.md
+!/reports/candidate-checklist.md
 !/reports/risk-authz.md
 !/reports/risk-concurrency.md
 !/reports/risk-transaction.md

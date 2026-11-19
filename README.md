@@ -244,7 +244,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 ## 第 10 课交付与最终人工评测
 
-先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。
+先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。5.1 冻结[候选清单](reports/candidate-checklist.md)已备：前四组技术任务核对完毕，唯一候选固定为 `a0dd0a0`（提交、CI 运行与镜像摘要见清单），评测人员指定与冻结决定待验收负责人。
 
 第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。两条命令已于 2026-11-19 在候选 `d7ac3d1` 按实际判据本地复核退出 0，证据见[第 10 课变更记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁实际判据复核21-部分l10-03)。两项均已为主干准入条件：仓库管理员于 2026-11-19 将 `make check-security` 加入 `main` 必需状态检查，与既有 `make check` 并列，PR 合并须两项全部通过（见[准入设置记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁准入设置完成21-收尾l10-03l10-f03)）。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 

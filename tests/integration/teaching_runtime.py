@@ -197,6 +197,8 @@ assert (
 published = request(teacher, "POST", f"/api/v1/quizzes/{quiz_id}/publications", {})
 assert published.status_code == 200, published.json
 assert len(published.json["data"]["items"]) == 2
+republished = request(teacher, "POST", f"/api/v1/quizzes/{quiz_id}/publications", {})
+assert republished.status_code == 409 and republished.json["code"] == 1400
 empty_insights = request(teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights")
 assert empty_insights.status_code == 200
 assert empty_insights.json["data"]["participants"] == 2

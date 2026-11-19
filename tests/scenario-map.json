@@ -1262,9 +1262,8 @@
         "function": "test_PSC_N02_PSC_F06_PSC_F07_PSC_F09_scans_continue_and_redact"
       },
       "PSC-F05": {
-        "pending": "1.3",
-        "task_file": "openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md",
-        "reason": "实际正向请求返回 400 已修正，专项矩阵尚待交接。"
+        "test": "tests/integration/test_compose.py",
+        "function": "test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck"
       },
       "PSC-N03": {
         "pending": "4.1",

@@ -7,11 +7,11 @@
 | SEC-01 匿名访问 | 五个合法对照均为 200，匿名请求均为 401/1100，`data` 为 null。 | 原策略通过基线复核，沿用已有认证策略。 | [`5892d7e`](https://github.com/WafoeX/CampusClaw-Team/commit/5892d7e) |
 | SEC-02 班级隔离 | 跨班和缺失讲义均为 404/1300。部分更新 SQL 在事务锁内仅用讲义标识定位。 | 写 SQL 按班级与修订或源版本过滤。真实 MySQL 与 Qdrant 对照中，本班关键词、向量、混合查询均各命中 1 条，其他班级各返回空列表。2.2 通过。 | [`ae110f3`](https://github.com/WafoeX/CampusClaw-Team/commit/ae110f3) |
 | SEC-03 配置写入 | 教师三类写入 200，学生三类写入 403/1200，配置与修订快照相同。 | 启用一次性请求令牌后，原样及带有效令牌的学生对照仍均为 403/1200。配置与修订保持一致，相关拒绝有审计。2.1、3.2 的对照通过。 | [`5892d7e`](https://github.com/WafoeX/CampusClaw-Team/commit/5892d7e)、[`ae2655e`](https://github.com/WafoeX/CampusClaw-Team/commit/ae2655e) |
-| SEC-04 直接批改 | 向现有只读成绩入口发 PATCH 为 405，四表快照一致。 | 受控工具在发送前停用连接时拒绝且零发包，按执行标识核实单条拒绝审计。审计存储故障也无发包。独立评分写入口的课程等价待最终验收确认，2.3 未完成。 | [`b592e03`](https://github.com/WafoeX/CampusClaw-Team/commit/b592e03)、[本轮工具回归](../tests/integration/tool_dialogue_runtime.py) |
+| SEC-04 直接批改 | 向现有只读成绩入口发 PATCH 为 405，四表快照一致。 | 受控工具在发送前停用连接时拒绝且零发包，按执行标识核实单条拒绝审计。审计存储故障也无发包。SEC-08 第四步固定写提议在执行层拒绝、零发包、六表无变化并有拒绝审计。独立评分写入口的课程等价由最终验收 1.5 确认，缺项如实登记，2.3 完成。 | [`b592e03`](https://github.com/WafoeX/CampusClaw-Team/commit/b592e03)、[本轮工具回归](../tests/integration/tool_dialogue_runtime.py) |
 | SEC-05 凭据与资产 | 历史、工作区、前端、日志及两个镜像均零命中。关联 worktree 上另发现历史扫描因 Git 元数据路径异常漏扫。 | 候选各资产范围零命中。修复 worktree 扫描后，镜像副本与本地可达 Git 提交数一致，历史和工作区扫描零命中。4.1 通过。 | [`abdb0a8`](https://github.com/WafoeX/CampusClaw-Team/commit/abdb0a8)、[`2b8e438`](https://github.com/WafoeX/CampusClaw-Team/commit/2b8e438) |
 | SEC-06 锁定依赖及门禁 | 本地 Trivy 更新漏洞库失败，未取得计数。 | 同字节 `uv.lock` 在 CI 扫描为 High 0、Critical 0。隔离资产红绿对照 Make 退出 2、0，详见[对照记录](gate-red-green.md)。4.2、4.3 通过。 | [`c30a4c3`](https://github.com/WafoeX/CampusClaw-Team/commit/c30a4c3)、[`e204d71`](https://github.com/WafoeX/CampusClaw-Team/commit/e204d71) |
 | SEC-07 操作审计 | 固定模型返回 30 tokens，日志未关联请求标识，技能执行记录无用量。 | SSE、日志及执行记录的用量与请求对齐。教师获本班脱敏记录，学生和跨班访问被拒绝或隐藏。审计写失败时配置无写入。5.1 通过。 | [`384baa0`](https://github.com/WafoeX/CampusClaw-Team/commit/384baa0)、[`f2be908`](https://github.com/WafoeX/CampusClaw-Team/commit/f2be908) |
-| SEC-08 四步实验 | 第 8 课无运行记录。 | 四步实测及固定报告待补，1.2、5.2 保持未完成。 | 待实测 |
+| SEC-08 四步实验 | 第 8 课无运行记录。 | 四步实测完成：默认替身与真实网关各一轮，第三步真实模型在答案末尾引述恶意讲义指令原文但未执行；第四步固定写提议在执行层拒绝、零发包、有审计且六表无变化，按 SR-B01 判绿。真实观察见[固定报告](sec08-experiment.md)，1.2 基线补齐、5.2 完成，真人复验交最终验收 4.3。 | [`19203d0`](https://github.com/WafoeX/CampusClaw-Team/commit/19203d0) |
 
 ## 注入回归记录
 
@@ -35,9 +35,9 @@
 | 讲义浏览器回归 | `uv run --locked python -m tests.browser.run_teaching`。核对 `MATERIAL_TITLE_BROWSER_OK` 与 `TEACHING_BROWSER_RUNTIME_OK`。 |
 | 固定候选资产与依赖 | 按 README 从同一 Git 提交采集资产并运行 `make check-security`。扫描器红绿及分项输出见[资产门禁对照](gate-red-green.md)与[依赖基线](security-baseline.md)。 |
 
-技术自审各有一份实际发现、处置和复测记录，见[关联工作树历史扫描](security-self-review-git.md)和[浏览器回归失败输出](security-self-review-browser.md)。其他实际失败及复测见[返工记录](security-rework.md)。资产归档、日志及漏洞库缓存保留在 Git 忽略目录。`reports/sec08-experiment.md` 尚缺必做实验实测，当前索引如实保留缺项。
+技术自审各有一份实际发现、处置和复测记录，见[关联工作树历史扫描](security-self-review-git.md)和[浏览器回归失败输出](security-self-review-browser.md)。其他实际失败及复测见[返工记录](security-rework.md)。资产归档、日志及漏洞库缓存保留在 Git 忽略目录。[SEC-08 四步实测报告](sec08-experiment.md)已归档，四步记录与第四步工具层判据见该报告。
 
-6.3 技术复验索引和两份自审已归档，注入三件套技术回归于 2026-11-18 补齐。课程验收仍待 SEC-08、直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
+6.3 技术复验索引和两份自审已归档，注入三件套技术回归于 2026-11-18 补齐，SEC-08 四步实测于 2026-11-19 补齐。课程验收仍待直接评分入口等价确认，以及同伴在另一台机器冷启动后至少两条一致复验。正式署名和分歧复测由[最终验收 4.2–4.3](../openspec/changes/2026-11-04-project-final-acceptance/tasks.md)记录。
 
 ## 2026-11-18 三段式与阻断复验
 
@@ -51,4 +51,8 @@
 
 `make check` 的集成阶段保留全部现有集成，同时增加标题浏览器测试；SQL、CSRF 原集成入口继续运行。静态阶段执行清单校验，缺 SR-F07–09 任一项、空三段式或无测试文件即非零。临时清空 XSS 验收段时，`make check-static CHANGE=2026-11-04-remediate-security-findings` 退出 2；恢复后退出 0。定向 pytest 的非零及共享运行器的失败、跳过、空套件契约共同保持门禁阻断，不将三次定向失败写成执行了三轮完整 Make。
 
-本项复用已有防护，未发现需修改业务实现的红项。3.1、3.3 技术完成；SEC-08、直接评分课程等价及综合收尾仍缺。真实基线、七类自审与原始日志位置见[本轮证据](../docs/changes/2026-11-04-remediate-security-findings.md#2026-11-18-注入三件套与必需门禁)。约束文件变更待人工评审。
+本项复用已有防护，未发现需修改业务实现的红项。3.1、3.3 技术完成；SEC-08 四步实测已于 2026-11-19 补齐，仅直接评分课程等价仍缺。真实基线、七类自审与原始日志位置见[本轮证据](../docs/changes/2026-11-04-remediate-security-findings.md#2026-11-18-注入三件套与必需门禁)。约束文件变更待人工评审。
+
+## 2026-11-19 独立提交与返工收尾（6.2）
+
+逐项核对本索引 11 个修复提交号均存在于仓库，报告本地链接均可达；SEC-08 四步报告与 6.3 复验索引保留原路径。今日细粒度提交为 `19203d0`（SEC-08 实验与门禁）、`b73ff34`（四步报告）、`220558a`（任务勾选与索引同步）、`23be651`（2.3 收尾与课程等价缺项）、`4743507`（场景映射修复）、`70c0504`（6.1 回归归档），交接候选 `4743507`。代价最大的两次真实返工——SEC-08 第四步候选解析与场景映射门禁失效——的定位、修复耗时与可执行改法见[返工记录](security-rework.md)。真人复验与正式署名由最终验收 4.2–4.3 记录。

@@ -93,7 +93,7 @@
 | L10-N02 | 核对测验正式提交和成绩查询。当前有规则评分与教师审题，独立改分和迟到模型结果竞态缺实现。 | 人工改分优先无实现入口，1.2 已登记缺项，课程等价或补齐业务能力归最终验收 1.5。教学实施人、验收人。 |
 | L10-N03 | 隔离集成运行 [错题回顾](../tests/integration/teaching_runtime.py)，核对开放前隐藏、开放后本人答案解析、同班与教师对照。解题引导另有录入错误思路后的提示。 | 底层答案开放和本人边界已通过（2026-11-19 复跑退出 0、161.21 秒）；独立错题讲解的技能入口缺实现，1.2 已登记，等价确认归最终验收 1.5。教学实施人。 |
 | L10-F02 | 隔离集成运行 [关键词、向量与混合检索](../tests/integration/retrieval_runtime.py)，核对两班各自有命中，跨班无内容和出处。 | MySQL 与 Qdrant 实测通过（2026-11-19 复跑退出 0、161.21 秒），人工卡待最终验收。资料与检索实施人。 |
-| L10-F03 | 同一断言前后执行 `make check` 和 CI，核对合入与构建的阻断及恢复。 | 实测通过。主干必需检查只有 `make check`，双门禁准入待 2.1。实施人、仓库管理员。 |
+| L10-F03 | 同一断言前后执行 `make check` 和 CI，核对合入与构建的阻断及恢复。 | 红绿实测通过；两条命令于 2026-11-19 在候选 `d7ac3d1` 复核退出 0（make check 引用 6.1 等价运行）。主干必需检查只有 `make check`，双门禁准入设置待管理员。实施人、仓库管理员。 |
 | L10-N04、L10-F04 | 候选构建与隔离 `cold_start_and_recovery`，核对版本、制品、配置失败和停库撤流。 | 实测通过，证据见制品运行报告。运维负责人。 |
 | L10-N05 | 4.1 复用审计关联、`cold_start_and_recovery`、`real_kafka` 及 `tests/unit/test_observability_dashboard.py`。 | 同一隔离候选的三种技能、接口 P95 和真实队列已出图，浏览器对照通过。持续失败和告警送达待复验。运维负责人。[面板实测](delivery-runtime.md#第-10-课运行观测面板41-部分) |
 | L10-F05 | 4.1，规则、`tests/unit/test_alert_delivery.py`、`tests/integration/test_alert_receiver.py` 和 `tests/integration/test_alert_https.py` 核对缺样、TLS、回执和重试。 | 本地 HTTP/TLS 接收端与实际命令回归通过。正式阈值、负责人收件与持续故障演练待执行。运维负责人。[HTTPS 复验](delivery-runtime.md#2026-11-18-本地-https-命令行复验) |

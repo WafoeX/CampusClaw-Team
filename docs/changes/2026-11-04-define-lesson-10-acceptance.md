@@ -304,3 +304,30 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 | 性能 | 复跑 161.21 秒与既有记录同量级，不改性能结论。 |
 
 1.2 完成，教师改分优先与独立错题讲解按缺项登记归最终验收 1.5，总进度 7/14。双门禁准入 2.1、告警负责人收件 4.1、H5 作业 202 关联 4.3 与冻结 5.x 保持未完成；本次任务状态、设计与矩阵同步待人工评审。
+
+## 2026-11-19 双门禁实际判据复核（2.1 部分，L10-03）
+
+### 变更说明
+
+按 CI 同一流程在候选 `d7ac3d1` 本地复刻两条命令：先以 `CAMPUSCLAW_SECURITY_ASSETS` 跑安全预检采集候选资产（镜像 tarball、前端、日志与 revision 标识），再运行 `make check-security` 复核七项判据。`make check` 引用 6.1 在 `4743507` 的完整运行；`git diff 4743507..d7ac3d1 --stat -- app tests scripts apitest Makefile .github` 为空，本轮新增提交均为文档，静态阶段已随本日多次 `make check-static` 复验。CI 工作流 `skeleton-check.yml` 已同时包含 `make check` 与 `make check-security` 两个任务并在 PR 与推送时执行。
+
+### 验证记录
+
+- `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-d7ac3d1 uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k security_precheck` 退出 0，1 项通过、32.13 秒。
+- `make check-security SECURITY_ASSETS=reports/security-assets-d7ac3d1 SECURITY_CANDIDATE="$(git rev-parse HEAD)"` 退出 0。七项判据：历史 276 提交零命中、工作区零命中、前端零命中、日志零命中、锁定依赖 High 0/Critical 0（Trivy 库时间戳 2026-11-19 有效）、app.tar 与 mcp-server.tar 秘密扫描零命中。
+- `make check` 由 6.1 在 `4743507` 完整运行退出 0（集成 12 项、462.19 秒）；当前候选与 `4743507` 在 app/tests/scripts/apitest/Makefile/.github 零差异，静态阶段当日复验退出 0。
+- `git diff --check` 通过。
+
+### 自审与交接
+
+| Harness 类别 | 手段、对象、判据及结果 |
+| --- | --- |
+| 接口入口 | 不适用：本轮未改接口。 |
+| 业务逻辑 | 不适用：本轮未改业务实现。 |
+| 数据库 | 依赖判据含 Trivy 漏洞库时间戳与 schema 校验，2026-11-19 有效，通过。 |
+| 公共函数 | 复用 CI 同款资产采集与 check_security 脚本，七范围判据与退出码一致，通过。 |
+| 错误处理 | 门禁任一范围非零即整体非零的判据保留，未降标，通过。 |
+| 安全 | 七范围秘密与漏洞零命中，扫描器版本与 Makefile 锁定摘要一致，通过。 |
+| 性能 | 采集与扫描均在既有超时契约内完成，未做新负载实验，不改结论。 |
+
+两条命令均按实际判据退出 0，CI 双任务已接入。主干必需检查仍只列 `make check`（最近实测见 reports/protection-audit.json），将 `make check-security` 加入必需检查并实测拦截是仓库管理员设置动作，2.1 保持未完成。L10-03 自动化部分完成，准入设置与拦截验证待管理员执行。

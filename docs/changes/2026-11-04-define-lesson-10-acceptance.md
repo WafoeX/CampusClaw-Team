@@ -466,3 +466,5 @@ Compose 与直接探针故障证据已归档。部署入口在运行中对不就
 | `git diff --check` | 退出 0 |
 
 本轮是文档状态修正，不涉及接口、业务逻辑、数据库、公共函数、错误处理、安全实现或性能路径；七类 Harness 的运行专项均不适用。首页保留全部真人待办，不把技术任务勾选写成人工批准。README 文案待小组人工复核；本轮未重跑应用门禁、Compose 或真实模型。
+
+PR #70 首轮 CI：PR 触发运行 `44770973926` 三作业（`make check`、`make check-security`、`Build candidate images`）全部通过；推送触发运行 `44770958495` 的 `Build candidate images` 在拉取 mysql 镜像时失败，日志为 `toomanyrequests: Data limit exceeded`（Docker Hub 匿名拉取限额，与 PR #65 首轮、PR #67 同属外部配额故障），同一运行的 `make check` 与 `make check-security` 通过。未修改测试、门禁或依赖，仅重跑失败作业后该运行三作业全部通过，PR 全部必需检查转绿。

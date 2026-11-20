@@ -1,7 +1,9 @@
 """扩展候选任务用量与班级操作审计查询，不回填旧记录。"""
 
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import func, inspect, select
+
+from app.adapters.operation_audit_schema_v13 import events
 
 revision = "0016_teaching_job_audit_data"
 down_revision = "0015_quiz_list_index"
@@ -59,6 +61,12 @@ def downgrade():
     connection = op.get_bind()
     if not connection.engine.url.database.startswith("campusclaw_test_"):
         raise ValueError("只允许在合成隔离库物理降级候选任务审计扩展")
+    if connection.scalar(
+        select(func.count())
+        .select_from(events)
+        .where(events.c.outcome.in_(("failed", "cancelled", "dead_letter")))
+    ):
+        raise ValueError("降级前须处理仅由 0016 支持的审计结果")
     if AUDIT_INDEX in _names(connection, "operation_audit_events", "get_indexes"):
         op.drop_index(AUDIT_INDEX, table_name="operation_audit_events")
     checks = _names(connection, "operation_audit_events", "get_check_constraints")

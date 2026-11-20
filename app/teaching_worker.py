@@ -17,7 +17,7 @@ from app.adapters.teaching_jobs import TeachingJobs
 from app.adapters.teaching_kafka import commit, consumer, producer, publish
 from app.config import Settings
 from app.observability import log_event
-from app.services.teaching_candidates import CandidateJobs
+from app.services.teaching_candidates import CandidateJobs, UsageCapture
 from app.teaching_job_contract import Event, JobFailure, JobNotSettled
 
 
@@ -51,12 +51,23 @@ def process_record(repository, service, record, event_log):
     if claim is None:
         event_log("teaching_duplicate", task_id=event.task_id, event_id=event.event_id)
         return
+    usage = UsageCapture()
     try:
-        drafts = service.generate(claim)
+        drafts = service.generate(claim, usage=usage)
     except JobFailure as error:
-        settled = service.complete(claim, failure=error)
+        settled = service.complete(
+            claim,
+            failure=error,
+            usage=usage,
+            duration_ms=round((time.monotonic() - started) * 1000),
+        )
     else:
-        settled = service.complete(claim, drafts=drafts)
+        settled = service.complete(
+            claim,
+            drafts=drafts,
+            usage=usage,
+            duration_ms=round((time.monotonic() - started) * 1000),
+        )
     if not settled:
         raise JobNotSettled()
     event_log(

@@ -11,7 +11,7 @@ from time import monotonic
 from uuid import uuid4
 
 from alembic import command
-from sqlalchemy import event, func, insert, inspect, select, update
+from sqlalchemy import delete, event, func, insert, inspect, select, update
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
 
@@ -20,6 +20,7 @@ from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.migrations.runner import migrate, migration_config
+from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import (
     quiz_items,
@@ -766,6 +767,14 @@ assert (
 )
 
 # 0015 索引在已有结果的数据上扩展、降级再重升，核对行值和应用查询。
+# 前一候选任务夹具会留下 0016 才允许的终态；物理降级只在合成库清理这些行。
+new_outcomes = ("failed", "cancelled", "dead_letter")
+with engine.begin() as connection:
+    rows = connection.execute(
+        select(events.c.resource_type).where(events.c.outcome.in_(new_outcomes))
+    ).all()
+    assert all(row.resource_type == "teaching_job" for row in rows)
+    connection.execute(delete(events).where(events.c.outcome.in_(new_outcomes)))
 query_index = "ix_quizzes_class_created_id"
 assert query_index in {item["name"] for item in inspect(engine).get_indexes("quizzes")}
 with engine.connect() as connection:

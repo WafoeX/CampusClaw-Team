@@ -174,7 +174,9 @@ def install_teaching(app, service, candidate_jobs=None):
         if not isinstance(data[key], str):
             raise invalid()
         scope[key] = material_id(data[key])
-        job = generation().admit(g.identity, request.cookies.get(COOKIE), scope)
+        job = generation().admit(
+            g.identity, request.cookies.get(COOKIE), scope, g.request_id
+        )
         return (
             success(job),
             202,
@@ -216,7 +218,7 @@ def install_teaching(app, service, candidate_jobs=None):
         _query()
         exact(body(), set())
         job = generation().replay(
-            g.identity, request.cookies.get(COOKIE), material_id(value)
+            g.identity, request.cookies.get(COOKIE), material_id(value), g.request_id
         )
         return (
             success(job),

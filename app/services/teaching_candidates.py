@@ -2,12 +2,13 @@
 
 import json
 import time
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from app.services.access import AccessDenied
+from app.services.access import AccessDenied, Identity
 from app.services.ai_contracts import APP_POLICIES, PROMPT_VERSION
 from app.services.answer_validation import assemble_evidence, validate_numbers
 from app.services.materials import missing, unavailable
+from app.services.operation_audit import append_audit
 from app.services.retrieval import citation
 from app.services.teaching import TeachingService, conflict, iso
 from app.services.teaching_question_fields import question_fields
@@ -27,6 +28,40 @@ PINS = (
     "index_version",
     "index_config_version",
 )
+
+
+class UsageCapture:
+    request_id = None
+
+    def __init__(self):
+        self.called = False
+        self.total_tokens = None
+        self.usage_status = "not_applicable"
+
+    def check(self):
+        return None
+
+    def note_call(self):
+        self.called = True
+        self.usage_status = "unavailable"
+
+    def record_model_usage(self, total_tokens):
+        self.called = True
+        if type(total_tokens) is int and 0 <= total_tokens <= 10_000_000:
+            self.total_tokens = total_tokens
+            self.usage_status = "measured"
+        else:
+            self.total_tokens = None
+            self.usage_status = "unavailable"
+
+
+def accumulated_usage(job, capture):
+    previous = job["usage_status"] or "not_applicable"
+    if previous == "unavailable" or capture.usage_status == "unavailable":
+        return "unavailable", None
+    if capture.usage_status == "measured":
+        return "measured", (job["total_tokens"] or 0) + capture.total_tokens
+    return previous, job["total_tokens"]
 
 
 def messages(count, evidence):
@@ -212,9 +247,10 @@ class CandidateJobs(TeachingService):
         ):
             raise AccessDenied(429, 1600, "本班候选题积压已达上限")
 
-    def admit(self, identity, cookie, scope):
+    def admit(self, identity, cookie, scope, request_id):
         if not self.enabled:
             raise unavailable()
+        started = time.monotonic()
         try:
             with self.repository.transaction() as connection:
                 self._actor(connection, identity, cookie, "teacher")
@@ -252,6 +288,17 @@ class CandidateJobs(TeachingService):
                     "updated_at": now,
                 }
                 self.repository.add_job(connection, job, now)
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "candidate_admit",
+                    "teaching_job",
+                    resource_id=job["id"],
+                    duration_ms=round((time.monotonic() - started) * 1000),
+                )
                 return job_view(job)
         except self.database_error:
             raise unavailable() from None
@@ -280,9 +327,10 @@ class CandidateJobs(TeachingService):
         except self.database_error:
             raise unavailable() from None
 
-    def replay(self, identity, cookie, job_id):
+    def replay(self, identity, cookie, job_id, request_id):
         if not self.enabled:
             raise unavailable()
+        started = time.monotonic()
         try:
             with self.repository.transaction() as connection:
                 self._actor(connection, identity, cookie, "teacher")
@@ -295,15 +343,24 @@ class CandidateJobs(TeachingService):
                     self._check_sources(connection, job, lock=True)
                 except JobFailure:
                     raise conflict("原任务出处已变化") from None
-                return job_view(
-                    self.repository.replay(
-                        connection, job, self.repository.now(connection)
-                    )
+                now = self.repository.now(connection)
+                replayed = self.repository.replay(connection, job, now)
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "candidate_replay",
+                    "teaching_job",
+                    resource_id=job_id,
+                    duration_ms=round((time.monotonic() - started) * 1000),
                 )
+                return job_view(replayed)
         except self.database_error:
             raise unavailable() from None
 
-    def generate(self, claim):
+    def generate(self, claim, usage=None):
         with self.repository.transaction() as connection:
             if not self.repository.owner_is_teacher(connection, claim):
                 raise JobFailure(1200, cancelled=True)
@@ -318,9 +375,13 @@ class CandidateJobs(TeachingService):
         if self.chat is None:
             raise JobFailure(1500, transient=True)
         count = claim["input"]["count"]
+        if usage is not None:
+            usage.note_call()
         try:
             payload = self.chat.complete_once(
-                messages(count, evidence), time.monotonic() + 45
+                messages(count, evidence),
+                time.monotonic() + 45,
+                **({"context": usage} if usage is not None else {}),
             )
         except self.protocol_error:
             raise JobFailure(1501) from None
@@ -328,7 +389,7 @@ class CandidateJobs(TeachingService):
             raise JobFailure(1500, transient=error.transient) from None
         return candidates(payload, count, evidence)
 
-    def complete(self, claim, drafts=None, failure=None):
+    def complete(self, claim, drafts=None, failure=None, *, usage=None, duration_ms=0):
         with self.repository.transaction() as connection:
             authorized = self.repository.owner_is_teacher(connection, claim)
             job, now = self.repository.current_lease(connection, claim)
@@ -344,12 +405,45 @@ class CandidateJobs(TeachingService):
             now = self.repository.now(connection)
             if job["lease_until"] <= now:
                 raise JobNotSettled()
+            usage_status, total_tokens = accumulated_usage(job, usage or UsageCapture())
             if failure is not None:
-                self.repository.fail(connection, job, failure, now)
-                return True
-            question_ids = [
-                self.repository.add_candidate(connection, job, fields, snapshot, now)
-                for fields, snapshot in drafts
-            ]
-            self.repository.finish(connection, job, {"question_ids": question_ids}, now)
+                state = self.repository.fail(
+                    connection, job, failure, now, usage_status, total_tokens
+                )
+                if state == "retry_wait":
+                    return True
+                outcome = state
+            else:
+                question_ids = [
+                    self.repository.add_candidate(
+                        connection, job, fields, snapshot, now
+                    )
+                    for fields, snapshot in drafts
+                ]
+                self.repository.finish(
+                    connection,
+                    job,
+                    {"question_ids": question_ids},
+                    now,
+                    usage_status,
+                    total_tokens,
+                )
+                outcome = "succeeded"
+            append_audit(
+                self.repository,
+                connection,
+                Identity(job["creator_id"], job["class_id"], frozenset()),
+                now,
+                uuid5(
+                    NAMESPACE_URL,
+                    f"teaching-job:{job['id']}:{job['generation']}:{outcome}",
+                ).hex,
+                "candidate_terminal",
+                "teaching_job",
+                resource_id=job["id"],
+                outcome=outcome,
+                total_tokens=total_tokens,
+                usage_status=usage_status,
+                duration_ms=duration_ms,
+            )
             return True

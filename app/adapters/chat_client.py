@@ -39,9 +39,13 @@ class ChatClient:
             context=context,
         )
 
-    def complete_once(self, messages, deadline, *, before_call=None):
+    def complete_once(self, messages, deadline, *, before_call=None, context=None):
         return self.complete(
-            messages, deadline, before_call=before_call, allow_retry=False
+            messages,
+            deadline,
+            before_call=before_call,
+            allow_retry=False,
+            context=context,
         )
 
     def complete(
@@ -82,6 +86,20 @@ class ChatClient:
                 ):
                     raise
                 self.sleep(1)
+        usage = result.get("usage", {}) if isinstance(result, dict) else {}
+        tokens = (
+            {
+                key: value
+                for key, value in usage.items()
+                if key in ("prompt_tokens", "completion_tokens", "total_tokens")
+                and type(value) is int
+                and 0 <= value <= 10_000_000
+            }
+            if isinstance(usage, dict)
+            else {}
+        )
+        if context is not None:
+            context.record_model_usage(tokens.get("total_tokens"))
         try:
             choices = result["choices"]
             if not isinstance(choices, list) or len(choices) != 1:
@@ -103,20 +121,6 @@ class ChatClient:
             payload = json.loads(content, object_pairs_hook=unique_object)
         except (KeyError, TypeError, ValueError, AttributeError):
             raise ChatProtocolError("chat_structure") from None
-        usage = result.get("usage", {})
-        tokens = (
-            {
-                key: value
-                for key, value in usage.items()
-                if key in ("prompt_tokens", "completion_tokens", "total_tokens")
-                and type(value) is int
-                and 0 <= value <= 10_000_000
-            }
-            if isinstance(usage, dict)
-            else {}
-        )
-        if context is not None:
-            context.record_model_usage(tokens.get("total_tokens"))
         self.on_result(
             stage="chat",
             model=self.config.model,

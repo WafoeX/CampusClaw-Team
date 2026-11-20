@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from alembic import command
-from sqlalchemy import func, insert, inspect, select, update
+from sqlalchemy import delete, func, insert, inspect, select, update
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
 
@@ -158,6 +158,24 @@ with engine.connect() as connection:
     assert (
         connection.scalar(select(events.c.id).where(events.c.id == expired_id)) is None
     )
+
+new_outcome = {**expired_row, "id": str(uuid4()), "request_id": uuid4().hex}
+new_outcome["expires_at"] = now + timedelta(days=1)
+with engine.begin() as connection:
+    connection.execute(insert(events).values(new_outcome))
+with engine.connect() as connection:
+    config.attributes["connection"] = connection
+    try:
+        command.downgrade(config, "0015_quiz_list_index")
+    except ValueError as error:
+        assert "降级前须处理" in str(error)
+    else:
+        raise AssertionError("新终态审计存在时物理降级必须先拒绝")
+assert "usage_status" in {
+    item["name"] for item in inspect(engine).get_columns("teaching_jobs")
+}
+with engine.begin() as connection:
+    connection.execute(delete(events).where(events.c.id == new_outcome["id"]))
 
 with engine.connect() as connection:
     config.attributes["connection"] = connection

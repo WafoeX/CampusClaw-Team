@@ -6,6 +6,7 @@ import pytest
 
 from app.adapters.chat_client import ChatClient, ChatProtocolError
 from app.config import ChatSettings
+from app.services.teaching_candidates import UsageCapture, accumulated_usage
 
 CONFIG = ChatSettings(
     "https://ai-gateway.devops.hello1023.com/v1", "synthetic-value", "course-chat"
@@ -97,3 +98,56 @@ def test_ST_F06_cancelled_gateway_is_not_retried_or_charged_again():
         )
     assert endpoint.request.call_count == quota.call_count == 1
     sleep.assert_not_called()
+
+
+def test_TJA_B01_missing_usage_stays_unavailable_across_attempts():
+    capture = UsageCapture()
+    capture.note_call()
+    assert accumulated_usage({"usage_status": None, "total_tokens": None}, capture) == (
+        "unavailable",
+        None,
+    )
+    later = UsageCapture()
+    later.note_call()
+    later.record_model_usage(12)
+    assert accumulated_usage(
+        {"usage_status": "unavailable", "total_tokens": None}, later
+    ) == ("unavailable", None)
+    assert accumulated_usage(
+        {"usage_status": "measured", "total_tokens": 8}, later
+    ) == ("measured", 20)
+    assert accumulated_usage(
+        {"usage_status": None, "total_tokens": None}, UsageCapture()
+    ) == ("not_applicable", None)
+
+
+def test_TJA_F04_protocol_failure_keeps_actual_model_usage():
+    endpoint = Mock()
+    endpoint.request.return_value = {
+        "choices": [{"message": {"content": "invalid json"}}],
+        "usage": {"total_tokens": 17},
+    }
+    capture = UsageCapture()
+    capture.note_call()
+    with pytest.raises(ChatProtocolError):
+        ChatClient(CONFIG, endpoint=endpoint).complete_once(
+            [], time.monotonic() + 35, context=capture
+        )
+    assert capture.usage_status == "measured" and capture.total_tokens == 17
+
+
+def test_TJA_B01_invalid_model_usage_is_not_zero():
+    endpoint = Mock()
+    endpoint.request.return_value = {
+        "choices": [{"message": {"content": "{}"}}],
+        "usage": {"total_tokens": -1},
+    }
+    capture = UsageCapture()
+    capture.note_call()
+    assert (
+        ChatClient(CONFIG, endpoint=endpoint).complete_once(
+            [], time.monotonic() + 35, context=capture
+        )
+        == {}
+    )
+    assert capture.usage_status == "unavailable" and capture.total_tokens is None

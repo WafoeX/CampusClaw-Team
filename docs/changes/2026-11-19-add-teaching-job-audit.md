@@ -51,3 +51,33 @@ PR #65 的首轮 CI：两套 `make check` 分别在作业 `136148847759`、`1361
 ### 评审结论
 
 本组迁移、字典及受影响入口已有隔离真实依赖证据，tasks 1.1–1.2 标记完成。七类 Harness：接口入口与业务逻辑未改，按原候选事务回归；数据库由空/旧库、重跑、约束、降级核对；公共函数仅新增迁移内部 `_names` 并由重跑验证；错误处理核验 MySQL 3819 拒绝；安全核查班级键、无正文新副本及合成库限制；性能未做压测，新增索引的实际查询性能待第 3 组。README 无新增使用入口，保持现有阶段说明。OpenSpec 任务、数据字典和测试属于需人工复核文件；本次自检不是批准，PR 合并仍需真实门禁和同伴评审。课程 4.3 保持未完成。
+
+## 第 2 组：受理、重放与结算审计（2026-11-20）
+
+### 变更说明
+
+基于已合并的 PR #65 与 `main` `f634f10` 实施 tasks 2.1–2.3。HTTP 受理及重放沿用本次请求标识，在任务和 outbox 所在事务内追加去内容审计；worker 将实际模型用量和执行耗时传入结算，在同一事务内提交终态、草稿/结果及审计。终态请求标识由任务 ID、代次和结果稳定生成；重复消息、旧租约和未终结重试不追加终态。重放重置本代用量，先前失败审计保留。模型已调用但未提供有效 token 时写 `unavailable` 和空数值；未调用时写 `not_applicable`。HTTP 响应未新增用量字段。
+
+真实 Kafka 回归首次在已有 `teaching_runtime.py` 物理降到 0014 时失败：本组新增的 `failed` 审计不符合 0015 的旧结果约束。为避免 0016 降级在已改动索引/约束后才遇到不兼容行，在 0016 的**降级入口**追加预检；升级逻辑和已部署结构不变。此处修改已执行迁移的降级函数，仅用于隔离库回退安全，需按 REV-08 人工复核。迁移测试确认不兼容行使降级在改结构前拒绝；既有综合夹具仅在 `campusclaw_test_` 合成库断言这些行为任务审计后清理，再继续 0015/0014 回归。生产回退仍保留扩展结构，不执行物理降级。
+
+`openspec-apply-change` 以本变更 proposal、design、spec、tasks 和当前代码落实第 2 组；`project-add-tests` 以 TJA-N01/N02、B01、F01–F04 为输入，补充单元及真实 MySQL/Kafka 正常、失败、边界断言；`project-data-change` 以 0016 降级和合成审计行为输入，核对旧约束、预检与隔离回退；`project-review` 对照 AGENTS、README、BE/SEC/TEST/AI/DATA/REV 规范、本组差异及下列实际结果自检。提示词、模型版本和检索参数未改变，`project-prompt-eval` 不适用；本组未引入新的数据副本或留存策略。
+
+### 验证记录
+
+| 场景 / 检查 | 实际结果 | 状态 |
+| --- | --- | --- |
+| TJA-N01/N02、F01/F03：真实 MySQL 接口与事务 | 受理 202 对应同班操作者、HTTP 请求标识和空技能 ID；非法来源、outbox 或审计写入失败不留任务/审计；重放失败回滚代次和 outbox；终态审计写失败回滚草稿、结果和状态，恢复后结算成功 | 通过 |
+| TJA-B01/F04：模型用量与取消 | 单元检查无效/缺失用量、有效 17 token、跨尝试累计及模型协议失败保留已获用量；真实 Kafka 检查依赖失败为 `unavailable`/空数值，撤权或来源失效仅记录取消而不发布草稿 | 通过 |
+| TJA-F02：真实 Kafka 重复与旧租约 | 旧租约结算前后不生成终态；新租约仅一条成功事件；重复投递后仍一条。死信原代次一条，获准重放新代次一条成功事件，重放前用量清空 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --disable-socket tests/unit/test_chat_client.py` | 12 通过，退出码 0 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k 'TJA_data_migration or JB_F05_mysql_job_transactions_without_broker'` | Compose 隔离启动，`/live`、`/health` 200；迁移预检与旧版回退、事务及故障回滚，2 通过、8 未选，退出码 0 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k JB_QB_real_kafka_and_candidate_recovery` | 真实 MySQL/Kafka，1 通过、9 未选，退出码 0，约 92 秒 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache make check-static` | OpenSpec 13/13、格式、lint、分层、场景映射及接口清单通过，退出码 0 | 通过 |
+| 首轮及环境失败 | 静态检查首轮报导入顺序，修正后通过；真实 Kafka 首轮在旧约束降级失败，加入预检及隔离夹具清理后通过。本轮在受限进程中另有 uv 缓存写入和 Docker socket 权限错误，改用临时缓存并获准访问 Docker 后复测；这些失败均未记作代码通过 | 失败已修复并复测 |
+| `make check`、`make check-security`、人工课程等价性 | 本组本地未执行；变更收尾与最终验收分别负责。PR CI 结果需在创建后补录 | 未执行 / 待后续 |
+
+用例映射：TJA-N01/F01/F03 对应 `teaching_jobs_runtime.py` 的 `task()`、错误受理和 `storage` 分支；TJA-N02/F02/F04 对应同文件的 Kafka 重放、重复消息、旧租约和撤权/失效分支；TJA-B01/F04 对应 `test_chat_client.py` 的 TJA 用量单元测试及 Kafka 依赖失败；0016 降级预检对应 `teaching_job_audit_migration.py`。TJA-N03/F05/F06/B02 属第 3/4 组，场景清单保持 `planned`，不冒充全部能力已验证。
+
+### 评审结论
+
+第 2 组 2.1–2.3 的受影响入口、隔离启动与实际自动化回归满足本组可运行交接；任务标记完成。七类 Harness：接口入口核对受理/重放状态码和请求标识；业务逻辑核对代次、终态及旧租约副作用；数据库核对同事务回滚、0016 回退预检与合成库清理；公共函数核对 `UsageCapture` 累计和适配器上下文；错误处理核对模型缺失/非法用量与审计写故障；安全核对当前服务端班级/操作者、空技能 ID 和无正文审计；性能仅记录实测耗时，未做吞吐压测，第 3 组查询索引再核对性能。README 无新增操作入口；数据字典与第 1 组契约一致。物理降级守卫、OpenSpec 任务及代码仍待真实同伴评审；助手自检不等于人工批准，未合并前不宣称变更完成。第 10 课 4.3 状态不变。

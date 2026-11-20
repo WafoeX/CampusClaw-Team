@@ -104,7 +104,6 @@ PR #66 首轮 CI（候选提交 `b474739`）两套 `make check` 作业 `13624553
 | 数据恢复检查 | 全量集成含 `test_TJA_data_migration_empty_existing_repeat_and_downgrade`：空库升级、旧行兼容、重复升级、约束拒绝、隔离降级重升与审计到期清理复跑通过 | 通过 |
 
 PR #67（第 3 组）CI：同提交两轮作业中，一轮 `make check` 与 `make check-security` 及镜像构建全部通过；另一轮 `make check-security` 在资产捕获步骤失败（细节见第 4 组）。人工代码评审仍未执行。
-
 用例映射：TJA-N03 对应 `test_operation_audit.py::test_TJA_N03...` 与 `teaching_jobs_runtime.py` 的任务筛选断言；TJA-F05/F06 对应接口学生 403、非法 ID 400 及脚本中 B 班空列表/404 同构断言；TJA-B02 对应 `teaching_job_audit_migration.py` 的到期清理断言；TJA-N01/B01/F01–F04 沿用第 2 组映射。H5 流程对应 `candidates.mjs` 的审计链接、列表、详情断言与 `test_teaching.py` 的 `H5_AUDIT_BROWSER_OK` 核对。
 
 ### 评审结论
@@ -128,7 +127,7 @@ PR #67（第 3 组）CI：同提交两轮作业中，一轮 `make check` 与 `ma
 | `make check-security SECURITY_ASSETS=reports/security-assets-aee8182 SECURITY_CANDIDATE=<HEAD>` | history/worktree/frontend/logs/app.tar/mcp-server.tar 密钥均 0，dependencies 高危/严重 0，全部范围 exit 0，退出码 0 | 通过 |
 | `openspec validate 2026-11-19-add-teaching-job-audit --strict` | 退出码 0 | 通过 |
 | 任务与字典同步 | tasks 1.1–4.1 已勾选；数据字典登记 0016 用量字段/状态、终态枚举、索引、请求标识来源与 90 天留存；README 操作审计段含 `job_id` 过滤说明；产品设计规范页面清单含 `/console/audits` | 通过 |
-| PR #67 首轮 CI | 一轮 `make check-security` 在“捕获隔离候选资产”步骤失败（安全门禁被跳过）；同提交另一轮 `make check`、`make check-security` 与镜像构建均通过。失败作业详情在该 run 结束后复核，暂按与 PR #65/#66 已记录的环境性单轮失败同类处理 | 待复核失败原因 |
+| PR #67 首轮 CI | 一轮 `make check-security` 的“捕获隔离候选资产”步骤在 fixture 建立时失败：Docker Hub 匿名拉取限额 `toomanyrequests: Data limit exceeded`（mysql 镜像未拉取，Compose 未启动，测试 6.96 秒报错），安全门禁被跳过；同提交另一轮双门禁与镜像构建均通过。已 `gh run rerun --failed` 重跑该失败作业 | 外部镜像配额，非代码失败；重跑结果见后续 |
 | 未执行项 | 真实人工代码评审、课程方等价性判断（第 10 课 4.3 与最终验收 1.5）、H5 真人走查、查询专项压测 | 未执行，如实登记 |
 
 ### 评审结论

@@ -127,7 +127,8 @@ PR #67（第 3 组）CI：同提交两轮作业中，一轮 `make check` 与 `ma
 | `make check-security SECURITY_ASSETS=reports/security-assets-aee8182 SECURITY_CANDIDATE=<HEAD>` | history/worktree/frontend/logs/app.tar/mcp-server.tar 密钥均 0，dependencies 高危/严重 0，全部范围 exit 0，退出码 0 | 通过 |
 | `openspec validate 2026-11-19-add-teaching-job-audit --strict` | 退出码 0 | 通过 |
 | 任务与字典同步 | tasks 1.1–4.1 已勾选；数据字典登记 0016 用量字段/状态、终态枚举、索引、请求标识来源与 90 天留存；README 操作审计段含 `job_id` 过滤说明；产品设计规范页面清单含 `/console/audits` | 通过 |
-| PR #67 首轮 CI | 一轮 `make check-security` 的“捕获隔离候选资产”步骤在 fixture 建立时失败：Docker Hub 匿名拉取限额 `toomanyrequests: Data limit exceeded`（mysql 镜像未拉取，Compose 未启动，测试 6.96 秒报错），安全门禁被跳过；同提交另一轮双门禁与镜像构建均通过。已 `gh run rerun --failed` 重跑该失败作业 | 外部镜像配额，非代码失败；重跑结果见后续 |
+| PR #67 首轮 CI | 一轮 `make check-security` 的“捕获隔离候选资产”步骤在 fixture 建立时失败：Docker Hub 匿名拉取限额 `toomanyrequests: Data limit exceeded`（mysql 镜像未拉取，Compose 未启动，测试 6.96 秒报错），安全门禁被跳过；同提交另一轮双门禁与镜像构建均通过。`gh run rerun --failed` 重跑后该作业 `make check`、`make check-security`、镜像构建三项全部成功，PR #67 检查全绿 | 外部镜像配额，非代码失败；重跑后通过 |
+| PR #68 CI | 两轮作业的 `make check`、`make check-security` 与镜像构建均 SUCCESS，PR 检查全绿 | 通过 |
 | 未执行项 | 真实人工代码评审、课程方等价性判断（第 10 课 4.3 与最终验收 1.5）、H5 真人走查、查询专项压测 | 未执行，如实登记 |
 
 ### 评审结论

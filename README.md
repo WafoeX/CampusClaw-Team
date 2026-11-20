@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段（2026-11-19，主干 `a8d3a21`）**：班级认证与资料、检索问答、流式助手、受控 MCP、人工题库与测验、Kafka 异步候选题、错题和看板均已合入 `main`。异步教学 15 项必做实现任务、[课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) 10 项技术任务及[安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) 16 项技术任务已勾选；这不等于课程人工验收。第 10 课[交付任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)为 8/14，双门禁已列为主干必需检查，[候选清单](reports/candidate-checklist.md)固定了 `a0dd0a0` 的提交、CI 与镜像摘要，但验收负责人尚未决定冻结。正式阈值与收件负责人、H5 作业链路课程等价、跨成员复验及真人试用仍待确认；[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) 0/21。各项实际证据见[验收矩阵](reports/acceptance-matrix.md)与[第 7 课记录](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
+**当前阶段（2026-11-21，主干 `7028789`）**：班级认证与资料、检索问答、流式助手、受控 MCP、人工题库与测验、Kafka 异步候选题、候选任务审计、错题和看板均已合入 `main`。候选任务审计九项任务（PR #64–68）已合入并归档，能力规格并入[主干 specs](openspec/specs/teaching-job-audit/spec.md)。异步教学 15 项必做实现任务、[课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) 10 项技术任务及[安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) 16 项技术任务已勾选；这不等于课程人工验收。第 10 课[交付任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)为 8/14，双门禁已列为主干必需检查，[候选清单](reports/candidate-checklist.md)固定了 `a0dd0a0` 的提交、CI 与镜像摘要，但验收负责人尚未决定冻结。正式阈值与收件负责人、H5 作业链路课程等价、跨成员复验及真人试用仍待确认；[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) 0/21。各项实际证据见[验收矩阵](reports/acceptance-matrix.md)与[第 7 课记录](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
 
 ## 开发者快速开始
 

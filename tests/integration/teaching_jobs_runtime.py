@@ -23,6 +23,7 @@ from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.index_clients import IndexDependencyError
 from app.adapters.index_schema_v5 import builds, chunks, materials
 from app.adapters.migrations.runner import migrate
+from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.retrieval_repository import RetrievalRepository
 from app.adapters.teaching_jobs import TeachingJobs
 from app.adapters.teaching_kafka import commit, consumer, producer, publish
@@ -35,7 +36,7 @@ from app.adapters.teaching_schema_v12 import (
     quarantine,
 )
 from app.config import Settings
-from app.services.teaching_candidates import CandidateJobs
+from app.services.teaching_candidates import CandidateJobs, UsageCapture
 from app.teaching_job_contract import (
     CLASS_CAPACITY,
     DEAD_TOPIC,
@@ -116,6 +117,29 @@ def view(job_id, client=None):
     return response.json["data"]
 
 
+def terminal_events(job_id):
+    with engine.connect() as connection:
+        return (
+            connection.execute(
+                select(events)
+                .where(
+                    events.c.resource_id == job_id,
+                    events.c.action == "candidate_terminal",
+                )
+                .order_by(events.c.created_at, events.c.id)
+            )
+            .mappings()
+            .all()
+        )
+
+
+def job_usage(job_id):
+    with engine.connect() as connection:
+        return connection.execute(
+            select(jobs.c.usage_status, jobs.c.total_tokens).where(jobs.c.id == job_id)
+        ).one()
+
+
 def material(client, key):
     response = request(
         client,
@@ -184,6 +208,26 @@ def task(material_id, count=1):
     job_id = response.json["data"]["task_id"]
     assert response.headers["Location"] == JOB + job_id
     assert view(job_id)["state"] == "pending"
+    with engine.connect() as connection:
+        audit = (
+            connection.execute(
+                select(events).where(
+                    events.c.resource_type == "teaching_job",
+                    events.c.resource_id == job_id,
+                    events.c.action == "candidate_admit",
+                )
+            )
+            .mappings()
+            .one()
+        )
+        job = repository.job(connection, job_id)
+    assert audit["request_id"] == response.json["request_id"]
+    assert audit["class_id"] == job["class_id"]
+    assert audit["actor_id"] == job["creator_id"]
+    assert audit["outcome"] == "succeeded" and audit["skill_id"] is None
+    assert audit["usage_status"] == "not_applicable" and audit["total_tokens"] is None
+    assert audit["duration_ms"] >= 0
+    assert all(word not in audit["event_json"] for word in (quote, "answer", "prompt"))
     return job_id, elapsed, start
 
 
@@ -289,6 +333,24 @@ finally:
     event.remove(engine, "before_cursor_execute", reject_outbox)
 with engine.connect() as connection:
     assert connection.scalar(select(func.count()).select_from(jobs)) == 0
+    assert connection.scalar(select(func.count()).select_from(events)) == 0
+
+
+def reject_audit(_conn, _cursor, statement, *_):
+    if statement.startswith("INSERT INTO operation_audit_events"):
+        raise OperationalError("injected audit write failure", None, RuntimeError())
+
+
+event.listen(engine, "before_cursor_execute", reject_audit)
+try:
+    denied = request(teacher, "POST", GENERATION, {"material_id": source, "count": 1})
+    assert denied.status_code == 503 and denied.json["code"] == 1500
+finally:
+    event.remove(engine, "before_cursor_execute", reject_audit)
+with engine.connect() as connection:
+    assert connection.scalar(select(func.count()).select_from(jobs)) == 0
+    assert connection.scalar(select(func.count()).select_from(outbox)) == 0
+    assert connection.scalar(select(func.count()).select_from(events)) == 0
 
 observed = []
 
@@ -329,6 +391,37 @@ if sys.argv[1:] == ["storage"]:
             == 0
         )
         assert connection.scalar(select(func.count()).select_from(job_results)) == 0
+        assert (
+            connection.scalar(
+                select(func.count())
+                .select_from(events)
+                .where(
+                    events.c.resource_id == job_id,
+                    events.c.action == "candidate_terminal",
+                )
+            )
+            == 0
+        )
+
+    event.listen(engine, "before_cursor_execute", reject_audit)
+    try:
+        try:
+            service.complete(claim, drafts=drafts)
+        except OperationalError:
+            pass
+        else:
+            raise AssertionError(
+                "terminal audit failure must roll back drafts and state"
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", reject_audit)
+    assert view(job_id)["state"] == "running"
+    with engine.connect() as connection:
+        assert connection.scalar(select(func.count()).select_from(job_results)) == 0
+        assert (
+            connection.scalar(select(func.count()).select_from(generated_questions))
+            == 0
+        )
     with engine.begin() as connection:
         now = repository.now(connection)
         connection.execute(
@@ -340,8 +433,29 @@ if sys.argv[1:] == ["storage"]:
     recovered = repository.claim_job(expected)
     assert recovered["lease_id"] != claim["lease_id"]
     assert not service.complete(claim, drafts=drafts)
-    assert service.complete(recovered, drafts=drafts)
+    measured = UsageCapture()
+    measured.note_call()
+    measured.record_model_usage(17)
+    assert service.complete(recovered, drafts=drafts, usage=measured, duration_ms=9)
     assert view(job_id)["state"] == "succeeded"
+    with engine.connect() as connection:
+        terminal = (
+            connection.execute(
+                select(events).where(
+                    events.c.resource_id == job_id,
+                    events.c.action == "candidate_terminal",
+                )
+            )
+            .mappings()
+            .one()
+        )
+    assert terminal["outcome"] == "succeeded"
+    assert terminal["usage_status"] == "measured"
+    assert terminal["total_tokens"] == 17 and terminal["duration_ms"] == 9
+    assert terminal["skill_id"] is None
+    with engine.connect() as connection:
+        settled = repository.job(connection, job_id)
+    assert settled["usage_status"] == "measured" and settled["total_tokens"] == 17
     assert repository.claim_job(expected) is None
     question_id = view(job_id)["result"]["question_ids"][0]
     deadline = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
@@ -571,10 +685,13 @@ new = repository.claim_job(stale_event)
 assert old["lease_id"] != new["lease_id"]
 service.complete(old, drafts=drafts)
 assert view(stale_job)["state"] == "running"
+assert terminal_events(stale_job) == []
 service.complete(new, drafts=drafts)
 assert view(stale_job)["state"] == "succeeded"
+assert len(terminal_events(stale_job)) == 1
 assert relay_once(repository, tx, event_log)
 consume_event(rx, stale_event)
+assert len(terminal_events(stale_job)) == 1
 
 # Acknowledged records beyond the recovery window are republished using the same event ID.
 recover_job, _, _ = task(source)
@@ -677,6 +794,12 @@ for attempt in range(len(RETRY_SECONDS) + 1):
         due(job_event(failed_job).event_id)
 assert state["state"] == "dead_letter" and state["error_code"] == 1500
 assert state["result"] is None
+assert job_usage(failed_job) == ("unavailable", None)
+failed_events = terminal_events(failed_job)
+assert len(failed_events) == 1
+assert failed_events[0]["outcome"] == "dead_letter"
+assert failed_events[0]["usage_status"] == "unavailable"
+assert failed_events[0]["total_tokens"] is None
 
 # QB-F04: the model remains unavailable while a teacher creates and publishes
 # a manual question and a student receives a committed deterministic score.
@@ -750,11 +873,55 @@ due(dead["id"], topic=DEAD_TOPIC)
 assert relay_once(repository, tx, event_log)
 model.complete_once.side_effect = None
 model.complete_once.return_value = {"insufficient": False, "questions": [sample]}
-assert request(teacher, "POST", JOB + failed_job + "/replays", {}).status_code == 202
+with engine.connect() as connection:
+    outbox_before_replay = connection.scalar(select(func.count()).select_from(outbox))
+event.listen(engine, "before_cursor_execute", reject_audit)
+try:
+    rejected_replay = request(teacher, "POST", JOB + failed_job + "/replays", {})
+    assert rejected_replay.status_code == 503 and rejected_replay.json["code"] == 1500
+finally:
+    event.remove(engine, "before_cursor_execute", reject_audit)
+assert view(failed_job)["generation"] == 1
+with engine.connect() as connection:
+    assert (
+        connection.scalar(select(func.count()).select_from(outbox))
+        == outbox_before_replay
+    )
+    assert (
+        connection.scalar(
+            select(func.count())
+            .select_from(events)
+            .where(
+                events.c.resource_id == failed_job,
+                events.c.action == "candidate_replay",
+            )
+        )
+        == 0
+    )
+replay_response = request(teacher, "POST", JOB + failed_job + "/replays", {})
+assert replay_response.status_code == 202
 assert view(failed_job)["generation"] == 2
+assert job_usage(failed_job) == (None, None)
+with engine.connect() as connection:
+    replay_audit = (
+        connection.execute(
+            select(events).where(
+                events.c.resource_id == failed_job,
+                events.c.action == "candidate_replay",
+            )
+        )
+        .mappings()
+        .one()
+    )
+assert replay_audit["request_id"] == replay_response.json["request_id"]
+assert replay_audit["skill_id"] is None
 assert relay_once(repository, tx, event_log)
 consume_event(rx, job_event(failed_job))
 assert view(failed_job)["state"] == "succeeded"
+assert [row["outcome"] for row in terminal_events(failed_job)] == [
+    "dead_letter",
+    "succeeded",
+]
 
 # Optional explicit real-gateway evidence, on the same isolated dependencies.
 if settings.chat is not None and settings.chat.api_key:
@@ -804,6 +971,7 @@ drafts = service.generate(claim)
 indexed(source, 2)
 service.complete(claim, drafts=drafts)
 assert view(inflight)["state"] == "cancelled"
+assert [row["outcome"] for row in terminal_events(inflight)] == ["cancelled"]
 after_rebuild = request(teacher, "GET", "/api/v1/questions/" + question_id).json["data"]
 assert after_rebuild["source_snapshot"] == question["source_snapshot"]
 assert relay_once(repository, tx, event_log)
@@ -829,6 +997,7 @@ with engine.begin() as connection:
         .values(role="teacher")
     )
 assert view(revoked)["state"] == "cancelled"
+assert [row["outcome"] for row in terminal_events(revoked)] == ["cancelled"]
 assert relay_once(repository, tx, event_log)
 consume_event(rx, current)
 
@@ -839,6 +1008,7 @@ drafts = service.generate(claim)
 assert request(teacher, "DELETE", "/api/v1/materials/" + source).status_code == 200
 service.complete(claim, drafts=drafts)
 assert view(deleted)["state"] == "cancelled"
+assert [row["outcome"] for row in terminal_events(deleted)] == ["cancelled"]
 after_delete = request(teacher, "GET", "/api/v1/questions/" + question_id).json["data"]
 assert (
     after_delete["source_material_id"] is None and "source_snapshot" not in after_delete

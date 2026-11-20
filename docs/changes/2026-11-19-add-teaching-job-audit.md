@@ -83,3 +83,54 @@ PR #66 首轮 CI（候选提交 `b474739`）两套 `make check` 作业 `13624553
 ### 评审结论
 
 第 2 组 2.1–2.3 的受影响入口、隔离启动与实际自动化回归满足本组可运行交接；任务标记完成。七类 Harness：接口入口核对受理/重放状态码和请求标识；业务逻辑核对代次、终态及旧租约副作用；数据库核对同事务回滚、0016 回退预检与合成库清理；公共函数核对 `UsageCapture` 累计和适配器上下文；错误处理核对模型缺失/非法用量与审计写故障；安全核对当前服务端班级/操作者、空技能 ID 和无正文审计；性能仅记录实测耗时，未做吞吐压测，第 3 组查询索引再核对性能。README 无新增操作入口；数据字典与第 1 组契约一致。物理降级守卫、OpenSpec 任务及代码仍待真实同伴评审；助手自检不等于人工批准，未合并前不宣称变更完成。第 10 课 4.3 状态不变。
+
+## 第 3 组：教师按任务查询与 H5 可追查路径（2026-11-20）
+
+### 变更说明
+
+基于已合并的 PR #66 与 `main` `918f3e0` 实施 tasks 3.1–3.2。`GET /api/v1/operation-audits` 新增可选 `job_id` 过滤参数，转换为 `resource_type=teaching_job` 与 `resource_id=任务 ID` 条件，始终与当前数据库身份的班级和 90 天有效期条件同时生效；非法 UUID 由接口层以 `identifier()` 拒绝为 400/1000，不触达服务层。新增教师页 `/console/audits`（页面清单登记），提供任务 ID 过滤、时间窗口、分页与去内容详情面板；候选题异步生成状态旁增加“按任务 ID 查看操作审计”入口，指向同一任务 ID 的审计查询。H5 仅用 `textContent` 渲染，不内嵌题目、答案、证据正文或凭据。
+
+### 验证记录
+
+| 检查 | 实际结果 | 状态 |
+| --- | --- | --- |
+| `tests/api/test_operation_audit.py` 新增 8 条（TJA-N03 投影仅元数据且 `job_id` 传入仓储、TJA-F05 学生 403、TJA-F06 四种非法 ID 400 且不触达服务、未知过滤 400、详情 404 同构、教师页面渲染） | 单文件 13 通过；`tests/api` 全量 169 通过，退出码 0 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k JB_QB_real_kafka_and_candidate_recovery` | 真实 MySQL/Kafka：`?job_id=` 列表动作集为受理/重放/结算、详情等于列表项、B 班为空、跨班与不存在详情 404/1300 同构、查询不推进任务状态且不调用模型，1 通过，约 90 秒 | 通过 |
+| `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --tb=short tests/browser/test_teaching.py` | 真实 Chromium：任务页审计入口链接含任务 ID、审计页显示受理与结算、详情仅元数据、无题干/答案/提示词正文，输出 `H5_AUDIT_BROWSER_OK`，1 通过，约 35 秒 | 通过 |
+| `tests/scenario-map.json` 迁移 | teaching-job-audit 从 `planned` 转为 `implemented`，11 条 TJA 场景全部映射到 `test_operation_audit.py`、`test_chat_client.py`、`test_compose.py` 及两个真实依赖脚本的测试函数/唯一模块级断言；`scripts/scenario_trace.py` 退出码 0 | 通过 |
+| `test_compose.py` 重构 | `test_JB_F05` 与 `test_TJA_data_migration` 的脚本执行抽为 `verify_job_storage`、`verify_audit_migration` 具名入口供追溯校验，行为不变；全量集成复跑通过 | 通过 |
+| `make check CHANGE=2026-11-19-add-teaching-job-audit`（本机全量） | 静态：OpenSpec 13/13、Ruff 格式/lint、分层与运行/授权映射、场景追溯、接口清单 13 个去重入口均通过；单元/接口 515 通过、启动 4 通过；secrets 与依赖扫描 uv.lock 高危/严重 0；真实集成+浏览器 13 通过，退出码 0，集成段约 480 秒 | 通过 |
+| `make check-security` | 首轮以默认旧候选制品运行：`frontend/logs/app.tar/mcp-server.tar` 因 `reports/security-assets` 的 revision 为旧提交 `4aa4953` 而退出 2（制品未就绪，非漏洞）；history/worktree 密钥 0、dependencies 高危/严重 0。按 CI 同款流程以 `CAMPUSCLAW_SECURITY_ASSETS` 重跑 `security_precheck` 捕获本候选制品（revision 与 HEAD `aee8182` 一致）后复测：history/worktree/frontend/logs/app.tar/mcp-server.tar 密钥均 0，dependencies 高危/严重 0，全部范围 exit 0，退出码 0 | 首轮制品未就绪；捕获制品后复测通过 |
+| 数据恢复检查 | 全量集成含 `test_TJA_data_migration_empty_existing_repeat_and_downgrade`：空库升级、旧行兼容、重复升级、约束拒绝、隔离降级重升与审计到期清理复跑通过 | 通过 |
+
+PR #67（第 3 组）CI：同提交两轮作业中，一轮 `make check` 与 `make check-security` 及镜像构建全部通过；另一轮 `make check-security` 在资产捕获步骤失败（细节见第 4 组）。人工代码评审仍未执行。
+用例映射：TJA-N03 对应 `test_operation_audit.py::test_TJA_N03...` 与 `teaching_jobs_runtime.py` 的任务筛选断言；TJA-F05/F06 对应接口学生 403、非法 ID 400 及脚本中 B 班空列表/404 同构断言；TJA-B02 对应 `teaching_job_audit_migration.py` 的到期清理断言；TJA-N01/B01/F01–F04 沿用第 2 组映射。H5 流程对应 `candidates.mjs` 的审计链接、列表、详情断言与 `test_teaching.py` 的 `H5_AUDIT_BROWSER_OK` 核对。
+
+### 评审结论
+
+第 3 组 3.1–3.2 有接口、真实依赖与真实浏览器三层证据，tasks 标记完成。七类 Harness：接口入口核对 `job_id` 参数校验、权限与页面路由登记；业务逻辑核对过滤同时受班级和有效期约束、查询无状态推进副作用；数据库核对 0016 索引承载按对象过滤、迁移与到期清理回归；公共函数核对仓储/服务参数传递与 H5 共用 API 封装；错误处理核对非法 ID 受控 400、详情 404 同构与页面错误态含请求标识；安全核对学生 403、跨班空列表/同构 404、列表与详情去内容、仅 `textContent` 渲染；性能核对查询走 `ix_operation_audit_class_resource` 索引、页面分页每页 20 条，未做专项压测。README、页面清单与接口文档已同步。OpenSpec 任务与代码仍待真实同伴评审；助手自检不等于人工批准。第 10 课 4.3 状态不变。
+
+## 第 4 组：跨入口追溯、门禁与收尾评审（2026-11-20）
+
+### 变更说明
+
+基于已合并的 PR #67 前置提交与 `main` `918f3e0` 实施 tasks 4.1–4.2。`project-add-tests` 将 teaching-job-audit 从场景清单 `planned` 转为 `implemented`，11 条 TJA 场景逐条映射到接口/单元测试函数与真实 MySQL/Kafka、迁移脚本的模块级唯一断言；为满足追溯校验的具名入口要求，将 `test_JB_F05` 与 `test_TJA_data_migration` 的脚本执行抽为 `verify_job_storage`、`verify_audit_migration` 两个 runner，行为不变。随后在本机全量执行 `make check` 与按 CI 同款流程捕获候选制品后的 `make check-security`，并用 `project-review` 对照规约、任务、数据字典、README、页面清单与证据完成收尾自检。
+
+### 验证记录
+
+| 检查 | 实际结果 | 状态 |
+| --- | --- | --- |
+| `scripts/scenario_trace.py` | teaching-job-audit 11/11 场景映射有效，断言唯一性通过，退出码 0 | 通过 |
+| `make check CHANGE=2026-11-19-add-teaching-job-audit`（本机全量） | 静态 OpenSpec 13/13、格式/lint/分层/追溯/接口清单通过；单元+接口 515 通过、启动 4 通过；secrets 与依赖扫描 0 高危/严重；真实集成+浏览器 13 通过（约 480 秒），退出码 0 | 通过 |
+| `make check-security` 首轮 | `reports/security-assets` 的 revision 为旧提交 `4aa4953`，`frontend/logs/app.tar/mcp-server.tar` 因制品与候选不一致退出 2；history/worktree 密钥 0、dependencies 高危/严重 0 | 制品未就绪，非代码失败 |
+| `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-aee8182 ... -k security_precheck` | 捕获本候选（HEAD `aee8182`）的前端、日志、镜像制品并断言镜像 revision 一致，1 通过 | 通过 |
+| `make check-security SECURITY_ASSETS=reports/security-assets-aee8182 SECURITY_CANDIDATE=<HEAD>` | history/worktree/frontend/logs/app.tar/mcp-server.tar 密钥均 0，dependencies 高危/严重 0，全部范围 exit 0，退出码 0 | 通过 |
+| `openspec validate 2026-11-19-add-teaching-job-audit --strict` | 退出码 0 | 通过 |
+| 任务与字典同步 | tasks 1.1–4.1 已勾选；数据字典登记 0016 用量字段/状态、终态枚举、索引、请求标识来源与 90 天留存；README 操作审计段含 `job_id` 过滤说明；产品设计规范页面清单含 `/console/audits` | 通过 |
+| PR #67 首轮 CI | 一轮 `make check-security` 的“捕获隔离候选资产”步骤在 fixture 建立时失败：Docker Hub 匿名拉取限额 `toomanyrequests: Data limit exceeded`（mysql 镜像未拉取，Compose 未启动，测试 6.96 秒报错），安全门禁被跳过；同提交另一轮双门禁与镜像构建均通过。`gh run rerun --failed` 重跑后该作业 `make check`、`make check-security`、镜像构建三项全部成功，PR #67 检查全绿 | 外部镜像配额，非代码失败；重跑后通过 |
+| PR #68 CI | 两轮作业的 `make check`、`make check-security` 与镜像构建均 SUCCESS，PR 检查全绿 | 通过 |
+| 未执行项 | 真实人工代码评审、课程方等价性判断（第 10 课 4.3 与最终验收 1.5）、H5 真人走查、查询专项压测 | 未执行，如实登记 |
+
+### 评审结论
+
+tasks 1.1–4.1 的交付物与自动化证据逐项对应，4.2 的收尾核对完成；本变更实现与自动化验证部分满足可运行交接，人工批准与合并前置仍保留。七类 Harness 在前三组证据上补充：接口入口、业务逻辑、数据库、公共函数、错误处理、安全六类有接口/单元/真实依赖/浏览器证据；性能类仅记录实测耗时与索引使用，未做专项压测，记未执行。约束文件（OpenSpec、数据字典、产品设计规范页面清单、场景清单、测试）与实际代码均待真实同伴评审；助手自检不等于人工批准。第 10 课 4.3 保持未完成：技术侧 H5 四步与七列审计的自动化回归已通过，但课程方等价性判断尚无真实证据，最终验收 1.5 仍待执行。合并前需人工代码评审并按既有流程合入主干。

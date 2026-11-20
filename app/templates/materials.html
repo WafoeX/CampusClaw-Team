@@ -29,6 +29,7 @@
       <a href="/console/questions">题库</a>
       <a href="/console/dashboard">学习看板</a>
       <a href="/console/templates"{% if view == 'templates' %} aria-current="page"{% endif %}>班级模板</a>
+      <a href="/console/audits"{% if view == 'audits' %} aria-current="page"{% endif %}>操作审计</a>
       {% endif %}
     </nav>
   </aside>
@@ -41,13 +42,15 @@
       </div>
     </header>
     <main>
-      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈','connectors':'班级工具'}[view] }}</h1>
-      <p class="muted">{% if view == 'connectors' %}连接部署批准的服务，审阅工具定义后启用。{% elif view == 'feedback' %}查看本班学生主动分享的学习卡点，并记录处理状态。{% elif view == 'runs' %}执行记录仅本人可见，教师无法查看他人的私人记录。{% elif view in ('apps','templates') %}选择本班模板，预览内容后再执行学习应用。{% else %}资料仅向当前班级的已授权成员开放。{% endif %}</p>
+      <h1>{{ {'list':'班级资料','detail':'资料详情','console':'教师工作台','chapters':'班级章节','search':'检索','ask':'资料问答','apps':'AI 应用','skills':'班级技能','templates':'班级模板','runs':'执行记录','sessions':'本人会话','feedback':'问题反馈','connectors':'班级工具','audits':'班级操作审计'}[view] }}</h1>
+      <p class="muted">{% if view == 'connectors' %}连接部署批准的服务，审阅工具定义后启用。{% elif view == 'feedback' %}查看本班学生主动分享的学习卡点，并记录处理状态。{% elif view == 'audits' %}按任务 ID 等条件查看本班去内容的操作记录，不含题干、答案、资料正文或凭据。{% elif view == 'runs' %}执行记录仅本人可见，教师无法查看他人的私人记录。{% elif view in ('apps','templates') %}选择本班模板，预览内容后再执行学习应用。{% else %}资料仅向当前班级的已授权成员开放。{% endif %}</p>
       <p id="notice" class="status" role="status"></p>
       {% if view == 'connectors' %}
       {% include "_connectors_panel.html" %}
       {% elif view == 'feedback' %}
       {% include "_feedback_panel.html" %}
+      {% elif view == 'audits' %}
+      {% include "_audit_panel.html" %}
       {% elif view == 'sessions' %}
       {% include "_sessions_panel.html" %}
       {% elif view == 'skills' %}
@@ -145,6 +148,8 @@
   {% include "_connectors_script.html" %}
   {% elif view == 'feedback' %}
   {% include "_feedback_script.html" %}
+  {% elif view == 'audits' %}
+  {% include "_audit_script.html" %}
   {% elif view == 'sessions' %}
   {% include "_sessions_script.html" %}
   {% elif view == 'skills' %}

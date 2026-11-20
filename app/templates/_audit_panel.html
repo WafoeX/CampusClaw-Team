@@ -1,0 +1,29 @@
+<section class="card" aria-labelledby="audit-filter-title">
+  <h2 id="audit-filter-title">筛选操作记录</h2>
+  <form id="audit-form">
+    <label>候选任务 ID（可选）<input name="job_id" maxlength="36" autocomplete="off"></label>
+    <label>时间窗口 <select name="days">
+      <option value="1">最近 1 天</option>
+      <option value="2">最近 2 天</option>
+      <option value="3">最近 3 天</option>
+      <option value="7" selected>最近 7 天</option>
+    </select></label>
+    <button class="primary" type="submit">查询记录</button>
+    <button type="button" id="audit-clear">清空筛选</button>
+  </form>
+  <p id="audit-status" class="status" role="status">正在加载本班操作记录，请稍候。</p>
+  <button id="audit-retry" type="button" hidden>重试加载</button>
+</section>
+<section class="card" aria-labelledby="audit-list-title">
+  <h2 id="audit-list-title">本班操作记录</h2>
+  <ul id="audit-list"></ul>
+  <div class="row">
+    <button id="audit-prev" type="button" disabled>上一页记录</button>
+    <button id="audit-next" type="button" disabled>下一页记录</button>
+  </div>
+</section>
+<section class="card" aria-labelledby="audit-detail-title" id="audit-detail-panel" hidden>
+  <h2 id="audit-detail-title">记录详情</h2>
+  <div id="audit-detail" role="status"></div>
+  <button type="button" id="audit-detail-close">关闭详情</button>
+</section>

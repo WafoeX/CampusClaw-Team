@@ -162,3 +162,40 @@ def test_TJA_F05_missing_and_cross_class_details_share_shape(audit_client):
         second.json["message"],
         second.json["data"],
     )
+
+
+def test_audit_page_teacher_renders_and_student_denied(settings):
+    from types import SimpleNamespace
+
+    auth = Mock()
+    auth.current.return_value = SimpleNamespace(
+        id="teacher-a",
+        class_id="class-a",
+        role="teacher",
+        class_name="合成 A 班",
+        login_name="teacher-a",
+    )
+    app = create_app(
+        replace(settings, public_origin=ORIGIN),
+        auth=auth,
+        materials=Mock(),
+        chapters=Mock(),
+        retrieval=Mock(),
+        answers=Mock(),
+        limiter=Mock(),
+        ai_apps=Mock(),
+    )
+    client = app.test_client()
+    page = client.get("/console/audits", base_url=ORIGIN, headers=HEADERS)
+    assert page.status_code == 200
+    text = page.get_data(as_text=True)
+    assert "audit-form" in text and "操作审计" in text
+    auth.current.return_value = SimpleNamespace(
+        id="student-a",
+        class_id="class-a",
+        role="student",
+        class_name="合成 A 班",
+        login_name="student-a",
+    )
+    denied = client.get("/console/audits", base_url=ORIGIN, headers=HEADERS)
+    assert denied.status_code == 403 and denied.json["code"] == 1200

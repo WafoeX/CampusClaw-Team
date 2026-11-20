@@ -19,4 +19,5 @@ def test_SB_B02_browser_draft_survives_relogin():
     assert "TEACHING_BROWSER_RUNTIME_OK" in result.stdout
     assert "H5_BROWSER_CONTRACT_OK" in result.stdout
     assert "H5_ASYNC_BROWSER_OK" in result.stdout
+    assert "H5_AUDIT_BROWSER_OK" in result.stdout
     assert "SR_F08_XSS_BROWSER_OK" in result.stdout

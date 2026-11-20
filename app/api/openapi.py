@@ -368,6 +368,7 @@ def document(app):
                     for name, schema in (
                         ("actor_id", ID),
                         ("skill_id", ID),
+                        ("job_id", ID),
                         ("end", {"type": "string", "format": "date-time"}),
                         (
                             "days",

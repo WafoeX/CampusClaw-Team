@@ -64,6 +64,28 @@ export async function candidates({api, request, navigate, js, wait, send, socket
     assert.deepEqual(persisted, {task_id: task, outbox: 1, results: 1, drafts: 1});
     assert.equal((await request(path)).status, 200);
     console.log("H5_ASYNC_BROWSER_OK: candidate=202, states=pending/running/succeeded, refresh=readonly, batch=1");
+    const auditLink = await js('document.getElementById("generation-audit-link")?.textContent');
+    assert.ok(auditLink.includes(task), "题库页应展示同一任务 ID 的审计入口");
+    assert.ok(
+      await js('document.getElementById("generation-audit-link").href').then(href => href.endsWith('/console/audits?job_id=' + task)),
+      "审计入口应指向按任务 ID 筛选的审计页",
+    );
+    await navigate("/console/audits?job_id=" + task);
+    await wait(() => js('document.getElementById("audit-status").textContent.includes("已显示")'));
+    const auditBody = await js('document.body.textContent');
+    for (const word of ["手机异步合成资料", "串联电路各处电流相等", "正确", "错误", "prompt", "answer"]) {
+      assert.ok(!auditBody.includes(word), "审计页面不得暴露题干、答案、资料正文或凭据：" + word);
+    }
+    assert.ok(auditBody.includes("受理候选题任务") && auditBody.includes("候选题任务结算"), "审计列表应含受理与终态事件");
+    assert.ok(auditBody.includes(task), "审计列表应显示同一任务 ID");
+    await js('document.querySelectorAll("#audit-list li button")[0].click()');
+    await wait(() => js('!document.getElementById("audit-detail-panel").hidden'));
+    const detailBody = await js('document.getElementById("audit-detail").textContent');
+    for (const word of ["手机异步合成资料", "串联电路各处电流相等", "prompt"]) {
+      assert.ok(!detailBody.includes(word), "审计详情不得暴露正文或凭据：" + word);
+    }
+    assert.ok(detailBody.includes("记录 ID：") && detailBody.includes(task), "审计详情应展示同一任务 ID 的元数据");
+    console.log("H5_AUDIT_BROWSER_OK: audit link=task, list=admit+terminal, detail=metadata-only");
     return task;
   } finally {
     socket.removeEventListener("message", observe);

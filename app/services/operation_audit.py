@@ -95,7 +95,7 @@ class OperationAudit:
             return False
         return True
 
-    def list(self, identity, cookie, page, size, end, days, filters):
+    def list(self, identity, cookie, page, size, end, days, filters, job_id=None):
         try:
             with self.repository.transaction() as connection:
                 self.ai._actor(connection, identity, cookie, teacher=True)
@@ -110,6 +110,7 @@ class OperationAudit:
                     filters,
                     page,
                     size,
+                    job_id,
                 )
         except self.ai.database_error:
             raise unavailable() from None

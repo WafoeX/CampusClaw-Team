@@ -1,0 +1,186 @@
+(() => {
+  const get = id => document.getElementById(id);
+  const base = '/api/v1/operation-audits';
+  const actions = {
+    candidate_admit: '受理候选题任务',
+    candidate_replay: '获准重放候选题任务',
+    candidate_terminal: '候选题任务结算',
+    skill_execute: '执行技能',
+    configuration_create: '创建配置',
+    configuration_update: '更新配置',
+    configuration_delete: '删除配置',
+  };
+  const resources = {
+    teaching_job: '候选任务',
+    skill: '技能',
+    template: '模板',
+    assistant: '助手',
+    feedback: '反馈',
+  };
+  const outcomes = {
+    succeeded: '成功',
+    denied: '已拒绝',
+    failed: '失败',
+    cancelled: '已取消',
+    dead_letter: '重试用尽',
+  };
+  let page = 1;
+  let loadVersion = 0;
+
+  function tell(text, failed = false) {
+    get('audit-status').textContent = text;
+    get('audit-status').classList.toggle('error', failed);
+  }
+
+  async function api(path) {
+    let response;
+    try {
+      response = await fetch(path, {signal: AbortSignal.timeout(15000)});
+    } catch {
+      throw new Error('连接失败或超时，请重试。');
+    }
+    if (response.status === 401) {
+      location.replace('/login?next=' + encodeURIComponent(location.pathname));
+      throw new Error('登录已失效，请重新登录。');
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const id = payload.request_id || response.headers.get('X-Request-ID');
+      throw new Error((payload.message || '请求失败，请重试。') + (id ? '。请求标识 ' + id : ''));
+    }
+    return payload.data;
+  }
+
+  function label(map, value) {
+    return map[value] || value;
+  }
+
+  function row(label, value) {
+    const line = document.createElement('p');
+    line.append(document.createElement('strong'), document.createTextNode(' ' + (value ?? '无')));
+    line.querySelector('strong').textContent = label;
+    return line;
+  }
+
+  function renderDetail(item) {
+    const panel = get('audit-detail');
+    panel.replaceChildren();
+    panel.append(
+      row('记录 ID：', item.id),
+      row('请求标识：', item.request_id),
+      row('操作者：', item.actor_id),
+      row('动作：', label(actions, item.action)),
+      row('对象类型：', label(resources, item.resource_type)),
+      row('对象 ID：', item.resource_id),
+      row('结果：', label(outcomes, item.outcome)),
+      row('技能 ID：', item.skill_id),
+      row('模型用量：', item.usage_status === 'measured' ? item.total_tokens + ' tokens' : item.usage_status === 'unavailable' ? '不可用' : '无模型调用'),
+      row('处理耗时：', item.duration_ms + ' ms'),
+      row('事件时间：', new Date(item.created_at).toLocaleString()),
+    );
+    get('audit-detail-panel').hidden = false;
+    get('audit-detail-panel').scrollIntoView({behavior: 'smooth'});
+  }
+
+  function renderList(items, total) {
+    const list = get('audit-list');
+    list.replaceChildren();
+    if (!items.length) {
+      const note = document.createElement('li');
+      note.textContent = '暂无符合条件的本班操作记录。';
+      list.append(note);
+    }
+    for (const item of items) {
+      const line = document.createElement('li');
+      const title = document.createElement('strong');
+      title.textContent = label(actions, item.action) + ' · ' + label(outcomes, item.outcome);
+      const meta = document.createElement('p');
+      meta.textContent = label(resources, item.resource_type) + ' ID ' + (item.resource_id || '无') + ' · ' + new Date(item.created_at).toLocaleString() + ' · 耗时 ' + item.duration_ms + ' ms';
+      const detail = document.createElement('button');
+      detail.type = 'button';
+      detail.textContent = '详情';
+      detail.addEventListener('click', () => act(detail, async () => {
+        renderDetail(await api(base + '/' + encodeURIComponent(item.id)));
+      }));
+      line.append(title, meta, detail);
+      list.append(line);
+    }
+    get('audit-prev').disabled = page === 1;
+    get('audit-next').disabled = page * 20 >= total;
+    tell('已显示 ' + items.length + ' 条本班操作记录，共 ' + total + ' 条。');
+    get('audit-retry').hidden = true;
+  }
+
+  async function act(button, run) {
+    button.disabled = true;
+    try {
+      await run();
+    } catch (error) {
+      tell(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function load() {
+    const version = ++loadVersion;
+    get('audit-retry').hidden = true;
+    tell('正在加载本班操作记录，请稍候。');
+    const params = new URLSearchParams();
+    params.set('page', page);
+    params.set('page_size', '20');
+    const jobId = get('audit-form').elements.job_id.value.trim();
+    if (jobId) params.set('job_id', jobId);
+    params.set('days', get('audit-form').elements.days.value);
+    try {
+      const data = await api(base + '?' + params.toString());
+      if (version !== loadVersion) return;
+      renderList(data.items, data.total);
+    } catch (error) {
+      if (version !== loadVersion) return;
+      tell(error.message, true);
+      get('audit-retry').hidden = false;
+    }
+  }
+
+  function syncUrl() {
+    const params = new URLSearchParams();
+    const jobId = get('audit-form').elements.job_id.value.trim();
+    if (jobId) params.set('job_id', jobId);
+    const url = new URL(location.href);
+    if (params.toString()) url.search = params.toString();
+    else url.search = '';
+    history.replaceState(null, '', url);
+  }
+
+  get('audit-form').addEventListener('submit', event => {
+    event.preventDefault();
+    page = 1;
+    syncUrl();
+    load();
+  });
+  get('audit-clear').addEventListener('click', () => {
+    get('audit-form').reset();
+    page = 1;
+    syncUrl();
+    load();
+  });
+  get('audit-prev').addEventListener('click', () => { page--; load(); });
+  get('audit-next').addEventListener('click', () => { page++; load(); });
+  get('audit-retry').addEventListener('click', load);
+  get('audit-detail-close').addEventListener('click', () => {
+    get('audit-detail-panel').hidden = true;
+  });
+  get('logout').addEventListener('click', () => act(get('logout'), async () => {
+    await fetch('/api/v1/auth/sessions/current', {
+      method: 'DELETE',
+      headers: {'X-CampusClaw-Request': 'same-origin'},
+      signal: AbortSignal.timeout(15000),
+    });
+    location.replace('/login');
+  }));
+
+  const initial = new URL(location.href).searchParams.get('job_id');
+  if (initial) get('audit-form').elements.job_id.value = initial;
+  load();
+})();

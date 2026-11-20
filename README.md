@@ -420,6 +420,6 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 
 ### 班级操作审计
 
-启用安全修复候选前，用 `docker compose exec app python -m app.auth_admin upgrade` 应用 0013。教师使用本班会话访问 `GET /api/v1/operation-audits`，可按 `actor_id`、`skill_id` 和 UTC 时间窗口筛选。默认读取最近 7 天，`days` 接受 1–7，`end` 可指定过去 90 天内的 UTC 秒级时刻。窗口包含开始时刻、排除结束时刻。按返回的 ID 调用 `GET /api/v1/operation-audits/{event_id}` 读取本班审计元数据。列表和详情均禁止缓存，学生读取返回 403，跨班和不存在的审计详情均返回 404。
+启用安全修复候选前，用 `docker compose exec app python -m app.auth_admin upgrade` 应用 0013。教师使用本班会话访问 `GET /api/v1/operation-audits`，可按 `actor_id`、`skill_id`、候选任务 `job_id` 和 UTC 时间窗口筛选；`job_id` 只匹配 `teaching_job` 对象且始终与当前班级和 90 天有效期条件同时生效。默认读取最近 7 天，`days` 接受 1–7，`end` 可指定过去 90 天内的 UTC 秒级时刻。窗口包含开始时刻、排除结束时刻。按返回的 ID 调用 `GET /api/v1/operation-audits/{event_id}` 读取本班审计元数据。列表和详情均禁止缓存，学生读取返回 403，跨班和不存在的审计详情均返回 404。
 
 记录覆盖技能成功执行、技能/助手/模板的配置变更及学生同源配置写拒绝。用量为模型适配器可计量的总 tokens。字段、留存、清理和回退见[数据字典](docs/data-dictionary.md#班级操作审计0013)。隔离回归可运行 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'`。

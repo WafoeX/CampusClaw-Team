@@ -67,6 +67,8 @@
       const status = $('generation-status');
       const refresh = $('generation-refresh');
       const replay = $('generation-replay');
+      const audit = $('generation-audit');
+      const auditLink = $('generation-audit-link');
       const states = {pending: '等待处理', running: '正在生成', retry_wait: '等待重试', succeeded: '候选题已加入题库，等待审核', failed: '生成失败', dead_letter: '重试次数已用完', cancelled: '任务已取消'};
       let current = new URL(location.href).searchParams.get('task');
       let timer;
@@ -88,6 +90,9 @@
           if (tracked !== current) return;
           const reason = {no_evidence: '出处没有可用证据', insufficient_evidence: '资料不足以生成所需题数'}[job.error_reason];
           status.textContent = states[job.state] + (reason ? '：' + reason : '。');
+          audit.hidden = false;
+          auditLink.href = '/console/audits?job_id=' + encodeURIComponent(current);
+          auditLink.textContent = '任务 ID ' + current + '，查看受理与结果审计';
           if (['pending', 'running', 'retry_wait'].includes(job.state)) timer = setTimeout(poll, 2000);
           if (job.state === 'succeeded') await reload();
           replay.hidden = !(['failed', 'dead_letter'].includes(job.state) && job.error_code === 1500);

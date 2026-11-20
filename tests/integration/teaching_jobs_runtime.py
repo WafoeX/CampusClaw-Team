@@ -923,6 +923,53 @@ assert [row["outcome"] for row in terminal_events(failed_job)] == [
     "succeeded",
 ]
 
+# TJA-N03/F05/F06: the same task ID drives the teacher audit list and details.
+audit_path = "/api/v1/operation-audits"
+student_list = request(student, "GET", audit_path + "?job_id=" + failed_job)
+assert student_list.status_code == 403 and student_list.json["code"] == 1200
+for invalid in ("not-a-uuid", failed_job + "-extra"):
+    invalid_list = request(teacher, "GET", audit_path + "?job_id=" + invalid)
+    assert invalid_list.status_code == 400 and invalid_list.json["code"] == 1000
+calls_before_audit = model.complete_once.call_count
+job_events = request(teacher, "GET", audit_path + "?job_id=" + failed_job)
+assert job_events.status_code == 200
+items = job_events.json["data"]["items"]
+assert {row["action"] for row in items} == {
+    "candidate_admit",
+    "candidate_replay",
+    "candidate_terminal",
+}
+assert all(
+    row["resource_type"] == "teaching_job"
+    and row["resource_id"] == failed_job
+    and row["skill_id"] is None
+    for row in items
+)
+assert all(
+    word not in json.dumps(items)
+    for word in (quote, "answer", "stem", "explanation", "prompt")
+)
+detail_event = request(teacher, "GET", audit_path + "/" + items[0]["id"])
+assert detail_event.status_code == 200
+assert detail_event.json["data"] == items[0]
+foreign_list = request(outsider, "GET", audit_path + "?job_id=" + failed_job)
+assert foreign_list.status_code == 200 and foreign_list.json["data"]["total"] == 0
+foreign_detail = request(outsider, "GET", audit_path + "/" + items[0]["id"])
+missing_detail = request(teacher, "GET", audit_path + "/" + str(uuid4()))
+assert foreign_detail.status_code == 404 and foreign_detail.json["code"] == 1300
+assert missing_detail.status_code == 404 and missing_detail.json["code"] == 1300
+assert (
+    foreign_detail.json["code"],
+    foreign_detail.json["message"],
+    foreign_detail.json["data"],
+) == (
+    missing_detail.json["code"],
+    missing_detail.json["message"],
+    missing_detail.json["data"],
+)
+assert view(failed_job)["state"] == "succeeded"
+assert model.complete_once.call_count == calls_before_audit
+
 # Optional explicit real-gateway evidence, on the same isolated dependencies.
 if settings.chat is not None and settings.chat.api_key:
     prior_chat, prior_version = service.chat, service.model_version

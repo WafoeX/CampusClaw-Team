@@ -62,12 +62,15 @@ def install_operation_audit(app, audit):
 
     @app.get("/api/v1/operation-audits")
     def list_operation_audit():
-        page, size = pagination(("actor_id", "skill_id", "end", "days"))
+        page, size = pagination(("actor_id", "skill_id", "job_id", "end", "days"))
         filters = {
             name: identifier(request.args[name])
             for name in ("actor_id", "skill_id")
             if name in request.args
         }
+        job_id = (
+            identifier(request.args["job_id"]) if "job_id" in request.args else None
+        )
         end = request.args.get("end")
         if end is not None:
             try:
@@ -89,6 +92,7 @@ def install_operation_audit(app, audit):
                 end,
                 int(days),
                 filters,
+                job_id,
             )
         )
 

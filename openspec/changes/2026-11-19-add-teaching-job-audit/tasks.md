@@ -19,7 +19,7 @@
 ## 4. 跨入口交接
 
 - [x] 4.1 按 `project-add-tests` 建立 TJA 场景到自动化用例的追溯，并运行隔离启动、受影响入口回归、`make check`、`make check-security` 及适用数据恢复检查；在 `docs/changes/2026-11-19-add-teaching-job-audit.md` 记录实际命令、退出码、失败与复测，按七类 Harness 核查交付。
-- [ ] 4.2 用 `project-review` 核对规约、任务、数据字典、README 进度和证据，记录未执行项及待人工评审；只在技术场景和课程方等价性判断均有真实证据时更新第 10 课 4.3 状态，核对状态与证据一致。
+- [x] 4.2 用 `project-review` 核对规约、任务、数据字典、README 进度和证据，记录未执行项及待人工评审；只在技术场景和课程方等价性判断均有真实证据时更新第 10 课 4.3 状态，核对状态与证据一致。
 
 ## Workflow follow-up
 

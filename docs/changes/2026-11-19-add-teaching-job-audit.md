@@ -74,7 +74,9 @@ PR #65 的首轮 CI：两套 `make check` 分别在作业 `136148847759`、`1361
 | `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache uv run --locked python scripts/check_pytest.py -q --tb=short tests/integration/test_compose.py -k JB_QB_real_kafka_and_candidate_recovery` | 真实 MySQL/Kafka，1 通过、9 未选，退出码 0，约 92 秒 | 通过 |
 | `UV_CACHE_DIR=/private/tmp/campusclaw-uv-cache make check-static` | OpenSpec 13/13、格式、lint、分层、场景映射及接口清单通过，退出码 0 | 通过 |
 | 首轮及环境失败 | 静态检查首轮报导入顺序，修正后通过；真实 Kafka 首轮在旧约束降级失败，加入预检及隔离夹具清理后通过。本轮在受限进程中另有 uv 缓存写入和 Docker socket 权限错误，改用临时缓存并获准访问 Docker 后复测；这些失败均未记作代码通过 | 失败已修复并复测 |
-| `make check`、`make check-security`、人工课程等价性 | 本组本地未执行；变更收尾与最终验收分别负责。PR CI 结果需在创建后补录 | 未执行 / 待后续 |
+| `make check`、`make check-security`、人工课程等价性 | 本组本地未执行；PR 首轮双门禁见下方，变更收尾与最终验收分别负责其余范围 | 本地未执行 / PR CI 通过 / 人工待后续 |
+
+PR #66 首轮 CI（候选提交 `b474739`）两套 `make check` 作业 `136245539440`、`136249442626` 均通过，两套 `make check-security` 作业 `136245539802`、`136249442266` 均通过；镜像构建作业 `136249542784`、`136253553380` 均通过。上述是 PR 自动检查，非本机执行；本次证据补充提交会重新触发检查，其结果另行核对。人工代码评审仍未发生。
 
 用例映射：TJA-N01/F01/F03 对应 `teaching_jobs_runtime.py` 的 `task()`、错误受理和 `storage` 分支；TJA-N02/F02/F04 对应同文件的 Kafka 重放、重复消息、旧租约和撤权/失效分支；TJA-B01/F04 对应 `test_chat_client.py` 的 TJA 用量单元测试及 Kafka 依赖失败；0016 降级预检对应 `teaching_job_audit_migration.py`。TJA-N03/F05/F06/B02 属第 3/4 组，场景清单保持 `planned`，不冒充全部能力已验证。
 

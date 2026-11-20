@@ -847,6 +847,21 @@ def verify_teaching_jobs(compose):
     )
 
 
+def test_TJA_data_migration_empty_existing_repeat_and_downgrade(stack):
+    compose, request, _, _ = stack
+    assert request("/live")[0] == 200
+    assert request("/health")[0] == 200
+    result = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("teaching_job_audit_migration.py").read_text(),
+    )
+    assert result.splitlines()[-1] == "teaching_job_audit_migration_ok"
+
+
 def test_JB_F05_mysql_job_transactions_without_broker(stack):
     compose, _, _, _ = stack
     evidence = compose(

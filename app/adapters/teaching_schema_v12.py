@@ -57,6 +57,8 @@ jobs = Table(
     Column("input", JSON, nullable=False),
     Column("error_code", Integer),
     Column("error_reason", String(32)),
+    Column("total_tokens", Integer),
+    Column("usage_status", String(16)),
     Column("trace_id", String(36), nullable=False),
     Column("event_id", String(36), nullable=False),
     Column("lease_id", String(36)),
@@ -68,6 +70,12 @@ jobs = Table(
     CheckConstraint(
         "state IN ('pending','running','retry_wait','succeeded','failed','dead_letter','cancelled')",
         name="ck_teaching_job_state",
+    ),
+    CheckConstraint(
+        "(usage_status IS NULL AND total_tokens IS NULL)"
+        " OR (usage_status = 'measured' AND total_tokens IS NOT NULL AND total_tokens >= 0)"
+        " OR (usage_status IN ('not_applicable','unavailable') AND total_tokens IS NULL)",
+        name="ck_teaching_job_usage",
     ),
     Index("ix_teaching_job_capacity", "class_id", "kind", "state"),
     Index("ix_teaching_job_expiry", "state", "lease_until", "id"),

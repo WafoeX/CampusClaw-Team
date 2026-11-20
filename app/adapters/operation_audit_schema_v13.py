@@ -32,7 +32,8 @@ events = Table(
     Column("event_json", Text, nullable=False),
     Column("expires_at", utc_timestamp, nullable=False),
     CheckConstraint(
-        "outcome IN ('succeeded', 'denied')", name="ck_operation_audit_outcome"
+        "outcome IN ('succeeded', 'denied', 'failed', 'cancelled', 'dead_letter')",
+        name="ck_operation_audit_outcome",
     ),
     CheckConstraint(
         "(usage_status = 'measured' AND total_tokens IS NOT NULL AND total_tokens >= 0)"
@@ -44,6 +45,14 @@ events = Table(
     Index("ix_operation_audit_class_time", "class_id", "created_at", "id"),
     Index("ix_operation_audit_class_actor", "class_id", "actor_id", "created_at", "id"),
     Index("ix_operation_audit_class_skill", "class_id", "skill_id", "created_at", "id"),
+    Index(
+        "ix_operation_audit_class_resource",
+        "class_id",
+        "resource_type",
+        "resource_id",
+        "created_at",
+        "id",
+    ),
     Index("ix_operation_audit_expiry", "expires_at", "id"),
     mysql_engine="InnoDB",
     mysql_charset="utf8mb4",

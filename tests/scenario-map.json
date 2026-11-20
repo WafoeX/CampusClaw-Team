@@ -1289,12 +1289,87 @@
         "task_file": "openspec/changes/2026-11-04-project-final-acceptance/tasks.md",
         "reason": "预检 3.1 的候选题异步实测已完成，课程作业 202 等价仍待确认。"
       }
+    },
+    "2026-11-19-add-teaching-job-audit/specs/teaching-job-audit/spec.md": {
+      "TJA-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_F05_mysql_job_transactions_without_broker",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_job_storage",
+        "assertion": "assert terminal[\"total_tokens\"] == 17 and terminal[\"duration_ms\"] == 9"
+      },
+      "TJA-B01": {
+        "test": "tests/unit/test_chat_client.py",
+        "function": "test_TJA_B01_missing_usage_stays_unavailable_across_attempts"
+      },
+      "TJA-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert response.status_code == 404 and response.json[\"code\"] == 1300"
+      },
+      "TJA-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert [row[\"outcome\"] for row in terminal_events(failed_job)] == [\"dead_letter\", \"succeeded\"]"
+      },
+      "TJA-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert terminal_events(stale_job) == []"
+      },
+      "TJA-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_F05_mysql_job_transactions_without_broker",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_job_storage",
+        "assertion": "assert view(job_id)[\"state\"] == \"running\""
+      },
+      "TJA-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert view(revoked)[\"state\"] == \"cancelled\""
+      },
+      "TJA-N03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert {row[\"action\"] for row in items} == {\"candidate_admit\", \"candidate_replay\", \"candidate_terminal\"}"
+      },
+      "TJA-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert foreign_list.status_code == 200 and foreign_list.json[\"data\"][\"total\"] == 0"
+      },
+      "TJA-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_JB_QB_real_kafka_and_candidate_recovery",
+        "script": "tests/integration/teaching_jobs_runtime.py",
+        "runner": "verify_teaching_jobs",
+        "assertion": "assert invalid_list.status_code == 400 and invalid_list.json[\"code\"] == 1000"
+      },
+      "TJA-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TJA_data_migration_empty_existing_repeat_and_downgrade",
+        "script": "tests/integration/teaching_job_audit_migration.py",
+        "runner": "verify_audit_migration",
+        "assertion": "assert connection.scalar(select(events.c.id).where(events.c.id == expired_id)) is None"
+      }
     }
   },
   "planned": {
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "本次选择跳过后台索引 202，保留同步接口。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
-    "2026-11-19-add-teaching-job-audit/specs/teaching-job-audit/spec.md": "本变更仅完成规划；审计写入、教师查询、数据迁移和隔离回归待本变更 tasks.md 分组实施，完成后逐场景登记真实测试入口。"
+    "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"
   }
 }

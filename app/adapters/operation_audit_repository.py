@@ -15,7 +15,7 @@ class OperationAuditRepositoryMixin:
 
     @staticmethod
     def list_operation_audit(
-        connection, class_id, now, start, end, filters, page, size
+        connection, class_id, now, start, end, filters, page, size, job_id=None
     ):
         conditions = [
             events.c.class_id == class_id,
@@ -24,6 +24,13 @@ class OperationAuditRepositoryMixin:
             events.c.created_at < end,
             *(events.c[key] == value for key, value in filters.items()),
         ]
+        if job_id is not None:
+            conditions.extend(
+                (
+                    events.c.resource_type == "teaching_job",
+                    events.c.resource_id == job_id,
+                )
+            )
         total = connection.scalar(
             select(func.count()).select_from(events).where(*conditions)
         )

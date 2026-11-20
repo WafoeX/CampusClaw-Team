@@ -7,6 +7,7 @@ from sqlalchemy import func, insert, or_, select, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.adapters.auth_schema_v1 import accounts, classes
+from app.adapters.operation_audit_repository import OperationAuditRepositoryMixin
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v12 import (
     generated_questions,
@@ -28,7 +29,7 @@ from app.teaching_job_contract import (
 )
 
 
-class TeachingJobs(TeachingRepository):
+class TeachingJobs(OperationAuditRepositoryMixin, TeachingRepository):
     def add_candidate(self, connection, job, fields, snapshot, now):
         question_id = str(uuid4())
         question = {
@@ -145,6 +146,8 @@ class TeachingJobs(TeachingRepository):
             event_id=str(uuid4()),
             error_code=None,
             error_reason=None,
+            total_tokens=None,
+            usage_status=None,
             available_at=now,
             updated_at=now,
         )
@@ -190,9 +193,17 @@ class TeachingJobs(TeachingRepository):
             return None, now
         return job, now
 
-    def finish(self, connection, job, result, now):
+    def finish(self, connection, job, result, now, usage_status, total_tokens):
         connection.execute(insert(job_results).values(job_id=job["id"], result=result))
-        self._transition(connection, job, now, "succeeded", None)
+        self._transition(
+            connection,
+            job,
+            now,
+            "succeeded",
+            None,
+            usage_status=usage_status,
+            total_tokens=total_tokens,
+        )
 
     def _transition(self, connection, job, now, state, code, *, reason=None, **changes):
         return self.update_job(
@@ -207,21 +218,31 @@ class TeachingJobs(TeachingRepository):
             **changes,
         )
 
-    def fail(self, connection, job, failure, now):
+    def fail(self, connection, job, failure, now, usage_status, total_tokens):
         reason = failure.reason
+        usage = {"usage_status": usage_status, "total_tokens": total_tokens}
         if failure.cancelled:
             self._transition(
-                connection, job, now, "cancelled", failure.code, reason=reason
+                connection, job, now, "cancelled", failure.code, reason=reason, **usage
             )
+            return "cancelled"
         elif not failure.transient:
             self._transition(
-                connection, job, now, "failed", failure.code, reason=reason
+                connection, job, now, "failed", failure.code, reason=reason, **usage
             )
+            return "failed"
         elif job["attempt"] >= len(RETRY_SECONDS):
             terminal = self._transition(
-                connection, job, now, "dead_letter", failure.code, reason=reason
+                connection,
+                job,
+                now,
+                "dead_letter",
+                failure.code,
+                reason=reason,
+                **usage,
             )
             self._enqueue(connection, terminal, now, DEAD_TOPIC)
+            return "dead_letter"
         else:
             due = now + timedelta(seconds=RETRY_SECONDS[job["attempt"]])
             retry = self._transition(
@@ -234,8 +255,10 @@ class TeachingJobs(TeachingRepository):
                 attempt=job["attempt"] + 1,
                 event_id=str(uuid4()),
                 available_at=due,
+                **usage,
             )
             self._enqueue(connection, retry, due)
+            return "retry_wait"
 
     def recover(self):
         """Recover expired execution and events no longer reachable in Kafka."""

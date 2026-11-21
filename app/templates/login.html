@@ -4,65 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>登录 · CampusClaw</title>
-  <style nonce="{{ nonce }}">
-    :root {
-      color-scheme: light;
-      --accent: #861d15;
-      --accent-dark: #5d150e;
-      --text: #202733;
-      --muted: #505d6c;
-      --line: #ccd1d9;
-      --space: 16px;
-      font: 16px/1.6 system-ui, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: var(--text); }
-    main { min-height: 100dvh; display: grid; grid-template-columns: 55fr 45fr; }
-    .brand, .entry { display: grid; align-content: center; padding: clamp(24px, 5vw, 64px); }
-    .brand {
-      color: #fff;
-      background: radial-gradient(ellipse at top right, #913e35, transparent 45%),
-                  linear-gradient(155deg, var(--accent), var(--accent-dark));
-    }
-    .badge {
-      justify-self: start;
-      margin: 0 0 24px;
-      padding: 4px 16px;
-      background: #ffffff24;
-      border: 1px solid #ffffff50;
-      border-radius: 32px;
-    }
-    h1, h2, p { margin: 0; }
-    h1 { font-size: clamp(28px, 4vw, 56px); line-height: 1.2; }
-    h2 { font-size: 28px; line-height: 1.35; }
-    .intro { max-width: 32em; margin-top: 24px; color: #fff1ee; }
-    .entry { background: #fdfdfd; }
-    .hint { margin: 8px 0 24px; color: var(--muted); }
-    form, #session { display: grid; gap: var(--space); max-width: 34em; }
-    label { display: grid; gap: 4px; font-weight: 600; }
-    input, button {
-      font: inherit;
-      min-height: 48px;
-      padding: 8px 16px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-    input { width: 100%; background: #fff; color: var(--text); }
-    button { background: var(--accent); color: #fff; font-weight: 650; cursor: pointer; }
-    button:disabled { opacity: 0.75; cursor: wait; }
-    :focus-visible { outline: 3px solid #3567aa; outline-offset: 3px; }
-    #feedback { min-height: 1.6em; max-width: 34em; margin-top: 16px; }
-    #feedback[data-error] { color: var(--accent); }
-    [hidden] { display: none !important; }
-    @media (max-width: 767px) {
-      main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-      .entry { align-content: start; }
-    }
-  </style>
+  {% include '_page_styles.html' %}
 </head>
-<body>
-  <main>
-    <section class="brand" aria-labelledby="brand-title">
+<body class="sign-in-page">
+  <main class="sign-in">
+    <section class="welcome" aria-labelledby="brand-title">
       <p class="badge"><span aria-hidden="true">🎓</span> 班级智能助学</p>
       <h1 id="brand-title">CampusClaw</h1>
       <p class="intro">在同一个学习空间查阅本班资料，核对课堂原文。</p>
@@ -75,13 +21,13 @@
           autocomplete="username" autocapitalize="none" spellcheck="false"></label>
         <label>口令 <input id="password" name="password" type="password" required
           maxlength="128" autocomplete="current-password"></label>
-        <button type="submit">登录</button>
+        <button class="primary" type="submit">登录</button>
       </form>
       <div id="session" hidden>
         <p id="identity"></p>
         <button id="logout" type="button">退出登录</button>
       </div>
-      <p id="feedback" role="status" aria-live="polite"></p>
+      <p id="feedback" class="status" role="status" aria-live="polite"></p>
       <noscript>请启用 JavaScript 后再登录。</noscript>
     </section>
   </main>

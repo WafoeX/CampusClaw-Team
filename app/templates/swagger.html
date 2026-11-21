@@ -14,7 +14,7 @@ Cookie 由浏览器自动携带，不能手填；写入会修改当前账号有�
 <div id="parameters"></div>
 <label for="payload">JSON 请求体（字段和枚举见下方契约）</label><textarea id="payload" spellcheck="false">{}</textarea>
 <details><summary>当前接口契约</summary><pre id="contract"></pre></details>
-<button id="send" disabled>执行请求</button><button id="cancel" disabled>取消读取</button>
+<button class="primary" id="send" disabled>执行请求</button><button id="cancel" disabled>取消读取</button>
 <p id="state" role="status">正在加载接口，请稍候。</p>
 <p>SSE 显示原始 meta、delta、done/error 帧；delta 是未完成预览，只有 done 表示提交成功。失败或取消后请通过会话 GET 确认持久状态。</p>
 <pre class="preview" id="response" aria-label="原始响应"></pre>

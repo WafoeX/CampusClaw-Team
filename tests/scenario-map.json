@@ -1368,6 +1368,7 @@
     }
   },
   "planned": {
+    "2026-11-21-refresh-student-interface/specs/student-interface-theme/spec.md": "共享主题和浏览器回归在实现提交中接入。",
     "2026-11-04-add-async-teaching-workflows/specs/material-indexing/spec.md": "本次选择跳过后台索引 202，保留同步接口。",
     "2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。",
     "2026-11-04-remediate-security-findings/specs/security-remediation/spec.md": "该能力尚待对应变更 tasks.md 实施与专项验收，实施时登记实际用例。"

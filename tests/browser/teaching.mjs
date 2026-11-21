@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { candidates } from "./candidates.mjs";
+import { checkLoginTheme, checkStudentTheme } from "./student_theme.mjs";
 
 const origin = process.argv[2];
 const password = process.env.CAMPUS_BROWSER_PASSWORD;
@@ -72,6 +73,7 @@ try {
   });
   await send("Network.enable", { maxPostDataSize: 0 });
   await navigate("/login");
+  await checkLoginTheme({send, js, wait});
   await login("demo_a_teacher");
   assert.equal((await request("/live")).status, 200);
   assert.equal((await request("/health")).status, 200);
@@ -100,6 +102,7 @@ try {
   assert.equal(studentSession.status, 200);
   assert.equal(studentSession.body.data.role, "student");
   assert.equal(await js("isSecureContext && innerWidth === 390"), true);
+  await checkStudentTheme({origin, send, js, wait, navigate, socket});
 
   // SR-F08 防御性对照：资料标题由 JSON 传递，并在列表和详情中显示为纯文本。
   const materialPath = `/materials/${material.id}`;

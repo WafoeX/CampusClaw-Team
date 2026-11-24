@@ -213,6 +213,18 @@ uv run --locked pytest -q tests/browser
 | `docker compose up --build -d` | 用固定镜像和外置配置启动骨架 | 已有隔离项目验证记录 | 以匿名 `/health` 返回 200 及对应版本确认就绪 |
 | `uv run --locked pytest --disable-socket tests/unit tests/api` | 断网执行单元和 Flask 接口测试 | 主干可执行 | 真实依赖集成单列 |
 
+### 按接口查看安全检查结果
+
+在仓库根目录运行以下命令。默认输出覆盖摘要、触发规则的 HTTP 方法和路径，以及涉及失败用例的接口。加 `--all` 查看每个接口观察到的状态码，也可导出 JSON。
+
+```bash
+uv run --locked python -m scripts.audit_api_security
+uv run --locked python -m scripts.audit_api_security --all
+uv run --locked python -m scripts.audit_api_security --json > reports/api-security-audit.json
+```
+
+脚本用合成配置装配主应用，枚举主应用 `/api/v1/` 与独立教学服务 `/mcp`，并运行已有的断网 `tests/api`。登记检查覆盖公开例外、授权登记、配置与审计管理权限、技能／模板／助手写入的一次性令牌动作。对测试实际返回的响应，还检查成功响应的身份和缓存指令，以及会话 Cookie 的安全属性。MCP 另查机器认证头、浏览器 Origin 和签发会话标识时的缓存指令。退出码 0 表示套件成功且本次规则无告警，1 表示发现规则问题，2 表示检查未完成。未观察到的成功路径、跨班隔离和真实持久化效果需结合隔离集成用例判断。[本次逐接口审查与覆盖记录](docs/changes/2026-11-24-audit-api-security.md)
+
 ### 合并检查与主干复验
 
 `Skeleton check` 对目标为 `main` 的 PR、`change/**` 推送及 `main` 推送均运行 `make check`。[骨架复验 PR #5](https://github.com/WafoeX/CampusClaw-Team/pull/5) 已合入，[合并前检查](https://github.com/WafoeX/CampusClaw-Team/actions/runs/41778385185) 已通过。主干 CI 已通过。既有规则阻断记录和其他课程事项见[验收收尾](docs/lesson-07/acceptance.md)。

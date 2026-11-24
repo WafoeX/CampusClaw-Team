@@ -25,8 +25,10 @@
   <div>
     <header><strong>{{ actor.class_name }}</strong><span>{{ actor.login_name }} · {{ '教师' if actor.role == 'teacher' else '学生' }}</span></header>
     <main>
-      <h1>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情','mistakes':'我的错题','dashboard':'学习看板'}[view] }}</h1>
-      <p class="muted">{% if view == 'questions' %}人工建题、修改与审核；未审核修订不能发布。{% elif actor.role == 'student' %}仅展示你在发布时已列入名单的测验；成绩和答案在开放后显示。{% else %}发布后题目和参与名单保持不变。{% endif %}</p>
+      <div class="page-intro">
+        <h1>{{ {'questions':'题库','quizzes':'班级测验','quiz':'测验详情','mistakes':'我的错题','dashboard':'学习看板'}[view] }}</h1>
+        <p class="muted">{% if view == 'questions' %}人工建题、修改与审核；未审核修订不能发布。{% elif actor.role == 'student' %}仅展示你在发布时已列入名单的测验；成绩和答案在开放后显示。{% else %}发布后题目和参与名单保持不变。{% endif %}</p>
+      </div>
       <p id="notice" class="status" role="status">正在加载…</p>
       <button id="retry" type="button" hidden>重试加载</button>
       {% if view == 'questions' %}

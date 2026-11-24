@@ -1,6 +1,14 @@
 {
   "version": 1,
   "implemented": {
+    "2026-11-21-refresh-student-interface/specs/student-interface-theme/spec.md": {
+      "SIT-N01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
+      "SIT-B01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
+      "SIT-F01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
+      "SIT-F02": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
+      "SIT-F03": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
+      "SIT-F04": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"}
+    },
     "2026-11-04-add-class-auth-material-ingest/specs/class-auth-material-ingest/spec.md": {
       "AUTH-N01": {
         "test": "tests/integration/test_compose.py",

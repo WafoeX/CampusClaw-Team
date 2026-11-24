@@ -78,6 +78,17 @@ created = teacher.post(
 )
 assert created.status_code == 201 and created.json["code"] == 0
 chapter_id = created.json["data"]["id"]
+# CH-N01：同班学生读回教师创建的章节，外班教师无法取得同一详情。
+chapter_path = f"{chapters}/{chapter_id}"
+detail = student.get(chapter_path, base_url=origin)
+assert (detail.status_code, detail.json["code"]) == (200, 0)
+assert detail.json["data"] == created.json["data"]
+foreign = outsider.get(chapter_path, base_url=origin)
+assert (foreign.status_code, foreign.json["code"], foreign.json["data"]) == (
+    404,
+    1300,
+    None,
+)
 assert (
     teacher.post(
         chapters,

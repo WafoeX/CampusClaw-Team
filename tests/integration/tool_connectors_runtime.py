@@ -153,6 +153,16 @@ assert result.status_code == 201
 row = result.json["data"]
 assert row["credential_configured"] is True and row["status"] == "disconnected"
 path = base + "/" + row["id"]
+# CN-N01：用登记响应中的 ID 回读本班连接；另一班教师对同一 ID 无数据。
+detail = request(teacher, "GET", path)
+assert (detail.status_code, detail.json["code"]) == (200, 0)
+assert detail.json["data"] == row
+foreign = request(outsider, "GET", path)
+assert (foreign.status_code, foreign.json["code"], foreign.json["data"]) == (
+    404,
+    1300,
+    None,
+)
 connection_path = path + "/connections"
 disconnect_path = connection_path + "/current"
 tools_path = path + "/tools"

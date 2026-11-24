@@ -178,7 +178,7 @@ def create_app(clock=time.monotonic):
                     },
                 ),
                 200,
-                {SESSION_HEADER: new_id},
+                {SESSION_HEADER: new_id, "Cache-Control": "no-store"},
             )
         if method == "notifications/initialized" and request_id is not None:
             return rpc_error(-32600, request_id, status=400)

@@ -92,6 +92,8 @@ class Settings:
     chat: ChatSettings | None = None
     ai_data_expires_at: datetime | None = None
     teaching_jobs_enabled: bool = False
+    audit_denied_subject_limit: int = 60
+    audit_denied_global_limit: int = 600
 
     @classmethod
     def load(cls, env, version_file: Path):
@@ -174,7 +176,28 @@ class Settings:
         teaching_jobs = env.get("TEACHING_JOBS_ENABLED", "0")
         if teaching_jobs not in ("0", "1"):
             raise ConfigError("TEACHING_JOBS_ENABLED")
+        audit_limits = {}
+        for key, default in (
+            ("AUDIT_DENIED_SUBJECT_LIMIT", "60"),
+            ("AUDIT_DENIED_GLOBAL_LIMIT", "600"),
+        ):
+            raw = env.get(key, default)
+            if (
+                not raw.isascii()
+                or not raw.isdecimal()
+                or len(raw) > 5
+                or not 1 <= int(raw) <= 10000
+            ):
+                raise ConfigError(key)
+            audit_limits[key] = int(raw)
+        if (
+            audit_limits["AUDIT_DENIED_SUBJECT_LIMIT"]
+            > audit_limits["AUDIT_DENIED_GLOBAL_LIMIT"]
+        ):
+            raise ConfigError("AUDIT_DENIED_SUBJECT_LIMIT")
         return cls(
+            audit_denied_subject_limit=audit_limits["AUDIT_DENIED_SUBJECT_LIMIT"],
+            audit_denied_global_limit=audit_limits["AUDIT_DENIED_GLOBAL_LIMIT"],
             ai_data_expires_at=expiry,
             teaching_jobs_enabled=teaching_jobs == "1",
             mysql_host=required("MYSQL_HOST"),

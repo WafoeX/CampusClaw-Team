@@ -59,6 +59,7 @@ from app.services.ai_apps import AIApplicationService
 from app.services.answers import AnswerService
 from app.services.auth import AuthService
 from app.services.chapters import ChapterService
+from app.services.denied_audit_budget import DeniedAuditBudget
 from app.services.health import HealthService
 from app.services.indexing import IndexService
 from app.services.materials import MaterialService
@@ -285,7 +286,16 @@ def create_app(
             **AUDIT_POLICIES,
         }
         public_routes = (*public_routes, *AUTH_PUBLIC_ROUTES)
-    audit = OperationAudit(ai_apps) if origin is not None else None
+    audit = (
+        OperationAudit(
+            ai_apps,
+            DeniedAuditBudget(
+                settings.audit_denied_subject_limit, settings.audit_denied_global_limit
+            ),
+        )
+        if origin is not None
+        else None
+    )
     install_http(
         app,
         version=settings.version,

@@ -4,6 +4,7 @@ from datetime import timedelta
 from uuid import uuid4
 
 from app.services.access import Identity
+from app.services.denied_audit_budget import DeniedAuditBudget, DeniedAuditResult
 from app.services.materials import missing, unavailable
 
 RETENTION = timedelta(days=90)
@@ -72,11 +73,15 @@ def projection(row):
 
 
 class OperationAudit:
-    def __init__(self, ai_apps):
+    def __init__(self, ai_apps, denied_budget=None):
         self.ai = ai_apps
         self.repository = ai_apps.repository
+        self.denied_budget = denied_budget or DeniedAuditBudget()
 
     def denied(self, actor, request_id, action, resource_type, duration_ms):
+        decision = self.denied_budget.reserve(actor.id)
+        if decision is not None:
+            return decision
         identity = Identity(actor.id, actor.class_id, frozenset())
         try:
             with self.repository.transaction() as connection:
@@ -92,8 +97,8 @@ class OperationAudit:
                     duration_ms=duration_ms,
                 )
         except self.ai.database_error:
-            return False
-        return True
+            return DeniedAuditResult.UNAVAILABLE
+        return DeniedAuditResult.STORED
 
     def list(self, identity, cookie, page, size, end, days, filters, job_id=None):
         try:

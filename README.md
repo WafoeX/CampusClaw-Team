@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段（2026-11-21，主干 `7028789`）**：班级认证与资料、检索问答、流式助手、受控 MCP、人工题库与测验、Kafka 异步候选题、候选任务审计、错题和看板均已合入 `main`。候选任务审计九项任务（PR #64–68）已合入并归档，能力规格并入[主干 specs](openspec/specs/teaching-job-audit/spec.md)。异步教学 15 项必做实现任务、[课末安全预检](openspec/changes/2026-11-04-add-post-async-security-precheck/tasks.md) 10 项技术任务及[安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) 16 项技术任务已勾选；这不等于课程人工验收。第 10 课[交付任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)为 8/14，双门禁已列为主干必需检查，[候选清单](reports/candidate-checklist.md)固定了 `a0dd0a0` 的提交、CI 与镜像摘要，但验收负责人尚未决定冻结。正式阈值与收件负责人、H5 作业链路课程等价、跨成员复验及真人试用仍待确认；[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) 0/21。各项实际证据见[验收矩阵](reports/acceptance-matrix.md)与[第 7 课记录](docs/lesson-07/acceptance.md)。选题说明中的“已完成”“可复用”指另一个仓库，其历史证据不代表本仓库成果。
+**当前阶段（2026-11-25，代码盘点基线 `d4fd479`）**：核心教学闭环、检索与流式助手、受控 MCP、Kafka 候选题、任务审计、界面更新和 API 安全审查均已合入 `main`。最终人工验收尚未启动，第 10 课技术任务为 8/14，最终验收为 0/21。由 lezhonglezhong 统一推进本轮收尾，按[最终验收剩余事项表](reports/final-acceptance-readiness.md)执行预验收、安全加固、课程差异收口、候选冻结和正式验收。已知拒绝审计容量风险待处置，教师改分及独立错题讲解等仍有缺项。旧候选 `a0dd0a0` 及其镜像仅代表历史版本，新候选尚未冻结；历史成功不自动代表本轮全部成果通过。选题说明中的外部历史证据不作为本仓库结论。
 
 ## 开发者快速开始
 
@@ -73,13 +73,13 @@ uv run --locked pytest -q tests/browser
 
 ### 流式助手存储升级（第 1 组开发候选）
 
-流式助手第 1 组追加 `0008_assistant_storage`，建立班级配置修订、私有会话/逻辑轮次/执行尝试、历史出处及最小反馈的存储约束；同步应用与配置 API 已由 Task 2.1 接入，持久会话及 SSE 页面仍待后续。采用新应用镜像前，先按既有升级流程执行 `python -m app.auth_admin upgrade`；本轮资料和章节删除已接入新表的副本清理，不能跳过迁移直接切换旧数据库。
+流式助手第 1 组追加 `0008_assistant_storage`，建立班级配置修订、私有会话/逻辑轮次/执行尝试、历史出处及最小反馈的存储约束；同步应用、配置 API、持久会话和 SSE 页面均已接入；本段仅说明 0008 的历史迁移边界。采用新应用镜像前，先按既有升级流程执行 `python -m app.auth_admin upgrade`；本轮资料和章节删除已接入新表的副本清理，不能跳过迁移直接切换旧数据库。
 
 生产形态的应用回退保留扩展表，并暂停涉及新副本协议的资料/章节删除及私人写入；物理降级仅在 `campusclaw_test_` 合成隔离库演练，会移除本课新数据。资料删除在同一事务内清空已登记的私人来源副本；恢复旧数据后先重放独立删除清单，再处理到期记录，完成前不接流量。后续存储写入仍需逐次核对当前身份及归属，表约束不替代授权。见[本组证据](docs/changes/2026-11-04-add-streaming-ai-assistant.md)和[数据字典](docs/data-dictionary.md#流式助手存储基础0008第-1-组)。
 
 ### 最小 SSE 通路（Task 2.0 开发候选）
 
-应用已装配统一长请求容量组件，当前固定1 worker、8 threads、最多4条长请求；队列、段落和总时长有界，满额快速拒绝，取消后等上游实际退出再回收槽位。NGINX显式关闭响应缓冲/缓存，已通过真实TLS代理、可控慢上游、取消、排空及满额时10并发资料读取测试。该夹具随 `make check-integration` 执行，需要OpenSSL；测试路由只在独立容器的临时模块中，不进入应用镜像。正式会话/SSE页面仍待后续任务接入，不能据此当作持久流式助手已经完成。见[本轮证据](docs/changes/2026-11-04-add-streaming-ai-assistant.md)。
+应用已装配统一长请求容量组件，当前固定1 worker、8 threads、最多4条长请求；队列、段落和总时长有界，满额快速拒绝，取消后等上游实际退出再回收槽位。NGINX显式关闭响应缓冲/缓存，已通过真实TLS代理、可控慢上游、取消、排空及满额时10并发资料读取测试。该夹具随 `make check-integration` 执行，需要OpenSSL；测试路由只在独立容器的临时模块中，不进入应用镜像。正式持久会话与 SSE 页面已由后续任务接入；本段只描述早期容量夹具的验证范围，完整状态见下文“本人会话”。见[本轮证据](docs/changes/2026-11-04-add-streaming-ai-assistant.md)。
 
 ### 本机 Docker HTTPS 展示
 
@@ -136,7 +136,7 @@ uv run --locked pytest -q tests/browser
 | 可选提高 | 文本 PDF 导入、后台索引、检索效果实验页面 | 核心验收后择项，均未实现 |
 | 效果评价 | 不少于 30 题的检索对照、依据充分率、无答案处理和耗时 | 34题确定性工程评测已运行；真实模型全量效果与人工标注留最终验收 |
 
-首版不引入跨班选课、多角色切换、主观题自动评分、自适应组卷或监考。功能详细设计和骨架分别通过后续 OpenSpec 变更推进。
+首版不引入跨班选课、多角色切换、主观题自动评分、自适应组卷或监考。上述核心能力的规约与实现已建立，剩余收尾按最终验收事项表推进。
 
 选题原计划直接复用另一仓库的认证、资料与 AI 平台。上表将这些能力列为本仓库需重建的基础；选题新增的教学交付是章节组织、答疑与反馈、结构化题库与审核、测验与错题、学习看板。后台索引在核心教学闭环验收后实施。首版计划支持 1 MiB 原文保存与下载，每份最多 32,000 个 Unicode 码点参与检索，超出时上传界面提示按章节拆分。
 
@@ -258,11 +258,11 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 ## 第 10 课交付与最终人工评测
 
-先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。5.1 冻结[候选清单](reports/candidate-checklist.md)已备：前四组技术任务核对完毕，唯一候选固定为 `a0dd0a0`（提交、CI 运行与镜像摘要见清单），评测人员指定与冻结决定待验收负责人。
+先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。5.1 的[候选清单](reports/candidate-checklist.md)保留 `a0dd0a0` 的历史制品输入；本轮须按[剩余事项表](reports/final-acceptance-readiness.md)补齐技术缺口，重新固定包含后续改动的提交、CI 和镜像摘要，再由验收负责人决定冻结。
 
 第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。两条命令已于 2026-11-19 在候选 `d7ac3d1` 按实际判据本地复核退出 0，证据见[第 10 课变更记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁实际判据复核21-部分l10-03)。两项均已为主干准入条件：仓库管理员于 2026-11-19 将 `make check-security` 加入 `main` 必需状态检查，与既有 `make check` 并列，PR 合并须两项全部通过（见[准入设置记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁准入设置完成21-收尾l10-03l10-f03)）。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
-运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、候选题 `202` 及三态轮询、测验交卷 `201`、来源限制和换班隔离。候选题使用固定模型及文件闸门控制实际任务推进，并核对成功停询、刷新只读及唯一草稿批；Kafka 投递由独立集成回归覆盖。测试使用合成账号并清理临时容器和数据卷。作业 `202` 与同一链路的七列审计仍待补齐，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
+运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、候选题 `202` 及三态轮询、测验交卷 `201`、来源限制和换班隔离。候选题使用固定模型及文件闸门控制实际任务推进，并核对成功停询、刷新只读及唯一草稿批；Kafka 投递由独立集成回归覆盖。测试使用合成账号并清理临时容器和数据卷。候选题任务审计已补齐并可按任务 ID 关联耗时与实际用量；学生作业 `202` 与课程对七列的语义认可仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
 
 两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 

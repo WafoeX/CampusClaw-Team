@@ -68,3 +68,4 @@ node_modules/
 *~
 
 # 不忽略 .agents/skills、openspec 和 docs；其内容需要审阅入库
+!/reports/final-acceptance-readiness.md

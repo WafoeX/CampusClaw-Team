@@ -1022,3 +1022,22 @@ def verify_observability_panel(rows, version):
     assert sum(window["api_samples"] for window in windows) == 8
     assert any(window["api_p95_ms"] is not None for window in windows)
     return report
+
+
+def verify_denied_audit_budget(compose):
+    return compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("denied_audit_runtime.py").read_text(),
+    )
+
+
+def test_DAB_N02_denied_audit_budget_preserves_teaching(stack):
+    compose, _, status, _ = stack
+    assert status("ready")[0] == 200
+    output = verify_denied_audit_budget(compose)
+    assert output.splitlines()[-1] == "denied_audit_runtime_ok"
+    print(output.splitlines()[-2])

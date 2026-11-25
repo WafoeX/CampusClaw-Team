@@ -68,3 +68,90 @@ def test_DAB_N01_default_budget_caps_real_rejected_http_writes(settings):
         call.args[1]["outcome"]
         for call in repository.append_operation_audit.call_args_list
     } == {"denied"}
+
+
+def test_DAB_B01_http_caps_across_subjects_and_logs_once(settings, capsys):
+    import json
+
+    client, repository, actor = make_client(
+        settings, audit_denied_subject_limit=2, audit_denied_global_limit=3
+    )
+    for _ in range(5):
+        reject(client)
+    actor.id = "student-b"
+    for _ in range(4):
+        reject(client)
+    assert repository.transaction.call_count == 3
+    records = [
+        call.args[1] for call in repository.append_operation_audit.call_args_list
+    ]
+    assert [row["actor_id"] for row in records] == [
+        "student-a",
+        "student-a",
+        "student-b",
+    ]
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    budget_events = [
+        event for event in events if event.get("event") == "denied_budget_exhausted"
+    ]
+    assert len(budget_events) == 1
+    assert not {"actor_id", "class_id", "body", "cookie"} & budget_events[0].keys()
+    assert (
+        len(
+            [
+                event
+                for event in events
+                if event["module"] == "http" and event["status"] == 403
+            ]
+        )
+        == 9
+    )
+
+
+@pytest.mark.parametrize("failure", ["enter", "append"])
+def test_DAB_F03_store_failure_consumes_budget_and_preserves_denial(settings, failure):
+    client, repository, _ = make_client(
+        settings, audit_denied_subject_limit=2, audit_denied_global_limit=3
+    )
+    target = (
+        repository.transaction.return_value.__enter__
+        if failure == "enter"
+        else repository.append_operation_audit
+    )
+    target.side_effect = DatabaseError("synthetic-store-unavailable")
+    for _ in range(5):
+        reject(client)
+    assert repository.transaction.call_count == 2
+    assert repository.append_operation_audit.call_count == (
+        0 if failure == "enter" else 2
+    )
+
+
+def test_DAB_F02_missing_and_cross_class_targets_never_reach_configuration(settings):
+    client, repository, _ = make_client(
+        settings, audit_denied_subject_limit=1, audit_denied_global_limit=1
+    )
+    for value in (
+        "00000000-0000-0000-0000-000000000001",
+        "00000000-0000-0000-0000-000000000002",
+        "00000000-0000-0000-0000-000000000099",
+    ):
+        reject(client, value)
+    assert repository.transaction.call_count == 1
+    assert {call[0] for call in repository.method_calls} <= {
+        "transaction",
+        "append_operation_audit",
+    }
+
+
+def test_DAB_F04_untrusted_origin_and_reads_do_not_consume_budget(settings):
+    client, repository, _ = make_client(
+        settings, audit_denied_subject_limit=1, audit_denied_global_limit=1
+    )
+    for headers in ({}, HEADERS | {"Origin": "https://other.invalid"}):
+        reject(client, headers=headers)
+    response = client.get("/api/v1/operation-audits", base_url=ORIGIN)
+    assert response.status_code == 403
+    assert repository.transaction.call_count == 0
+    reject(client)
+    assert repository.transaction.call_count == 1

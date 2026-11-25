@@ -437,3 +437,11 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 启用安全修复候选前，用 `docker compose exec app python -m app.auth_admin upgrade` 应用 0013。教师使用本班会话访问 `GET /api/v1/operation-audits`，可按 `actor_id`、`skill_id`、候选任务 `job_id` 和 UTC 时间窗口筛选；`job_id` 只匹配 `teaching_job` 对象且始终与当前班级和 90 天有效期条件同时生效。默认读取最近 7 天，`days` 接受 1–7，`end` 可指定过去 90 天内的 UTC 秒级时刻。窗口包含开始时刻、排除结束时刻。按返回的 ID 调用 `GET /api/v1/operation-audits/{event_id}` 读取本班审计元数据。列表和详情均禁止缓存，学生读取返回 403，跨班和不存在的审计详情均返回 404。
 
 记录覆盖技能成功执行、技能/助手/模板的配置变更及学生同源配置写拒绝。用量为模型适配器可计量的总 tokens。字段、留存、清理和回退见[数据字典](docs/data-dictionary.md#班级操作审计0013)。隔离回归可运行 `uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k 'security_precheck or controlled_tool_dialogue'`。
+
+### 拒绝配置写入的审计预算
+
+学生同源越权写入仍返回 `403/1200`。为避免拒绝处理放大数据库写入，审计事务前使用独立的进程内预算：每 60 秒每主体默认最多 60 次、进程总计最多 600 次写尝试。需要调整时，在私有环境设置 `AUDIT_DENIED_SUBJECT_LIMIT`、`AUDIT_DENIED_GLOBAL_LIMIT`，两者为 1–10000 的十进制整数，主体不得超过总量，显式空值会使启动失败。省略时使用默认值，不能用空值关闭保护。
+
+超过预算后不再开拒绝审计事务；同一窗口只记录一次 `operation_audit/denied_budget_exhausted` 告警，每个请求仍保留现有 HTTP 403、路由模板与 request_id 日志。数据库故障的写尝试也占预算，不因失败反复开事务。预算内事件保持原 90 天留存。成功业务、技能、候选题任务审计不受该预算影响。
+
+该保护对应当前固定 1 worker、8 threads 的部署，每个进程分别计数，重启会重置预算；它限制拒绝审计写放大，不限制所有认证查询或网络请求，也不代表完整抗拒绝服务能力。扩容前应重新评审共享预算与入口限流。复验命令为 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k denied_audit_budget`，仅使用隔离合成环境。实际证据见[审计预算与安全复验](docs/changes/2026-11-25-bound-denied-audit.md)。

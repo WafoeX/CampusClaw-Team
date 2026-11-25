@@ -9,6 +9,7 @@ from app.api.http import success
 from app.api.materials import _query
 from app.observability import log_event
 from app.services.ai_contracts import AI_CONFIGURE, bad, identifier
+from app.services.denied_audit_budget import DeniedAuditResult
 
 AUDIT_POLICIES = {
     (endpoint, method): AI_CONFIGURE
@@ -38,12 +39,21 @@ def denied_configuration(audit, version, origin):
         and request.headers.get("Origin") == origin
         and request.headers.get("X-CampusClaw-Request") == "same-origin"
     ):
-        if not audit.denied(
+        result = audit.denied(
             actor,
             g.request_id,
             *event,
             round((monotonic() - g.started_at) * 1000),
-        ):
+        )
+        if result is DeniedAuditResult.LIMIT_REACHED:
+            log_event(
+                "operation_audit",
+                version,
+                level="WARNING",
+                request_id=g.request_id,
+                event="denied_budget_exhausted",
+            )
+        elif result is DeniedAuditResult.UNAVAILABLE:
             log_event(
                 "operation_audit",
                 version,

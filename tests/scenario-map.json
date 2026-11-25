@@ -2,12 +2,30 @@
   "version": 1,
   "implemented": {
     "2026-11-21-refresh-student-interface/specs/student-interface-theme/spec.md": {
-      "SIT-N01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
-      "SIT-B01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
-      "SIT-F01": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
-      "SIT-F02": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
-      "SIT-F03": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"},
-      "SIT-F04": {"test": "tests/browser/test_teaching.py", "function": "test_SB_B02_browser_draft_survives_relogin"}
+      "SIT-N01": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SIT-B01": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SIT-F01": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SIT-F02": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SIT-F03": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "SIT-F04": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      }
     },
     "2026-11-04-add-class-auth-material-ingest/specs/class-auth-material-ingest/spec.md": {
       "AUTH-N01": {
@@ -1372,6 +1390,43 @@
         "script": "tests/integration/teaching_job_audit_migration.py",
         "runner": "verify_audit_migration",
         "assertion": "assert connection.scalar(select(events.c.id).where(events.c.id == expired_id)) is None"
+      }
+    },
+    "2026-11-25-bound-denied-audit/specs/denied-audit-budget/spec.md": {
+      "DAB-N01": {
+        "test": "tests/api/test_denied_audit_budget.py",
+        "function": "test_DAB_N01_default_budget_caps_real_rejected_http_writes"
+      },
+      "DAB-B01": {
+        "test": "tests/unit/test_denied_audit_budget.py",
+        "function": "test_DAB_B01_concurrent_subject_and_global_caps"
+      },
+      "DAB-B02": {
+        "test": "tests/unit/test_denied_audit_budget.py",
+        "function": "test_DAB_B02_exact_window_boundary_and_instance_isolation"
+      },
+      "DAB-F01": {
+        "test": "tests/unit/test_denied_audit_budget.py",
+        "function": "test_DAB_F01_invalid_budget_fails_without_disclosing_value"
+      },
+      "DAB-F02": {
+        "test": "tests/api/test_denied_audit_budget.py",
+        "function": "test_DAB_F02_missing_and_cross_class_targets_never_reach_configuration"
+      },
+      "DAB-F03": {
+        "test": "tests/api/test_denied_audit_budget.py",
+        "function": "test_DAB_F03_store_failure_consumes_budget_and_preserves_denial"
+      },
+      "DAB-F04": {
+        "test": "tests/api/test_denied_audit_budget.py",
+        "function": "test_DAB_F04_untrusted_origin_and_reads_do_not_consume_budget"
+      },
+      "DAB-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_DAB_N02_denied_audit_budget_preserves_teaching",
+        "script": "tests/integration/denied_audit_runtime.py",
+        "runner": "verify_denied_audit_budget",
+        "assertion": "assert audit_attempts[0] == 3"
       }
     }
   },

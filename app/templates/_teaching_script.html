@@ -312,7 +312,9 @@
               await api('/api/v1/quizzes/' + teachingTarget + '/submissions/' + item.submission_id + '/score-override', operation('PUT', { expected_revision: item.score_override_revision, score: Number(score.value), reason: reason.value }));
               await reload(); return '最终分已更新。';
             }));
-            const controls = element('div'); controls.className = 'row'; controls.append(score, reason, button); section.append(controls); results.append(section);
+            const scoreLabel = element('label'); scoreLabel.append(element('span', '最终分'), score);
+            const reasonLabel = element('label'); reasonLabel.append(element('span', '改分理由'), reason);
+            const controls = element('div'); controls.className = 'row'; controls.append(scoreLabel, reasonLabel, button); section.append(controls); results.append(section);
           }
           const insights = await api('/api/v1/quizzes/' + teachingTarget + '/insights');
           const panel = $('quiz-insights'); panel.replaceChildren();

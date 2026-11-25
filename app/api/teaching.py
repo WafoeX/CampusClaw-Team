@@ -29,6 +29,7 @@ TEACHING_POLICIES = {
         ("submit_quiz", ("POST",), TEACHING_ANSWER),
         ("read_my_submission", ("GET", "HEAD"), TEACHING_ANSWER),
         ("list_submission_results", ("GET", "HEAD"), TEACHING_WRITE),
+        ("override_submission_score", ("PUT",), TEACHING_WRITE),
         ("read_my_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
         ("read_quiz_insights", ("GET", "HEAD"), TEACHING_WRITE),
         ("list_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
@@ -369,6 +370,33 @@ def install_teaching(app, service, candidate_jobs=None):
                 material_id(value),
                 _positive("page", 1, 100000),
                 _positive("page_size", 20, 100),
+            )
+        )
+
+    @app.put("/api/v1/quizzes/<value>/submissions/<submission>/score-override")
+    def override_submission_score(value, submission):
+        _query()
+        payload = body(4096)
+        exact(payload, {"expected_revision", "score", "reason"})
+        score = payload["score"]
+        reason = payload["reason"]
+        if (
+            type(score) is not int
+            or not 0 <= score <= 5000
+            or not isinstance(reason, str)
+            or not 1 <= len(reason.strip()) <= 500
+            or "\0" in reason
+        ):
+            raise invalid("改分参数无效")
+        return success(
+            service.override_score(
+                g.identity,
+                request.cookies.get(COOKIE),
+                material_id(value),
+                material_id(submission),
+                revision(payload["expected_revision"], zero=True),
+                score,
+                reason.strip(),
             )
         )
 

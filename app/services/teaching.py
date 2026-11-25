@@ -584,6 +584,73 @@ class TeachingService:
         except self.database_error:
             raise unavailable() from None
 
+    def override_score(
+        self,
+        identity,
+        cookie,
+        quiz_id,
+        submission_id,
+        expected_revision,
+        score,
+        reason,
+    ):
+        try:
+            with self.repository.transaction() as connection:
+                self._actor(connection, identity, cookie, "teacher")
+                self._quiz(connection, identity, quiz_id, teacher=True, lock=True)
+                row = self.repository.score_submission(
+                    connection,
+                    identity.class_id,
+                    quiz_id,
+                    submission_id,
+                    lock=True,
+                )
+                if row is None:
+                    raise missing()
+                if not 0 <= score <= row["max_score"]:
+                    raise invalid("最终分须在 0 与满分之间")
+                current_revision = row["override_revision"] or 0
+                if expected_revision != current_revision:
+                    if (
+                        current_revision == expected_revision + 1
+                        and row["override_score"] == score
+                        and row["override_reason"] == reason
+                    ):
+                        return {
+                            "submission_id": submission_id,
+                            "rule_score": row["rule_score"],
+                            "score": score,
+                            "score_source": "teacher_override",
+                            "reason": reason,
+                            "revision": current_revision,
+                        }
+                    raise conflict()
+                new_revision = current_revision + 1
+                now = self.repository.now(connection)
+                self.repository.save_score_override(
+                    connection,
+                    submission_id=submission_id,
+                    class_id=identity.class_id,
+                    teacher_id=identity.subject_id,
+                    previous_score=row["override_score"]
+                    if row["override_score"] is not None
+                    else row["rule_score"],
+                    score=score,
+                    reason=reason,
+                    revision=new_revision,
+                    now=now,
+                )
+                return {
+                    "submission_id": submission_id,
+                    "rule_score": row["rule_score"],
+                    "score": score,
+                    "score_source": "teacher_override",
+                    "reason": reason,
+                    "revision": new_revision,
+                }
+        except self.database_error:
+            raise unavailable() from None
+
     def my_submission(self, identity, quiz_id):
         try:
             with self.repository.engine.connect() as connection:
@@ -604,12 +671,19 @@ class TeachingService:
                 if now >= quiz["answers_open_at"]:
                     result = self.repository.result(connection, submission["id"])
                     if result is not None:
+                        overridden = result["override_score"] is not None
                         items = self.repository.items(
                             connection, identity.class_id, quiz_id
                         )
                         projection.update(
                             {
-                                "score": result["score"],
+                                "rule_score": result["score"],
+                                "score": result["override_score"]
+                                if overridden
+                                else result["score"],
+                                "score_source": "teacher_override"
+                                if overridden
+                                else "rule",
                                 "max_score": result["max_score"],
                                 "details": [
                                     {
@@ -626,6 +700,11 @@ class TeachingService:
                                 ],
                             }
                         )
+                        if overridden:
+                            projection.update(
+                                score_override_reason=result["override_reason"],
+                                score_override_revision=result["override_revision"],
+                            )
                 return projection
         except self.database_error:
             raise unavailable() from None
@@ -644,9 +723,15 @@ class TeachingService:
                             "student_id": row["student_id"],
                             "answers": row["answers"],
                             "accepted_at": iso(row["accepted_at"]),
+                            "rule_score": row["rule_score"],
                             "score": row["score"],
+                            "score_source": "teacher_override"
+                            if row["override_revision"] is not None
+                            else "rule",
                             "max_score": row["max_score"],
                             "details": row["details"],
+                            "score_override_reason": row["override_reason"],
+                            "score_override_revision": row["override_revision"] or 0,
                         }
                         for row in rows
                     ],

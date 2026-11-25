@@ -152,6 +152,62 @@ def test_SB_N01_submission_contract_is_201_and_no_score(candidate):
     assert result.headers["Cache-Control"] == "no-store"
 
 
+def test_TSO_N01_teacher_score_override_contract(candidate):
+    client, _, teaching = candidate
+    teaching.override_score.return_value = {
+        "submission_id": ID,
+        "rule_score": 6,
+        "score": 8,
+        "score_source": "teacher_override",
+        "reason": "复核步骤正确",
+        "revision": 1,
+    }
+    result = client.put(
+        f"/api/v1/quizzes/{ID}/submissions/{ID}/score-override",
+        base_url=ORIGIN,
+        headers=HEADERS,
+        json={"expected_revision": 0, "score": 8, "reason": " 复核步骤正确 "},
+    )
+    assert result.status_code == 200 and result.json["code"] == 0
+    assert result.json["data"]["score_source"] == "teacher_override"
+    assert teaching.override_score.call_args.args[4:] == (0, 8, "复核步骤正确")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"expected_revision": 0, "score": -1, "reason": "理由"},
+        {"expected_revision": 0, "score": 1.5, "reason": "理由"},
+        {"expected_revision": 0, "score": 1, "reason": " "},
+        {"expected_revision": 0, "score": 1, "reason": "字" * 501},
+        {"expected_revision": 0, "score": 1, "reason": "理由", "class_id": "x"},
+    ],
+)
+def test_TSO_F01_invalid_override_rejected_before_service(candidate, payload):
+    client, _, teaching = candidate
+    result = client.put(
+        f"/api/v1/quizzes/{ID}/submissions/{ID}/score-override",
+        base_url=ORIGIN,
+        headers=HEADERS,
+        json=payload,
+    )
+    assert result.status_code == 400 and result.json["code"] == 1000
+    teaching.override_score.assert_not_called()
+
+
+def test_TSO_F02_student_cannot_override_score(candidate):
+    client, auth, teaching = candidate
+    auth.current.return_value.role = "student"
+    result = client.put(
+        f"/api/v1/quizzes/{ID}/submissions/{ID}/score-override",
+        base_url=ORIGIN,
+        headers=HEADERS,
+        json={"expected_revision": 0, "score": 8, "reason": "合成理由"},
+    )
+    assert result.status_code == 403 and result.json["code"] == 1200
+    teaching.override_score.assert_not_called()
+
+
 def test_LI_F02_student_cannot_read_insights(candidate):
     client, auth, teaching = candidate
     auth.current.return_value.role = "student"

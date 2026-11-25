@@ -1,5 +1,7 @@
 """教学闭环的 MySQL 访问；所有正式写入由调用方事务包裹。"""
 
+from uuid import uuid4
+
 from sqlalchemy import func, insert, select, text, update
 
 from app.adapters.auth_schema_v1 import accounts
@@ -7,6 +9,10 @@ from app.adapters.chapter_schema_v4 import chapters, materials
 from app.adapters.feedback_repository import FeedbackRepositoryMixin
 from app.adapters.index_schema_v5 import materials as indexed_materials
 from app.adapters.material_repository import MaterialRepository
+from app.adapters.score_override_schema_v17 import (
+    score_override_events,
+    score_overrides,
+)
 from app.adapters.teaching_schema_v10 import (
     question_audits,
     question_versions,
@@ -381,12 +387,96 @@ class TeachingRepository(MaterialRepository):
     def result(self, connection, submission_id):
         return (
             connection.execute(
-                select(quiz_results).where(
-                    quiz_results.c.submission_id == submission_id
+                select(
+                    quiz_results,
+                    score_overrides.c.score.label("override_score"),
+                    score_overrides.c.reason.label("override_reason"),
+                    score_overrides.c.revision.label("override_revision"),
                 )
+                .outerjoin(
+                    score_overrides,
+                    score_overrides.c.submission_id == quiz_results.c.submission_id,
+                )
+                .where(quiz_results.c.submission_id == submission_id)
             )
             .mappings()
             .one_or_none()
+        )
+
+    def score_submission(
+        self, connection, class_id, quiz_id, submission_id, *, lock=False
+    ):
+        statement = (
+            select(
+                quiz_submissions.c.id,
+                quiz_results.c.score.label("rule_score"),
+                quiz_results.c.max_score,
+                score_overrides.c.score.label("override_score"),
+                score_overrides.c.reason.label("override_reason"),
+                score_overrides.c.revision.label("override_revision"),
+            )
+            .join(quiz_results, quiz_results.c.submission_id == quiz_submissions.c.id)
+            .outerjoin(
+                score_overrides,
+                (score_overrides.c.submission_id == quiz_submissions.c.id)
+                & (score_overrides.c.class_id == quiz_submissions.c.class_id),
+            )
+            .where(
+                quiz_submissions.c.class_id == class_id,
+                quiz_submissions.c.quiz_id == quiz_id,
+                quiz_submissions.c.id == submission_id,
+            )
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return connection.execute(statement).mappings().one_or_none()
+
+    def save_score_override(
+        self,
+        connection,
+        *,
+        submission_id,
+        class_id,
+        teacher_id,
+        previous_score,
+        score,
+        reason,
+        revision,
+        now,
+    ):
+        values = {
+            "submission_id": submission_id,
+            "class_id": class_id,
+            "teacher_id": teacher_id,
+            "score": score,
+            "reason": reason,
+            "revision": revision,
+            "updated_at": now,
+        }
+        if revision == 1:
+            connection.execute(insert(score_overrides).values(values))
+        else:
+            connection.execute(
+                update(score_overrides)
+                .where(
+                    score_overrides.c.class_id == class_id,
+                    score_overrides.c.submission_id == submission_id,
+                    score_overrides.c.revision == revision - 1,
+                )
+                .values(values)
+            )
+        connection.execute(
+            insert(score_override_events).values(
+                id=str(uuid4()),
+                submission_id=submission_id,
+                class_id=class_id,
+                teacher_id=teacher_id,
+                previous_score=previous_score,
+                score=score,
+                reason=reason,
+                revision=revision,
+                created_at=now,
+            )
         )
 
     def submit(self, connection, submission, result, now):
@@ -415,12 +505,22 @@ class TeachingRepository(MaterialRepository):
                     quiz_submissions.c.student_id,
                     quiz_submissions.c.answers,
                     quiz_submissions.c.accepted_at,
-                    quiz_results.c.score,
+                    quiz_results.c.score.label("rule_score"),
+                    func.coalesce(score_overrides.c.score, quiz_results.c.score).label(
+                        "score"
+                    ),
                     quiz_results.c.max_score,
                     quiz_results.c.details,
+                    score_overrides.c.reason.label("override_reason"),
+                    score_overrides.c.revision.label("override_revision"),
                 )
                 .join(
                     quiz_results, quiz_results.c.submission_id == quiz_submissions.c.id
+                )
+                .outerjoin(
+                    score_overrides,
+                    (score_overrides.c.submission_id == quiz_submissions.c.id)
+                    & (score_overrides.c.class_id == quiz_submissions.c.class_id),
                 )
                 .where(scope)
                 .order_by(quiz_submissions.c.accepted_at, quiz_submissions.c.id)
@@ -443,10 +543,20 @@ class TeachingRepository(MaterialRepository):
         )
         rows = (
             connection.execute(
-                select(quiz_results.c.score, quiz_results.c.details)
+                select(
+                    func.coalesce(score_overrides.c.score, quiz_results.c.score).label(
+                        "score"
+                    ),
+                    quiz_results.c.details,
+                )
                 .join(
                     quiz_submissions,
                     quiz_submissions.c.id == quiz_results.c.submission_id,
+                )
+                .outerjoin(
+                    score_overrides,
+                    (score_overrides.c.submission_id == quiz_submissions.c.id)
+                    & (score_overrides.c.class_id == quiz_submissions.c.class_id),
                 )
                 .where(
                     quiz_submissions.c.class_id == class_id,

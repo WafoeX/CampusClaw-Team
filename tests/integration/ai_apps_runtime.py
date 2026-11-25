@@ -251,6 +251,11 @@ for app_key in ("polish", "learning_plan", "practice", "material_qa"):
 b_template, _ = create_template("b_teacher", "polish")
 polish = template_rows["polish"]
 target = "/api/v1/prompt-templates/" + polish["id"]
+# AP-N01：两个班都有同名模板；各班学生凭本班资源 ID 读回各自的配置。
+for who, own_template in (("student", polish), ("session_b_student", b_template)):
+    detail = request(who, "GET", "/api/v1/prompt-templates/" + own_template["id"])
+    assert (detail.status_code, detail.json["code"]) == (200, 0)
+    assert detail.json["data"] == own_template
 catalogue = request("student", "GET", "/api/v1/ai-apps").json["data"]
 assert [row["key"] for row in catalogue["items"]] == [
     "polish",
@@ -387,6 +392,24 @@ assistant = request(
 )
 assert assistant.status_code == 201
 assistant_id = assistant.json["data"]["id"]
+foreign_assistant = request(
+    "b_teacher",
+    "POST",
+    "/api/v1/assistants",
+    assistant_payload
+    | {"material_ids": [material_ids["b"]], "skill_ids": [skill_ids["b"]]},
+    "assistant-one",
+)
+assert (foreign_assistant.status_code, foreign_assistant.json["code"]) == (201, 0)
+assert foreign_assistant.json["data"]["id"] != assistant_id
+for who, own_id in (
+    ("student", assistant_id),
+    ("session_b_student", foreign_assistant.json["data"]["id"]),
+):
+    listing = request(who, "GET", "/api/v1/assistants")
+    assert (listing.status_code, listing.json["code"]) == (200, 0)
+    assert listing.json["data"]["total"] == 1
+    assert [item["id"] for item in listing.json["data"]["items"]] == [own_id]
 changed = request(
     "a_teacher",
     "PATCH",
@@ -813,6 +836,9 @@ created_skill = request(
 )
 assert created_skill.status_code == 201, created_skill.json
 skill_data = created_skill.json["data"]
+detail = request("a_teacher", "GET", skill_path + "/" + skill_data["id"])
+assert (detail.status_code, detail.json["code"]) == (200, 0)
+assert detail.json["data"] == skill_data
 assert count(skills) == base_skills + 1 and count(skill_revisions) == base_revisions + 1
 assert (
     request(

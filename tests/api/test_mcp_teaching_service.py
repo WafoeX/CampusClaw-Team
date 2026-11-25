@@ -39,6 +39,7 @@ def rpc(client, method, params=None, *, headers=BASE_HEADERS, request_id=1):
 def initialize(client):
     initialized = rpc(client, "initialize", INITIALIZE)
     assert initialized.status_code == 200
+    assert initialized.cache_control.no_store
     assert initialized.json["result"]["protocolVersion"] == VERSION
     headers = {**BASE_HEADERS, SESSION_HEADER: initialized.headers[SESSION_HEADER]}
     assert rpc(client, "tools/list", headers=headers).json["error"]["code"] == -32000

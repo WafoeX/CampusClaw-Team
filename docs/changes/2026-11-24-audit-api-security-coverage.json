@@ -1,0 +1,2359 @@
+{
+  "scope": "断网 tests/api 与完整集成/浏览器套件内受观测的 Flask 测试客户端响应，按方法与路由模板去重。使用审查器相同响应规则；2xx 按 HTTP 状态统计。",
+  "pytest_exit": 0,
+  "offline_flagged": 0,
+  "compose_flagged": 0,
+  "combined_flagged": 0,
+  "total": 88,
+  "combined": {
+    "有成功响应": 87,
+    "仅有非成功响应": 1,
+    "未观察": 0
+  },
+  "operations": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/auth/sessions/current",
+      "offline_statuses": [
+        200,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          401,
+          403
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/chapters/<value>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        404,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/materials/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          404,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        404,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/prompt-templates/<resource_id>",
+      "offline_statuses": [
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          403
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/skills/<resource_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/tool-connectors/<resource_id>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/tool-connectors/<resource_id>/connections/current",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "DELETE",
+      "path": "/mcp",
+      "offline_statuses": [
+        204
+      ],
+      "compose_statuses_by_test": {},
+      "combined_statuses": [
+        204
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai-apps",
+      "offline_statuses": [
+        200,
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/assistants",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/assistants/<resource_id>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/sessions/current",
+      "offline_statuses": [
+        200
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          401
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          401
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chapters",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chapters/<scope>/materials",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/chapters/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/learning-insights",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          401
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          401,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          401,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          401,
+          404
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials/<value>/citations/<chunk_id>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials/<value>/download",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          401
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          401,
+          404,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        404,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials/<value>/index-builds",
+      "offline_statuses": [
+        200,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/materials/<value>/index-builds/<build_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mistakes",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/openapi.json",
+      "offline_statuses": [
+        200,
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/operation-audits",
+      "offline_statuses": [
+        200,
+        400,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          400,
+          403
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          400,
+          401,
+          403
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/operation-audits/<event_id>",
+      "offline_statuses": [
+        404
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/prompt-templates",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/prompt-templates/<resource_id>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/questions",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/questions/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>/draft",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>/insights",
+      "offline_statuses": [
+        400,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          403,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>/my-mistakes",
+      "offline_statuses": [
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          403
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>/my-submission",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/quizzes/<value>/submission-results",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          403
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          403
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/<run_id>",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/<session_id>",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/<session_id>/messages/<message_id>/citations/<ordinal>",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/skills",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/skills/<resource_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/teaching-feedback",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/teaching-jobs/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          403,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tool-call-audit",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200,
+          403
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200,
+          400,
+          403
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tool-connector-options",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tool-connectors",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tool-connectors/<resource_id>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tool-connectors/<resource_id>/tools",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "GET",
+      "path": "/mcp",
+      "offline_statuses": [
+        405
+      ],
+      "compose_statuses_by_test": {},
+      "combined_statuses": [
+        405
+      ],
+      "coverage": "仅有非成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/assistants/<resource_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          403
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          409
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/chapters/<value>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/materials/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          404,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        404,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/prompt-templates/<resource_id>",
+      "offline_statuses": [
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          403,
+          503
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/questions/<value>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/skills/<resource_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          403
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/teaching-feedback/<feedback_id>",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          404
+        ]
+      },
+      "combined_statuses": [
+        200,
+        401,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/tool-connectors/<resource_id>/tools/<name>",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200,
+          409
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ai-apps/<app_key>/runs",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          201,
+          400,
+          409,
+          429,
+          502,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        201,
+        400,
+        401,
+        409,
+        429,
+        502,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/assistants",
+      "offline_statuses": [
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          404
+        ]
+      },
+      "combined_statuses": [
+        201,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/csrf-tokens",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          400
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "offline_statuses": [
+        401,
+        403,
+        429,
+        503
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          401,
+          403,
+          429,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403,
+        429,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/chapters",
+      "offline_statuses": [
+        400,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          401,
+          403,
+          409
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        401,
+        403,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/material-answers",
+      "offline_statuses": [
+        200,
+        400,
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          409,
+          502,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        409,
+        502,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/materials",
+      "offline_statuses": [
+        403,
+        429
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          403,
+          409,
+          429,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        403,
+        409,
+        429,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/materials/<value>/index-builds",
+      "offline_statuses": [
+        201,
+        400,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          201,
+          400,
+          401,
+          403,
+          404,
+          409,
+          429,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        201,
+        400,
+        401,
+        403,
+        404,
+        409,
+        429,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/prompt-templates",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201,
+          403
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          409
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        401,
+        403,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/prompt-templates/<resource_id>/previews",
+      "offline_statuses": [
+        400,
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404,
+          409,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        404,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/question-generation-jobs",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          202,
+          400,
+          403,
+          404,
+          503
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          202,
+          400,
+          403,
+          404,
+          429,
+          503
+        ]
+      },
+      "combined_statuses": [
+        202,
+        400,
+        403,
+        404,
+        429,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/questions",
+      "offline_statuses": [
+        201,
+        400,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          201,
+          400,
+          401,
+          403
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          401,
+          403
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        401,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/questions/<value>/reviews",
+      "offline_statuses": [
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/quizzes",
+      "offline_statuses": [
+        400,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          201,
+          400
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        403
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/quizzes/<value>/publications",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          200,
+          409
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          403,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          403,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        403,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/quizzes/<value>/submissions",
+      "offline_statuses": [
+        201,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_F05_mysql_job_transactions_without_broker": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          201,
+          400,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        403,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/searches",
+      "offline_statuses": [
+        200,
+        400,
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200,
+          401
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          404,
+          409,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        404,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions",
+      "offline_statuses": [
+        401
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          201,
+          403,
+          404,
+          409
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        200,
+        201,
+        401,
+        403,
+        404,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/<session_id>/messages",
+      "offline_statuses": [
+        400,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_PSC_N01_PSC_F01_PSC_F02_PSC_F03_PSC_F04_security_precheck": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          404,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200,
+          400
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403,
+        404,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/<session_id>/unit-practice",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/skills",
+      "offline_statuses": [
+        400,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          201,
+          400,
+          403
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201,
+          400,
+          404,
+          409
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        401,
+        403,
+        404,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/teaching-jobs/<value>/replays",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          202,
+          404,
+          409,
+          503
+        ]
+      },
+      "combined_statuses": [
+        202,
+        404,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/tool-connectors",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          201,
+          400,
+          403,
+          409
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          201
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          201
+        ]
+      },
+      "combined_statuses": [
+        201,
+        400,
+        403,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/tool-connectors/<resource_id>/connections",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_CN_N01_CN_B01_CN_B02_CN_F01_CN_F02_CN_F03_CN_F04_connector_management": [
+          200,
+          409,
+          503
+        ],
+        "tests/integration/test_compose.py::test_SR_B01_SEC08_four_step_experiment": [
+          200
+        ],
+        "tests/integration/test_compose.py::test_TD_N01_TD_N02_TD_F07_AU_N01_controlled_tool_dialogue": [
+          200
+        ]
+      },
+      "combined_statuses": [
+        200,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "POST",
+      "path": "/mcp",
+      "offline_statuses": [
+        200,
+        202,
+        400,
+        401,
+        403,
+        404
+      ],
+      "compose_statuses_by_test": {},
+      "combined_statuses": [
+        200,
+        202,
+        400,
+        401,
+        403,
+        404
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/materials/<value>/chapter-assignments/current",
+      "offline_statuses": [
+        400,
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          404,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403,
+        404,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/quizzes/<value>/draft",
+      "offline_statuses": [],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_JB_QB_real_kafka_and_candidate_recovery": [
+          200,
+          409
+        ],
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          409
+        ]
+      },
+      "combined_statuses": [
+        200,
+        409
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/sessions/<session_id>/messages/<message_id>/feedback",
+      "offline_statuses": [
+        401,
+        403
+      ],
+      "compose_statuses_by_test": {
+        "tests/integration/test_compose.py::test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery": [
+          200,
+          400,
+          403,
+          404,
+          409,
+          503
+        ]
+      },
+      "combined_statuses": [
+        200,
+        400,
+        401,
+        403,
+        404,
+        409,
+        503
+      ],
+      "coverage": "有成功响应",
+      "offline_findings": [],
+      "compose_findings": [],
+      "findings": []
+    }
+  ]
+}

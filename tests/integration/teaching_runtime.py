@@ -23,6 +23,7 @@ from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import (
+    questions,
     quiz_items,
     quiz_participants,
     quiz_results,
@@ -145,12 +146,40 @@ assert (
     request(teacher, "POST", "/api/v1/questions", {**choice, "answer": "C"}).status_code
     == 400
 )
+# Kafka 场景会先生成题目。创建前按数据库班级归属记录两班已有题目。
+with engine.connect() as connection:
+    prior_a, prior_b = (
+        set(
+            connection.scalars(
+                select(questions.c.id).where(questions.c.class_id == class_id)
+            )
+        )
+        for class_id in (first_student["class_id"], teacher_b["class_id"])
+    )
 created = request(teacher, "POST", "/api/v1/questions", choice)
 assert created.status_code == 201, created.json
 question_id = created.json["data"]["id"]
 second = request(teacher, "POST", "/api/v1/questions", judgement)
 assert second.status_code == 201, second.json
 second_question_id = second.json["data"]["id"]
+# QB-N01：A、B 教师各自建题，即使题干相同，列表也只含当前班级的题目。
+other_question = request(outsider, "POST", "/api/v1/questions", choice)
+assert (other_question.status_code, other_question.json["code"]) == (201, 0)
+foreign_question_id = other_question.json["data"]["id"]
+assert foreign_question_id not in {question_id, second_question_id}
+for account, own_ids in (
+    (teacher, prior_a | {question_id, second_question_id}),
+    (outsider, prior_b | {foreign_question_id}),
+):
+    listed_ids = []
+    for offset in range(0, len(own_ids), 20):
+        listing = request(
+            account, "GET", f"/api/v1/questions?page={offset // 20 + 1}&page_size=20"
+        )
+        assert (listing.status_code, listing.json["code"]) == (200, 0)
+        assert listing.json["data"]["total"] == len(own_ids)
+        listed_ids.extend(row["id"] for row in listing.json["data"]["items"])
+    assert sorted(listed_ids) == sorted(own_ids)
 assert request(outsider, "GET", f"/api/v1/questions/{question_id}").json["code"] == 1300
 for target in (question_id, str(uuid4())):
     response = request(outsider, "GET", f"/api/v1/questions/{target}")
@@ -404,6 +433,38 @@ insights = request(teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights")
 assert insights.status_code == 200
 assert insights.json["data"]["submission_rate"] == 50
 assert insights.json["data"]["average_score"] == 15
+# LI-N01、SB-N01：教师读回本班已提交测验的汇总和明细，核对交卷人和成绩。
+summary_path = f"/api/v1/learning-insights?quiz_id={quiz_id}"
+results_path = f"/api/v1/quizzes/{quiz_id}/submission-results"
+overview = request(teacher, "GET", summary_path)
+assert (overview.status_code, overview.json["code"]) == (200, 0)
+assert overview.json["data"]["total"] == 1
+(summary_row,) = overview.json["data"]["items"]
+assert (
+    summary_row["quiz_id"],
+    summary_row["submissions"],
+    summary_row["average_score"],
+) == (quiz_id, 1, 15)
+results = request(teacher, "GET", results_path)
+assert (results.status_code, results.json["code"]) == (200, 0)
+assert results.json["data"]["total"] == 1
+(submission_row,) = results.json["data"]["items"]
+assert (
+    submission_row["student_id"],
+    submission_row["submission_id"],
+    submission_row["score"],
+) == (
+    first_student["id"],
+    first.json["data"]["submission_id"],
+    15,
+)
+for own_path in (summary_path, results_path):
+    foreign = request(outsider, "GET", own_path)
+    assert (foreign.status_code, foreign.json["code"], foreign.json["data"]) == (
+        404,
+        1300,
+        None,
+    )
 assert all(
     item["correct_rate"] == 100 for item in insights.json["data"]["item_accuracy"]
 )

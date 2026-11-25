@@ -3,7 +3,7 @@
 from contextlib import contextmanager
 from datetime import datetime
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -84,6 +84,21 @@ def test_TSO_N01_identical_replay_does_not_write_again():
     repository.save_score_override.assert_not_called()
 
 
+def test_TSO_B01_second_override_uses_prior_final_score():
+    target, repository = service(
+        score_row(
+            override_score=8,
+            override_reason="首次复核",
+            override_revision=1,
+        )
+    )
+    result = target.override_score(
+        IDENTITY, COOKIE, "quiz-a", "submission-a", 1, 9, "再次复核"
+    )
+    assert (result["score"], result["revision"]) == (9, 2)
+    assert repository.save_score_override.call_args.kwargs["previous_score"] == 8
+
+
 @pytest.mark.parametrize(
     ("row", "revision", "score", "status", "code"),
     [
@@ -118,3 +133,25 @@ def test_TSO_F04_storage_failure_is_mapped_to_dependency_error():
             IDENTITY, COOKIE, "quiz-a", "submission-a", 0, 8, "合成理由"
         )
     assert (raised.value.status, raised.value.code) == (503, 1500)
+
+
+def test_TSO_F05_override_is_hidden_before_answers_open():
+    repository = MagicMock()
+    repository.quiz.return_value = {
+        "id": "quiz-a",
+        "published_at": NOW,
+        "answers_open_at": datetime(2030, 1, 3),
+    }
+    repository.participant.return_value = {"student_id": "student-a"}
+    repository.submission.return_value = {
+        "id": "submission-a",
+        "answers": {},
+        "accepted_at": NOW,
+    }
+    repository.now.return_value = datetime(2030, 1, 2)
+    target = TeachingService(repository, RuntimeError)
+    projection = target.my_submission(
+        SimpleNamespace(class_id="class-a", subject_id="student-a"), "quiz-a"
+    )
+    assert "score" not in projection and "score_override_reason" not in projection
+    repository.result.assert_not_called()

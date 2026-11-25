@@ -1428,6 +1428,63 @@
         "runner": "verify_denied_audit_budget",
         "assertion": "assert audit_attempts[0] == 3"
       }
+    },
+    "2026-11-25-teacher-score-override/specs/teacher-score-override/spec.md": {
+      "TSO-N01": {
+        "test": "tests/unit/test_teacher_score_override.py",
+        "function": "test_TSO_N01_first_override_preserves_rule_score_and_appends_event"
+      },
+      "TSO-B01": {
+        "test": "tests/unit/test_teacher_score_override.py",
+        "function": "test_TSO_B01_second_override_uses_prior_final_score"
+      },
+      "TSO-F01": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_TSO_F01_invalid_override_rejected_before_service"
+      },
+      "TSO-F02": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_TSO_F02_student_cannot_override_score"
+      },
+      "TSO-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert foreign.status_code == missing_override.status_code == 404"
+      },
+      "TSO-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert (failed_override.status_code, failed_override.json[\"code\"]) == (503, 1500)"
+      },
+      "TSO-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(teacher, \"GET\", results_path).json[\"data\"][\"items\"][0][\"score\"] == 12"
+      },
+      "TSO-F05": {
+        "test": "tests/unit/test_teacher_score_override.py",
+        "function": "test_TSO_F05_override_is_hidden_before_answers_open"
+      },
+      "TSO-N03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert [row[\"revision\"] for row in override_history] == [1, 2]"
+      },
+      "TSO-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert \"quiz_score_overrides\" not in inspect(engine).get_table_names()"
+      }
     }
   },
   "planned": {

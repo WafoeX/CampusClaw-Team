@@ -394,7 +394,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 ## 异步教学
 
-教师在 `/console/questions` 建题、审核，组卷后同步发布。学生在 `/quizzes` 恢复草稿和正式交卷，MySQL 在同一事务完成规则评分并返回 201。答案开放后可进入 `/mistakes`，教师从 `/console/dashboard` 查看冻结名单、提交率、平均分、逐题正确率和章节未解决反馈。资料重建后仍可查看有权限的历史出处。资料删除会清除出处，评分保持原值。
+教师在 `/console/questions` 建题、审核，组卷后同步发布。学生在 `/quizzes` 恢复草稿和正式交卷，MySQL 在同一事务完成规则评分并返回 201。本班教师可在测验详情按提交填写最终分和改分理由；规则分保持不可变，学生答案开放后的本人成绩、教师提交列表和平均分采用最新教师覆盖分，逐题正误仍显示规则结果。改分使用修订号防并发覆盖，跨班与不存在同形，历史只增。答案开放后可进入 `/mistakes`，教师从 `/console/dashboard` 查看冻结名单、提交率、平均分、逐题正确率和章节未解决反馈。资料重建后仍可查看有权限的历史出处。资料删除会清除出处，评分保持原值。
 
 AI 候选题使用 Compose 的 `teaching` 扩展。先按本页认证配置准备私有 `.env`，在应用镜像中执行 0012 迁移，再启动 Kafka、投递器和 worker。课程聊天网关通过私有 `CHAT_BASE_URL`、`CHAT_MODEL`、`CHAT_API_KEY` 配置。
 

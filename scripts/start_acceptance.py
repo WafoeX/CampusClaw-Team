@@ -15,6 +15,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from scripts.dependency_sources import SOURCES, mirrored_dependencies
+from scripts.smoke_acceptance import smoke
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_KEYS = (
@@ -167,7 +168,10 @@ def inspect_status(compose, run, certificate, revision):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "action", choices=("start", "status", "stop"), nargs="?", default="start"
+        "action",
+        choices=("start", "status", "smoke", "stop"),
+        nargs="?",
+        default="start",
     )
     parser.add_argument("--mirror-host", help="显式依赖来源主机，保持全部摘要")
     args = parser.parse_args()
@@ -365,6 +369,24 @@ def main():
             "embedding": bool(values.get("EMBEDDING_API_KEY")),
         }
         private_json(state / "status.json", report)
+        if args.action == "smoke":
+            result = smoke(state, values)
+            private_json(state / "smoke.json", result)
+            print(
+                json.dumps(
+                    {
+                        "smoke": "passed",
+                        "revision": result["revision"],
+                        "requests": result["requests"],
+                        "persisted_average_score": result[
+                            "persisted_average_score"
+                        ],
+                        "real_model_evaluation": result["real_model_evaluation"],
+                        "human_acceptance": result["human_acceptance"],
+                    },
+                    ensure_ascii=False,
+                )
+            )
         print(json.dumps(report, ensure_ascii=False))
         print(
             "演示账号口令仅见 runtime/acceptance/config.json 的 CAMPUSCLAW_SEED_PASSWORD；正式验收尚未完成"

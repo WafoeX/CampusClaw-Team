@@ -170,8 +170,10 @@ try {
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 1 / 1")'), true);
   await navigate(`/quizzes/${quiz.id}`);
-  await wait(() => js('document.querySelector("#teacher-results input[type=number]") && document.getElementById("notice")?.textContent === "已加载。"'));
-  await js('document.querySelector("#teacher-results input[type=number]").value="6"; document.querySelector("#teacher-results input[placeholder=\"填写改分理由\"]").value="浏览器复核"; document.querySelector("#teacher-results button").click()');
+  await wait(() => js('document.querySelector("#teacher-results input[type=number]") && document.querySelector("#teacher-results input[placeholder=\\"填写改分理由\\"]") && document.querySelector("#teacher-results button") && document.getElementById("notice")?.textContent === "已加载。"'));
+  assert.equal(await js('(() => { const score = document.querySelector("#teacher-results input[type=number]"); score.value="6"; return score.value })()'), "6");
+  assert.equal(await js('(() => { const reason = document.querySelector("#teacher-results input[placeholder=\\"填写改分理由\\"]"); reason.value="浏览器复核"; return reason.value })()'), "浏览器复核");
+  await js('document.querySelector("#teacher-results button").click()');
   await wait(() => js('document.getElementById("notice")?.textContent === "最终分已更新。"'));
   const overridden = (await api(`/api/v1/quizzes/${quiz.id}/submission-results`)).items[0];
   assert.deepEqual({rule: overridden.rule_score, final: overridden.score, source: overridden.score_source}, {rule: 0, final: 6, source: "teacher_override"});

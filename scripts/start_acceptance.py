@@ -378,9 +378,7 @@ def main():
                         "smoke": "passed",
                         "revision": result["revision"],
                         "requests": result["requests"],
-                        "persisted_average_score": result[
-                            "persisted_average_score"
-                        ],
+                        "persisted_average_score": result["persisted_average_score"],
                         "real_model_evaluation": result["real_model_evaluation"],
                         "human_acceptance": result["human_acceptance"],
                     },

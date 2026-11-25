@@ -25,3 +25,7 @@
 - `make check-static check-test CHANGE=2026-11-25-bound-denied-audit`：退出 0，547 项单元/API、4 项启动检查通过。
 - 在测试进程把 DeniedAuditBudget.reserve 替换为无预算实现，新默认额度用例退出 1；恢复后定向 27 项通过。首次误用系统 Python 缺 pymysql，改用 uv 锁定环境后完成该破坏验证。
 - 新真实 MySQL 用例首次在 Compose 启动阶段失败：Docker Hub 拉取锁定 Qdrant 镜像超时，尚未执行业务断言。尝试相同 SHA-256 的镜像来源解决本地网络，不降低测试判据。
+
+### 本机依赖来源
+
+锁定 Qdrant 和 MySQL 均已从替代来源下载，返回的内容摘要分别仍为 `31407c0e8e32eb771b71718f1a4772e2ad47a07557917b21ac96792f40eb8007`、`a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902`。仅给本机隔离测试追加来源覆盖，完整摘要不变；不把另一个版本重打标签冒充锁定版本。辅助校验 9 项通过，覆盖摘要保留、应用不被覆盖、非法主机与未锁来源拒绝。原始 Compose 启动超时记录保留。

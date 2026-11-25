@@ -445,3 +445,5 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 超过预算后不再开拒绝审计事务；同一窗口只记录一次 `operation_audit/denied_budget_exhausted` 告警，每个请求仍保留现有 HTTP 403、路由模板与 request_id 日志。数据库故障的写尝试也占预算，不因失败反复开事务。预算内事件保持原 90 天留存。成功业务、技能、候选题任务审计不受该预算影响。
 
 该保护对应当前固定 1 worker、8 threads 的部署，每个进程分别计数，重启会重置预算；它限制拒绝审计写放大，不限制所有认证查询或网络请求，也不代表完整抗拒绝服务能力。扩容前应重新评审共享预算与入口限流。复验命令为 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k denied_audit_budget`，仅使用隔离合成环境。实际证据见[审计预算与安全复验](docs/changes/2026-11-25-bound-denied-audit.md)。
+
+若本机无法访问 Docker Hub，隔离 Compose 测试可显式设置 `CAMPUSCLAW_TEST_DOCKER_MIRROR=<镜像仓库主机名>`。此选项仅调整 MySQL/Qdrant 的依赖来源，保留仓库锁定的完整 SHA-256；不会修改生产配置、应用镜像、端口或测试断言。默认 CI 使用原来源。来源不支持该摘要时仍应失败，不能换版本或省略摘要。

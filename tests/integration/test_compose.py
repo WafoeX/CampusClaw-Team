@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import time
 import urllib.error
@@ -26,6 +27,24 @@ COMPOSE_OVERRIDES = {
     "CAMPUSCLAW_TEST_MYSQL_URL",
     "CAMPUSCLAW_TEST_VOLUME",
 }
+
+
+def mirrored_dependencies(configuration, mirror):
+    """只替换两项锁定依赖的仓库来源，完整内容摘要保持不变。"""
+    if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)+(?::[0-9]{1,5})?", mirror):
+        raise ValueError("测试镜像来源必须是无路径和凭据的仓库主机名")
+    images = {}
+    for service, prefix, path in (
+        ("mysql", "public.ecr.aws/docker/library/", "library/"),
+        ("qdrant", "qdrant/", "qdrant/"),
+    ):
+        original = configuration["services"][service]["image"]
+        if not original.startswith(prefix) or not re.search(
+            r"@sha256:[0-9a-f]{64}$", original
+        ):
+            raise ValueError("测试镜像必须保留已锁定来源与完整摘要")
+        images[service] = {"image": f"{mirror}/{path}{original.removeprefix(prefix)}"}
+    return {"services": images}
 
 
 def scan_image(scanner, image, folder, env):
@@ -187,6 +206,18 @@ def stack(tmp_path_factory):
         str(ROOT / "docker-compose.yml"),
         *overlay,
     ]
+    mirror = os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR")
+    if mirror:
+        configuration = json.loads(
+            subprocess.check_output(
+                [*command, "config", "--format", "json"], env=env, text=True, timeout=30
+            )
+        )
+        source_overlay = folder / "dependency-sources.json"
+        source_overlay.write_text(
+            json.dumps(mirrored_dependencies(configuration, mirror))
+        )
+        command.extend(("--file", str(source_overlay)))
 
     def compose(*args, check=True, teaching=False, timeout=420):
         extension = (

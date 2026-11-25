@@ -31,6 +31,7 @@ from app.services.denied_audit_budget import DeniedAuditBudget
 
 origin = "https://campusclaw.test"
 headers = {"Origin": origin, "X-CampusClaw-Request": "same-origin"}
+assert os.environ["MYSQL_DATABASE"].startswith("campusclaw_test_")
 engine = mysql_engine(
     host=os.environ["MYSQL_HOST"],
     port=int(os.environ["MYSQL_PORT"]),
@@ -61,7 +62,7 @@ def call(client, method, path, payload=None, extra=None):
         path,
         method=method,
         base_url=origin,
-        headers=headers | (extra or {}),
+        headers=headers | {"Idempotency-Key": uuid4().hex} | (extra or {}),
         **({"json": payload} if payload is not None else {}),
     )
 
@@ -89,6 +90,22 @@ def login(name):
 teacher, student_a, student_b = [
     login(name) for name in ("demo_a_teacher", "demo_a_student", "demo_b_student")
 ]
+token = checked(
+    teacher, "POST", "/api/v1/auth/csrf-tokens", {"action": "create_templates"}
+)["token"]
+template = checked(
+    teacher,
+    "POST",
+    "/api/v1/prompt-templates",
+    {
+        "name": "预算回归模板",
+        "app_key": "practice",
+        "prompt": "{{input}}",
+        "enabled": True,
+    },
+    201,
+    {"X-CampusClaw-CSRF": token},
+)
 source = checked(
     teacher,
     "POST",
@@ -194,7 +211,7 @@ def attack(cookie):
         response = call(
             client,
             "PATCH",
-            f"/api/v1/skills/{uuid4()}",
+            f"/api/v1/prompt-templates/{template['id']}",
             {"name": "拒绝写入", "revision": 1},
         )
         timings.append((monotonic() - started) * 1000)

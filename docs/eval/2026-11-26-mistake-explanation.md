@@ -28,4 +28,14 @@ uv run --locked pytest -q --disable-socket tests/unit/test_skills.py tests/api/t
 
 ## 修改后结果
 
-待实现后使用相同基线集合并追加错题讲解固定集运行，保留样本数、失败与复测。当前环境没有课程模型密钥；真实模型调用和提示质量人工裁决未执行，不能用确定性替身结果替代。
+受影响的接口、技能和教学上下文固定集实际运行：
+
+```text
+uv run --locked pytest -q --disable-socket tests/api/test_openapi.py tests/api/test_teaching.py tests/unit/test_skills.py tests/unit/test_teaching_insights.py
+...................................................................      [100%]
+67 passed in 2.39s
+```
+
+真实 MySQL/Qdrant 隔离脚本进一步执行首轮与追问：模型替身只返回 `diagnose`、`locate`、`retry`、`verify`，服务端渲染固定中文提示；短答案 `42`、直接索要答案及注入文本未进入模型答案字段、SSE 拼接、引用或持久消息。畸形结构以 1501 终止。该脚本在冷启动测试中执行完成；第一次整项命令随后因 Nginx 镜像未使用隔离镜像来源而失败，修复后以相同命令复测为 `1 passed, 12 deselected in 257.06s`。
+
+修改前 29 项基线与修改后 67 项集合的用途不同，不能把数量差当作效果提升。修改后证明结构性输出边界和回归兼容，不能证明课程模型的教学质量。当前环境没有课程模型密钥；真实模型调用、提示是否准确定位真实学生错因及人工裁决均未执行，保留到最终验收，不能用确定性替身结果替代。

@@ -10,6 +10,7 @@ from app.services.access import AccessDenied
 from app.services.skills import (
     BUILTINS,
     HINTS,
+    MISTAKE_HINTS,
     NO_EVIDENCE,
     definition,
     execute_skill,
@@ -143,3 +144,30 @@ def test_SK_F04_second_step_failure_stops_third_and_exposes_no_partial_result():
             recheck=Mock(),
         )
     assert error.value.code == 1500 and chat.complete.call_count == 2
+
+
+def test_mistake_explanation_only_renders_safe_fixed_slots():
+    chosen = row("mistake", ["错题"])
+    chosen["builtin_key"] = "mistake_explanation"
+    chat = Mock()
+    chat.complete.side_effect = [
+        {"hints": ["diagnose", "locate"]},
+        {"hints": ["retry", "verify"]},
+    ]
+
+    result = execute_skill(
+        chosen,
+        "题目：2+2；我的作答：5",
+        mode="problem_guidance",
+        evidence=["合成资料中的概念说明"],
+        chat=chat,
+        deadline=time.monotonic() + 35,
+        before_call=Mock(),
+        recheck=Mock(),
+    )
+
+    assert result["text"] == "\n".join(MISTAKE_HINTS.values())
+    assert result["citations"] == []
+    assert "identify" not in chat.complete.call_args_list[0].args[0][0]["content"]
+    with pytest.raises(AccessDenied):
+        render_selection({"hints": ["identify"]}, chosen)

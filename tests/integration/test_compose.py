@@ -189,6 +189,7 @@ def stack(tmp_path_factory):
         *overlay,
     ]
     mirror = os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR")
+    teaching_source_overlay = None
     if mirror:
         configuration = json.loads(
             subprocess.check_output(
@@ -200,18 +201,42 @@ def stack(tmp_path_factory):
             json.dumps(mirrored_dependencies(configuration, mirror))
         )
         command.extend(("--file", str(source_overlay)))
+        teaching_configuration = json.loads(
+            subprocess.check_output(
+                [
+                    *command,
+                    "--file",
+                    str(ROOT / "docker-compose.teaching.yml"),
+                    "--profile",
+                    "teaching",
+                    "config",
+                    "--format",
+                    "json",
+                ],
+                env=env,
+                text=True,
+                timeout=30,
+            )
+        )
+        teaching_source_overlay = folder / "teaching-dependency-sources.json"
+        teaching_source_overlay.write_text(
+            json.dumps(
+                mirrored_dependencies(
+                    teaching_configuration, mirror, ("kafka", "kafka-topics")
+                )
+            )
+        )
 
     def compose(*args, check=True, teaching=False, timeout=420):
-        extension = (
-            [
+        extension = []
+        if teaching:
+            extension = [
                 "--file",
                 str(ROOT / "docker-compose.teaching.yml"),
-                "--profile",
-                "teaching",
             ]
-            if teaching
-            else []
-        )
+            if teaching_source_overlay:
+                extension.extend(("--file", str(teaching_source_overlay)))
+            extension.extend(("--profile", "teaching"))
         return subprocess.run(
             [*command, *extension, *args],
             cwd=ROOT,

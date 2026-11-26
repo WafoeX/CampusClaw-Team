@@ -13,6 +13,8 @@ def configuration():
                 "image": "public.ecr.aws/docker/library/mysql:8.4@sha256:" + "a" * 64
             },
             "qdrant": {"image": "qdrant/qdrant:v1.15.3@sha256:" + "b" * 64},
+            "kafka": {"image": "apache/kafka:4.1.2@sha256:" + "c" * 64},
+            "kafka-topics": {"image": "apache/kafka:4.1.2@sha256:" + "c" * 64},
             "app": {"image": "local-app:fixture"},
         }
     }
@@ -37,6 +39,19 @@ def test_mirror_preserves_gateway_digest_for_direct_runtime():
     assert mirrored_image("gateway", original, "mirror.example") == (
         "mirror.example/library/nginx:1.30-alpine@sha256:" + "c" * 64
     )
+
+
+def test_mirror_preserves_teaching_kafka_digest():
+    override = mirrored_dependencies(
+        configuration(), "mirror.example", ("kafka", "kafka-topics")
+    )
+    image = "mirror.example/apache/kafka:4.1.2@sha256:" + "c" * 64
+    assert override == {
+        "services": {
+            "kafka": {"image": image},
+            "kafka-topics": {"image": image},
+        }
+    }
 
 
 @pytest.mark.parametrize(

@@ -32,6 +32,9 @@
 | `CAMPUSCLAW_TEST_DOCKER_MIRROR=docker.m.daocloud.io uv run --locked python scripts/check_pytest.py -q -s --tb=short tests/browser/test_teaching.py` | 退出 0，1 项通过，43.82 秒；真实 Chromium 覆盖启动、增量、追问、取消和重试 |
 | `uv run --locked pytest -q --disable-socket tests/unit/test_dependency_sources.py tests/unit/test_acceptance_environment.py` | 退出 0，15 项通过；镜像来源保持完整摘要并拒绝路径、凭据和未锁定镜像 |
 | `uv run --locked python scripts/scenario_trace.py`、`uv run --locked openspec validate 2026-11-26-add-mistake-explanation --strict` | 均退出 0；9 个 ME 场景全部映射到实际 pytest 或隔离脚本断言 |
+| `CAMPUSCLAW_TEST_DOCKER_MIRROR=docker.m.daocloud.io make check` | 退出 0；20 份 OpenSpec、Ruff、分层/场景/API 清单、587 项单元/API、4 项启动、秘密扫描、锁定依赖扫描及 16 项真实依赖/浏览器通过；集成 730.98 秒，HIGH/CRITICAL 为 0 |
+| `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-mistake-explanation-31f146b ... -k security_precheck` | 提交 `31f146b57665e05bc3fe3dd9f840dd12e85b9414` 资产采集退出 0，1 项通过、12 项未选择，39.80 秒 |
+| `make check-security SECURITY_ASSETS=reports/security-assets-mistake-explanation-31f146b SECURITY_CANDIDATE=31f146b57665e05bc3fe3dd9f840dd12e85b9414` | 退出 0；历史、工作区、前端、日志、应用和 MCP 镜像秘密均为 0，依赖 HIGH/CRITICAL 为 0；数据库更新时间 `2026-11-26T13:14:47Z` |
 
 ### 失败与复测
 
@@ -39,6 +42,9 @@
 2. AI 脚本先后发现短答案断言误把固定文案中的“标准答案”术语当泄露、追问没有关键词证据而未进入模型路径、合成技能阻断历史降级。分别改为核对真实短值、提供合成证据、在本段结束清理合成技能后通过。
 3. 冷启动第一次在相关 AI 与教学脚本完成后，因流式 Nginx 代理直接拉取 Docker Hub 返回 125。补齐保留摘要的镜像来源及单元断言后，相同命令复测通过。
 4. 浏览器首次因 Alpine 软件源 TLS 失败未进入测试；缓存镜像后暴露 MySQL 仍直连原来源，再补浏览器 Compose 镜像覆盖。随后发现 CDP 监听器未解包 `MessageEvent`，修正后完整复测通过。
+5. `make check` 首轮在 Ruff 格式门禁发现技能文件两处换行不合规范；自动格式化并跑相关 30 项回归后修复。第二轮在 linked worktree 的秘密扫描发现 mirror clone 少复制另一个 detached worktree HEAD；改为复制公共 Git 引用和全部工作树 HEAD，完整扫描后无秘密。
+6. Trivy 当天数据库从 `mirror.gcr.io` 与 GHCR 下载均长时间无数据；没有用过期数据库冒充结果。通过相同 schema/tag 的 Daocloud 代理取得 `2026-11-26` 数据库后，原判据扫描为 0。
+7. 首次全量集成为 15 项通过、Kafka 项因后加载的 teaching Compose 仍直连 Docker Hub 超时。为 `kafka`、`kafka-topics` 增加保留摘要的后置覆盖；专项复测 `1 passed, 12 deselected in 105.57s`，随后聚合门禁 16 项全通过。
 
 ## Harness 七类自审
 

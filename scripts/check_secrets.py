@@ -41,11 +41,41 @@ def scan_history(image, root, scratch):
     if git(root, "rev-parse", "--is-shallow-repository") != "false":
         raise SystemExit("凭据历史扫描需要完整 Git 历史。")
     expected = git(root, "rev-list", "--all", "--count")
+    common = Path(git(root, "rev-parse", "--git-common-dir"))
+    if not common.is_absolute():
+        common = (root / common).resolve()
     mirror = scratch / "history.git"
     subprocess.run(
-        ["git", "clone", "--quiet", "--mirror", "--no-local", str(root), str(mirror)],
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "--mirror",
+            "--no-local",
+            str(common),
+            str(mirror),
+        ],
         check=True,
     )
+    worktree_heads = [
+        line.removeprefix("HEAD ")
+        for line in git(root, "worktree", "list", "--porcelain").splitlines()
+        if line.startswith("HEAD ")
+    ]
+    for index, head in enumerate(worktree_heads):
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(mirror),
+                "fetch",
+                "--quiet",
+                "--no-tags",
+                str(common),
+                f"{head}:refs/campusclaw-worktrees/{index}",
+            ],
+            check=True,
+        )
     if expected == "0" or git(mirror, "rev-list", "--all", "--count") != expected:
         raise SystemExit("凭据历史扫描副本未包含全部可达提交。")
     scan(image, mirror, "git", "--log-opts=--all")

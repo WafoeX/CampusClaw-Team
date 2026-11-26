@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from flask import g, request
 from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
 
+from app.api.ai_apps import key as request_key
 from app.api.auth import COOKIE
 from app.api.http import success
 from app.api.materials import REQUEST_KEY, _json, _positive, _query, material_id
@@ -31,6 +32,7 @@ TEACHING_POLICIES = {
         ("list_submission_results", ("GET", "HEAD"), TEACHING_WRITE),
         ("override_submission_score", ("PUT",), TEACHING_WRITE),
         ("read_my_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
+        ("create_mistake_explanation_session", ("POST",), TEACHING_ANSWER),
         ("read_quiz_insights", ("GET", "HEAD"), TEACHING_WRITE),
         ("list_mistakes", ("GET", "HEAD"), TEACHING_ANSWER),
         ("list_learning_insights", ("GET", "HEAD"), TEACHING_WRITE),
@@ -137,7 +139,7 @@ def submit_key():
     return value.encode("ascii")
 
 
-def install_teaching(app, service, candidate_jobs=None):
+def install_teaching(app, service, candidate_jobs=None, private_sessions=None):
     @app.after_request
     def teaching_response(response):
         if request.path.startswith(
@@ -404,6 +406,27 @@ def install_teaching(app, service, candidate_jobs=None):
     def read_my_mistakes(value):
         _query()
         return success(service.my_mistakes(g.identity, material_id(value)))
+
+    @app.post("/api/v1/quizzes/<value>/mistakes/<item_id>/explanation-sessions")
+    def create_mistake_explanation_session(value, item_id):
+        _query()
+        exact(body(), set())
+        if private_sessions is None:
+            raise unavailable()
+        quiz_id = material_id(value)
+        mistake_id = material_id(item_id)
+        idempotency_key = request_key()
+        opening = service.mistake_explanation_prompt(g.identity, quiz_id, mistake_id)
+        row, replayed = private_sessions.create_for_builtin(
+            g.identity,
+            request.cookies.get(COOKIE),
+            "mistake_explanation",
+            idempotency_key,
+        )
+        return (
+            success(row | {"opening_question": opening, "replayed": replayed}),
+            200 if replayed else 201,
+        )
 
     @app.get("/api/v1/quizzes/<value>/insights")
     def read_quiz_insights(value):

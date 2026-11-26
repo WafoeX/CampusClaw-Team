@@ -223,6 +223,80 @@ def test_LI_F02_teacher_cannot_read_student_mistakes(candidate):
     teaching.my_mistakes.assert_not_called()
 
 
+def test_mistake_explanation_session_uses_server_prompt_and_private_session(candidate):
+    client, auth, teaching = candidate
+    auth.current.return_value.role = "student"
+    teaching.mistake_explanation_prompt.return_value = "服务端派生的安全开场"
+    sessions = client.application.extensions["private_sessions"]
+    sessions.create_for_builtin = Mock(
+        return_value=(
+            {
+                "id": ID,
+                "assistant_id": "assistant-a",
+                "mode": "problem_guidance",
+                "created_at": "2030-01-01T00:00:00Z",
+                "updated_at": "2030-01-01T00:00:00Z",
+                "expires_at": "2030-01-02T00:00:00Z",
+            },
+            False,
+        )
+    )
+
+    result = client.post(
+        f"/api/v1/quizzes/{ID}/mistakes/{ID}/explanation-sessions",
+        base_url=ORIGIN,
+        headers=HEADERS | {"Idempotency-Key": "mistake-session"},
+        json={},
+    )
+
+    assert result.status_code == 201
+    assert result.json["data"]["opening_question"] == "服务端派生的安全开场"
+    teaching.mistake_explanation_prompt.assert_called_once()
+    sessions.create_for_builtin.assert_called_once()
+    assert sessions.create_for_builtin.call_args.args[2:] == (
+        "mistake_explanation",
+        b"mistake-session",
+    )
+
+
+@pytest.mark.parametrize(
+    "headers,payload,status",
+    [
+        (HEADERS, {}, 400),
+        (HEADERS | {"Idempotency-Key": "valid-key"}, {"answer": "A"}, 400),
+    ],
+)
+def test_mistake_explanation_invalid_key_or_body_stops_before_services(
+    candidate, headers, payload, status
+):
+    client, auth, teaching = candidate
+    auth.current.return_value.role = "student"
+    sessions = client.application.extensions["private_sessions"]
+    sessions.create_for_builtin = Mock()
+
+    result = client.post(
+        f"/api/v1/quizzes/{ID}/mistakes/{ID}/explanation-sessions",
+        base_url=ORIGIN,
+        headers=headers,
+        json=payload,
+    )
+
+    assert result.status_code == status
+    assert not teaching.mock_calls and not sessions.create_for_builtin.mock_calls
+
+
+def test_mistake_explanation_teacher_is_denied_before_context(candidate):
+    client, _, teaching = candidate
+    result = client.post(
+        f"/api/v1/quizzes/{ID}/mistakes/{ID}/explanation-sessions",
+        base_url=ORIGIN,
+        headers=HEADERS | {"Idempotency-Key": "valid-key"},
+        json={},
+    )
+    assert result.status_code == 403 and result.json["code"] == 1200
+    teaching.mistake_explanation_prompt.assert_not_called()
+
+
 def test_LI_F01_insights_rejects_unknown_filter(candidate):
     client, _, teaching = candidate
     result = client.get(

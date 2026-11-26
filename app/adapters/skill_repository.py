@@ -15,6 +15,20 @@ from app.adapters.auth_schema_v1 import classes
 
 
 class SkillRepositoryMixin:
+    @staticmethod
+    def enabled_assistant_ids(connection, class_id):
+        return list(
+            connection.scalars(
+                select(assistants.c.id)
+                .where(
+                    assistants.c.class_id == class_id,
+                    assistants.c.enabled.is_(True),
+                )
+                .order_by(assistants.c.id)
+                .with_for_update()
+            )
+        )
+
     def lock_skill_class(self, connection, class_id):
         connection.execute(
             select(classes.c.id).where(classes.c.id == class_id).with_for_update()

@@ -171,7 +171,7 @@ try {
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 1 / 1")'), true);
   await navigate(`/quizzes/${quiz.id}`);
   await wait(() => js('document.querySelector("#teacher-results input[type=number]") && document.querySelector("#teacher-results input[placeholder=\\"填写改分理由\\"]") && document.querySelector("#teacher-results button") && document.getElementById("notice")?.textContent === "已加载。"'));
-  await js('document.querySelector("#teacher-results input[type=number]").value="999"; document.querySelector("#teacher-results button").click()');
+  await js('document.querySelector("#teacher-results input[type=number]").value="999"; document.querySelectorAll("#teacher-results input")[1].value="浏览器复核"; document.querySelector("#teacher-results button").click()');
   await wait(() => js('document.getElementById("notice")?.textContent === "最终分须在 0 与满分之间"'));
   assert.equal(await js('document.getElementById("notice").classList.contains("error")'), true, "非法分数应显示错误状态");
   assert.equal(await js('document.querySelector("#teacher-results button").disabled'), false, "失败后应允许教师重试");

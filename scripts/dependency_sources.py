@@ -6,9 +6,18 @@ SOURCES = {
     "mysql": ("public.ecr.aws/docker/library/mysql:", "library/mysql:"),
     "qdrant": ("qdrant/qdrant:", "qdrant/qdrant:"),
     "gateway": ("nginx:", "library/nginx:"),
+    "browser": ("public.ecr.aws/docker/library/node:", "library/node:"),
     "kafka": ("apache/kafka:", "apache/kafka:"),
     "kafka-topics": ("apache/kafka:", "apache/kafka:"),
 }
+CI_MIRROR = "docker.m.daocloud.io"
+
+
+def resolve_test_mirror(environment):
+    explicit = environment.get("CAMPUSCLAW_TEST_DOCKER_MIRROR")
+    if explicit:
+        return explicit
+    return CI_MIRROR if environment.get("CI") == "true" else None
 
 
 def mirrored_dependencies(configuration, mirror, services=("mysql", "qdrant")):

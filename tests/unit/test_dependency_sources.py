@@ -2,7 +2,7 @@
 
 import pytest
 
-from scripts.dependency_sources import mirrored_image
+from scripts.dependency_sources import mirrored_image, resolve_test_mirror
 from tests.integration.test_compose import mirrored_dependencies
 
 
@@ -38,6 +38,24 @@ def test_mirror_preserves_gateway_digest_for_direct_runtime():
     original = "nginx:1.30-alpine@sha256:" + "c" * 64
     assert mirrored_image("gateway", original, "mirror.example") == (
         "mirror.example/library/nginx:1.30-alpine@sha256:" + "c" * 64
+    )
+
+
+def test_mirror_preserves_browser_base_digest():
+    original = "public.ecr.aws/docker/library/node:22-alpine@sha256:" + "d" * 64
+    assert mirrored_image("browser", original, "mirror.example") == (
+        "mirror.example/library/node:22-alpine@sha256:" + "d" * 64
+    )
+
+
+def test_ci_uses_locked_test_mirror_without_changing_local_default():
+    assert resolve_test_mirror({"CI": "true"}) == "docker.m.daocloud.io"
+    assert resolve_test_mirror({}) is None
+    assert (
+        resolve_test_mirror(
+            {"CI": "true", "CAMPUSCLAW_TEST_DOCKER_MIRROR": "mirror.example"}
+        )
+        == "mirror.example"
     )
 
 

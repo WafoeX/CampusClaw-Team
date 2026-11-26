@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from scripts.dependency_sources import mirrored_image
+from scripts.dependency_sources import mirrored_image, resolve_test_mirror
 
 ROOT = Path(__file__).resolve().parents[2]
 NGINX = "nginx:1.30.6-alpine@sha256:583b7f2fce1cdb8da5ad5c39ebd3c33b98b87d493190e548bdee1fa8c619c311"
@@ -18,7 +18,7 @@ NGINX = "nginx:1.30.6-alpine@sha256:583b7f2fce1cdb8da5ad5c39ebd3c33b98b87d493190
 
 def verify_streaming_proxy(compose, folder):
     nginx = NGINX
-    if mirror := os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR"):
+    if mirror := resolve_test_mirror(os.environ):
         nginx = mirrored_image("gateway", nginx, mirror)
     password = os.urandom(24).hex()
     label_rows = [

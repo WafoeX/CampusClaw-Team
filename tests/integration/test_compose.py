@@ -12,7 +12,7 @@ import pytest
 
 from app.config import ChatSettings, ConfigError
 from app.teaching_job_contract import CLASS_CAPACITY
-from scripts.dependency_sources import mirrored_dependencies
+from scripts.dependency_sources import mirrored_dependencies, resolve_test_mirror
 from scripts.observability_dashboard import render, summarize, utc
 from scripts.verify_runtime import inspect_probes
 from tests.integration.streaming_proxy_check import verify_streaming_proxy
@@ -188,7 +188,7 @@ def stack(tmp_path_factory):
         str(ROOT / "docker-compose.yml"),
         *overlay,
     ]
-    mirror = os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR")
+    mirror = resolve_test_mirror(os.environ)
     teaching_source_overlay = None
     if mirror:
         configuration = json.loads(

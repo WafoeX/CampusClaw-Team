@@ -12,7 +12,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from scripts.dependency_sources import mirrored_dependencies  # noqa: E402
+from scripts.dependency_sources import (  # noqa: E402
+    mirrored_dependencies,
+    mirrored_image,
+    resolve_test_mirror,
+)
+
+NODE_IMAGE = "public.ecr.aws/docker/library/node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202"
 
 
 def run(*args, capture=False, timeout=420, **options):
@@ -45,9 +51,16 @@ def main():
     origin = f"https://{app_name}:8443"
     password = "Synthetic" + secrets.token_hex(12)
     # BuildKit caches Chromium between runs. Finish downloads before starting MySQL.
-    run(
-        "docker", "build", "-t", browser_image, str(ROOT / "tests/browser"), timeout=900
-    )
+    browser_build = ["docker", "build", "-t", browser_image]
+    mirror = resolve_test_mirror(os.environ)
+    if mirror:
+        browser_build.extend(
+            (
+                "--build-arg",
+                f"NODE_IMAGE={mirrored_image('browser', NODE_IMAGE, mirror)}",
+            )
+        )
+    run(*browser_build, str(ROOT / "tests/browser"), timeout=900)
     with tempfile.TemporaryDirectory(prefix=project + "-") as folder:
         control = Path(folder) / "control"
         control.mkdir(mode=0o777)
@@ -77,7 +90,7 @@ def main():
             "--file",
             str(ROOT / "docker-compose.yml"),
         ]
-        if mirror := os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR"):
+        if mirror:
             configuration = json.loads(
                 run(*base, "config", "--format", "json", capture=True)
             )

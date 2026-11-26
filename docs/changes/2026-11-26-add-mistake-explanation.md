@@ -45,6 +45,7 @@
 5. `make check` 首轮在 Ruff 格式门禁发现技能文件两处换行不合规范；自动格式化并跑相关 30 项回归后修复。第二轮在 linked worktree 的秘密扫描发现 mirror clone 少复制另一个 detached worktree HEAD；改为复制公共 Git 引用和全部工作树 HEAD，完整扫描后无秘密。
 6. Trivy 当天数据库从 `mirror.gcr.io` 与 GHCR 下载均长时间无数据；没有用过期数据库冒充结果。通过相同 schema/tag 的 Daocloud 代理取得 `2026-11-26` 数据库后，原判据扫描为 0。
 7. 首次全量集成为 15 项通过、Kafka 项因后加载的 teaching Compose 仍直连 Docker Hub 超时。为 `kafka`、`kafka-topics` 增加保留摘要的后置覆盖；专项复测 `1 passed, 12 deselected in 105.57s`，随后聚合门禁 16 项全通过。
+8. PR #77 最新提交首次 push 工作流 `45854807353` 的 `make check` 在浏览器基础 Node 镜像遇到 Public ECR `429 Data limit exceeded`，并使其他并行 Compose 基础依赖拉取连带失败；同次两项 `make check-security` 均通过。补充锁定 Node 摘要的构建参数，隔离测试在标准 `CI=true` 环境自动使用无凭据镜像主机，显式配置仍优先、本地默认和生产来源不变；本机镜像路径单元与真实 Chromium 复测通过，远端结果以修复提交的新工作流为准。
 
 ## Harness 七类自审
 

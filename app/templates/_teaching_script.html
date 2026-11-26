@@ -251,6 +251,7 @@
         if (result.score === undefined) panel.append(element('p', '成绩与答案将在开放时间后显示。'));
         else {
           panel.append(element('p', '得分 ' + result.score + ' / ' + result.max_score));
+          if (result.score_source === 'teacher_override') panel.append(element('p', '教师复核：规则分 ' + result.rule_score + '，改分理由：' + result.score_override_reason));
           for (const detail of result.details) panel.append(element('p', (detail.correct ? '正确' : '错误') + ' · 正确答案：' + detail.answer + ' · ' + detail.explanation));
         }
       }
@@ -300,7 +301,21 @@
         if (quiz.published) {
           const data = await api('/api/v1/quizzes/' + teachingTarget + '/submission-results');
           if (!data.items.length) results.append(element('p', '暂无正式提交。'));
-          for (const item of data.items) results.append(element('p', item.student_id + ' · ' + item.score + ' / ' + item.max_score));
+          for (const item of data.items) {
+            const section = element('section'); section.className = 'card';
+            section.append(element('p', item.student_id + ' · 最终分 ' + item.score + ' / ' + item.max_score + ' · 规则分 ' + item.rule_score + (item.score_source === 'teacher_override' ? ' · 教师已复核' : '')));
+            if (item.score_override_reason) section.append(element('p', '改分理由：' + item.score_override_reason));
+            const score = element('input'); score.type = 'number'; score.min = '0'; score.max = String(item.max_score); score.value = String(item.score);
+            const reason = element('input'); reason.maxLength = 500; reason.placeholder = '填写改分理由'; reason.value = item.score_override_reason || '';
+            const button = element('button', '保存最终分'); button.type = 'button';
+            button.addEventListener('click', event => act(event.currentTarget, async () => {
+              await api('/api/v1/quizzes/' + teachingTarget + '/submissions/' + item.submission_id + '/score-override', operation('PUT', { expected_revision: item.score_override_revision, score: Number(score.value), reason: reason.value }));
+              await reload(); return '最终分已更新。';
+            }));
+            const scoreLabel = element('label'); scoreLabel.append(element('span', '最终分'), score);
+            const reasonLabel = element('label'); reasonLabel.append(element('span', '改分理由'), reason);
+            const controls = element('div'); controls.className = 'row'; controls.append(scoreLabel, reasonLabel, button); section.append(controls); results.append(section);
+          }
           const insights = await api('/api/v1/quizzes/' + teachingTarget + '/insights');
           const panel = $('quiz-insights'); panel.replaceChildren();
           renderInsights(panel, insights);

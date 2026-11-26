@@ -754,6 +754,7 @@ def verify_teaching_core(compose):
     )
     assert "TEACHING_RUNTIME_OK" in evidence
     print(evidence)
+    return evidence
 
 
 def test_JB_QB_real_kafka_and_candidate_recovery(stack):
@@ -889,6 +890,12 @@ def test_TJA_data_migration_empty_existing_repeat_and_downgrade(stack):
     assert request("/health")[0] == 200
     result = verify_audit_migration(compose)
     assert result.splitlines()[-1] == "teaching_job_audit_migration_ok"
+
+
+def test_TSO_real_mysql_override_projection_and_migration(stack):
+    compose, _, _, _ = stack
+    evidence = verify_teaching_core(compose)
+    assert "TEACHING_RUNTIME_OK" in evidence
 
 
 def test_JB_F05_mysql_job_transactions_without_broker(stack):

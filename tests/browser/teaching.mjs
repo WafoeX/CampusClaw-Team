@@ -169,7 +169,20 @@ try {
   await navigate("/console/dashboard");
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("提交 1 / 1")'), true);
+  await navigate(`/quizzes/${quiz.id}`);
+  await wait(() => js('document.querySelector("#teacher-results input[type=number]") && document.querySelector("#teacher-results input[placeholder=\\"填写改分理由\\"]") && document.querySelector("#teacher-results button") && document.getElementById("notice")?.textContent === "已加载。"'));
+  await js('document.querySelector("#teacher-results input[type=number]").value="999"; document.querySelectorAll("#teacher-results input")[1].value="浏览器复核"; document.querySelector("#teacher-results button").click()');
+  await wait(() => js('document.getElementById("notice")?.textContent === "最终分须在 0 与满分之间"'));
+  assert.equal(await js('document.getElementById("notice").classList.contains("error")'), true, "非法分数应显示错误状态");
+  assert.equal(await js('document.querySelector("#teacher-results button").disabled'), false, "失败后应允许教师重试");
+  assert.equal(await js('(() => { const score = document.querySelector("#teacher-results input[type=number]"); score.value="6"; return score.value })()'), "6");
+  assert.equal(await js('(() => { const reason = document.querySelector("#teacher-results input[placeholder=\\"填写改分理由\\"]"); reason.value="浏览器复核"; return reason.value })()'), "浏览器复核");
+  await js('document.querySelector("#teacher-results button").click()');
+  await wait(() => js('document.getElementById("notice")?.textContent === "最终分已更新。"'));
+  const overridden = (await api(`/api/v1/quizzes/${quiz.id}/submission-results`)).items[0];
+  assert.deepEqual({rule: overridden.rule_score, final: overridden.score, source: overridden.score_source}, {rule: 0, final: 6, source: "teacher_override"});
   console.log("TEACHING_BROWSER_OK: 草稿恢复、正式提交、答案门控和看板统计");
+  console.log("TEACHER_SCORE_OVERRIDE_BROWSER_OK: 390px 教师改分=6, 规则分=0");
 
   // L10-F07：在同一浏览器里比较合法来源、未登记来源及两个班的可见数据。
   const materialApi = `/api/v1/materials/${material.id}`;

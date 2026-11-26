@@ -123,6 +123,13 @@ REQUESTS = {
             "answers": {"type": "object", "additionalProperties": TEXT},
         }
     ),
+    "override_submission_score": obj(
+        {
+            "expected_revision": {"type": "integer", "minimum": 0},
+            "score": {"type": "integer", "minimum": 0, "maximum": 5000},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 500},
+        }
+    ),
     "login": obj(
         {"login_name": TEXT, "password": {"type": "string", "format": "password"}}
     ),

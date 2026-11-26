@@ -21,6 +21,10 @@ from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.operation_audit_schema_v13 import events
+from app.adapters.score_override_schema_v17 import (
+    score_override_events,
+    score_overrides,
+)
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import (
     questions,
@@ -118,6 +122,7 @@ def request(client, method, path, payload=None, *, key=None):
 
 
 teacher = login(teacher_name)
+teacher2 = login("demo_a_teacher")
 student = login("demo_a_student")
 student2 = login("teaching_a_student_2")
 outsider = login("demo_b_teacher")
@@ -458,6 +463,133 @@ assert (
     first.json["data"]["submission_id"],
     15,
 )
+
+# TSO-N01/N02、TSO-F01–F04：教师改分优先、重放、授权及失败回滚。
+override_path = (
+    f"/api/v1/quizzes/{quiz_id}/submissions/"
+    f"{first.json['data']['submission_id']}/score-override"
+)
+override_payload = {
+    "expected_revision": 0,
+    "score": 12,
+    "reason": "合成复核后调整最终分",
+}
+student_denied = request(again, "PUT", override_path, override_payload)
+assert (student_denied.status_code, student_denied.json["code"]) == (403, 1200)
+foreign = request(outsider, "PUT", override_path, override_payload)
+missing_override = request(
+    outsider,
+    "PUT",
+    f"/api/v1/quizzes/{uuid4()}/submissions/{uuid4()}/score-override",
+    override_payload,
+)
+assert foreign.status_code == missing_override.status_code == 404
+assert all(
+    foreign.json[key] == missing_override.json[key]
+    for key in ("code", "message", "data")
+)
+changed = request(teacher, "PUT", override_path, override_payload)
+assert (changed.status_code, changed.json["data"]["rule_score"]) == (200, 15)
+assert (changed.json["data"]["score"], changed.json["data"]["revision"]) == (12, 1)
+replayed = request(teacher, "PUT", override_path, override_payload)
+assert replayed.json["data"] == changed.json["data"]
+with engine.connect() as connection:
+    assert connection.scalar(select(func.count()).select_from(score_overrides)) == 1
+    assert (
+        connection.scalar(select(func.count()).select_from(score_override_events)) == 1
+    )
+student_score = request(again, "GET", f"/api/v1/quizzes/{quiz_id}/my-submission")
+assert (
+    student_score.json["data"]["rule_score"],
+    student_score.json["data"]["score"],
+    student_score.json["data"]["score_source"],
+) == (15, 12, "teacher_override")
+assert request(teacher, "GET", results_path).json["data"]["items"][0]["score"] == 12
+assert (
+    request(teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights").json["data"][
+        "average_score"
+    ]
+    == 12
+)
+
+
+def fail_override_event(_conn, _cursor, statement, _parameters, _context, _many):
+    if statement.startswith("INSERT INTO quiz_score_override_events"):
+        raise OperationalError(
+            statement, (), RuntimeError("synthetic override failure")
+        )
+
+
+event.listen(engine, "before_cursor_execute", fail_override_event)
+try:
+    failed_override = request(
+        teacher,
+        "PUT",
+        override_path,
+        {
+            "expected_revision": 1,
+            "score": 13,
+            "reason": "合成失败回滚",
+        },
+    )
+finally:
+    event.remove(engine, "before_cursor_execute", fail_override_event)
+assert (failed_override.status_code, failed_override.json["code"]) == (503, 1500)
+with engine.connect() as connection:
+    current = connection.execute(select(score_overrides)).mappings().one()
+    assert (current["score"], current["revision"]) == (12, 1)
+    assert (
+        connection.scalar(select(func.count()).select_from(score_override_events)) == 1
+    )
+
+override_barrier = Barrier(2)
+
+
+def concurrent_override(client, score):
+    override_barrier.wait(timeout=5)
+    return request(
+        client,
+        "PUT",
+        override_path,
+        {
+            "expected_revision": 1,
+            "score": score,
+            "reason": f"并发教师复核为 {score}",
+        },
+    )
+
+
+with ThreadPoolExecutor(max_workers=2) as pool:
+    concurrent_results = list(
+        pool.map(concurrent_override, (teacher, teacher2), (13, 14))
+    )
+assert sorted(
+    (response.status_code, response.json["code"]) for response in concurrent_results
+) == [(200, 0), (409, 1400)]
+with engine.connect() as connection:
+    current = connection.execute(select(score_overrides)).mappings().one()
+    assert current["score"] in (13, 14) and current["revision"] == 2
+    override_history = (
+        connection.execute(
+            select(score_override_events).order_by(score_override_events.c.revision)
+        )
+        .mappings()
+        .all()
+    )
+    teacher_ids = set(
+        connection.scalars(
+            select(accounts.c.id).where(
+                accounts.c.class_id == first_student["class_id"],
+                accounts.c.role == "teacher",
+            )
+        )
+    )
+    assert [row["revision"] for row in override_history] == [1, 2]
+    assert all(
+        row["class_id"] == first_student["class_id"]
+        and row["teacher_id"] in teacher_ids
+        for row in override_history
+    )
 for own_path in (summary_path, results_path):
     foreign = request(outsider, "GET", own_path)
     assert (foreign.status_code, foreign.json["code"], foreign.json["data"]) == (
@@ -845,6 +977,7 @@ with engine.connect() as connection:
         )
     ).all()
 assert existing_results
+assert "quiz_score_overrides" in inspect(engine).get_table_names()
 existing_list = request(teacher, "GET", "/api/v1/quizzes").json["data"]
 config = migration_config()
 with engine.connect() as connection:
@@ -854,9 +987,11 @@ with engine.connect() as connection:
 assert query_index not in {
     item["name"] for item in inspect(engine).get_indexes("quizzes")
 }
+assert "quiz_score_overrides" not in inspect(engine).get_table_names()
 assert request(teacher, "GET", "/api/v1/quizzes").json["data"] == existing_list
 migrate(engine)
 migrate(engine)
+assert "quiz_score_overrides" in inspect(engine).get_table_names()
 assert query_index in {item["name"] for item in inspect(engine).get_indexes("quizzes")}
 assert request(teacher, "GET", "/api/v1/quizzes").json["data"] == existing_list
 with engine.connect() as connection:

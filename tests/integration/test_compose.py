@@ -892,6 +892,21 @@ def test_TJA_data_migration_empty_existing_repeat_and_downgrade(stack):
     assert result.splitlines()[-1] == "teaching_job_audit_migration_ok"
 
 
+def test_ME_data_migration_empty_existing_repeat_and_downgrade(stack):
+    compose, request, _, _ = stack
+    assert request("/live")[0] == 200
+    assert request("/health")[0] == 200
+    result = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("mistake_explanation_migration.py").read_text(),
+    )
+    assert result.splitlines()[-1] == "mistake_explanation_migration_ok"
+
+
 def test_TSO_real_mysql_override_projection_and_migration(stack):
     compose, _, _, _ = stack
     evidence = verify_teaching_core(compose)

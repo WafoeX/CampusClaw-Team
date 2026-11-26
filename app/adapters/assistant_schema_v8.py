@@ -76,7 +76,7 @@ skills = owned_config(
     UniqueConstraint("class_id", "name_key", name="uq_skills_name"),
     UniqueConstraint("class_id", "builtin_key", name="uq_skills_builtin"),
     CheckConstraint(
-        "builtin_key IS NULL OR builtin_key IN ('problem_guidance','learning_plan')",
+        "builtin_key IS NULL OR builtin_key IN ('problem_guidance','learning_plan','mistake_explanation')",
         name="ck_skills_builtin",
     ),
 )

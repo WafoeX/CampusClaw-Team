@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import subprocess
 import time
 import urllib.error
@@ -13,6 +12,7 @@ import pytest
 
 from app.config import ChatSettings, ConfigError
 from app.teaching_job_contract import CLASS_CAPACITY
+from scripts.dependency_sources import mirrored_dependencies
 from scripts.observability_dashboard import render, summarize, utc
 from scripts.verify_runtime import inspect_probes
 from tests.integration.streaming_proxy_check import verify_streaming_proxy
@@ -27,24 +27,6 @@ COMPOSE_OVERRIDES = {
     "CAMPUSCLAW_TEST_MYSQL_URL",
     "CAMPUSCLAW_TEST_VOLUME",
 }
-
-
-def mirrored_dependencies(configuration, mirror):
-    """只替换两项锁定依赖的仓库来源，完整内容摘要保持不变。"""
-    if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)+(?::[0-9]{1,5})?", mirror):
-        raise ValueError("测试镜像来源必须是无路径和凭据的仓库主机名")
-    images = {}
-    for service, prefix, path in (
-        ("mysql", "public.ecr.aws/docker/library/", "library/"),
-        ("qdrant", "qdrant/", "qdrant/"),
-    ):
-        original = configuration["services"][service]["image"]
-        if not original.startswith(prefix) or not re.search(
-            r"@sha256:[0-9a-f]{64}$", original
-        ):
-            raise ValueError("测试镜像必须保留已锁定来源与完整摘要")
-        images[service] = {"image": f"{mirror}/{path}{original.removeprefix(prefix)}"}
-    return {"services": images}
 
 
 def scan_image(scanner, image, folder, env):

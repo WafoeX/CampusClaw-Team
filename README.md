@@ -447,3 +447,9 @@ make check-security SECURITY_ASSETS=reports/security-assets SECURITY_CANDIDATE="
 该保护对应当前固定 1 worker、8 threads 的部署，每个进程分别计数，重启会重置预算；它限制拒绝审计写放大，不限制所有认证查询或网络请求，也不代表完整抗拒绝服务能力。扩容前应重新评审共享预算与入口限流。复验命令为 `uv run --locked python scripts/check_pytest.py -q -s tests/integration/test_compose.py -k denied_audit_budget`，仅使用隔离合成环境。实际证据见[审计预算与安全复验](docs/changes/2026-11-25-bound-denied-audit.md)。
 
 若本机无法访问 Docker Hub，隔离 Compose 测试可显式设置 `CAMPUSCLAW_TEST_DOCKER_MIRROR=<镜像仓库主机名>`。此选项仅调整 MySQL/Qdrant 的依赖来源，保留仓库锁定的完整 SHA-256；不会修改生产配置、应用镜像、端口或测试断言。默认 CI 使用原来源。来源不支持该摘要时仍应失败，不能换版本或省略摘要。
+
+### 完整预验收环境
+
+在干净提交上运行 `uv run --locked python -m scripts.start_acceptance start`，可用本克隆独立的 Compose 项目、合成数据库和回环端口启动 app、HTTPS 网关、MySQL、Qdrant、MCP、Kafka、relay 与 worker。依赖仓库不可达时可追加 `--mirror-host=<镜像仓库主机名>`；工具只转换已知依赖并保留完整 SHA-256。`status` 核对八项服务、双探针和实际提交版本，`smoke` 通过真实 HTTPS 和数据库验证三种合成身份、跨班隐藏、答案开放边界、草稿、交卷幂等及教师汇总，`stop` 只停止本克隆服务并保留数据卷和私有配置。
+
+私有状态位于忽略目录 `runtime/acceptance/`。合成账号为 `demo_a_teacher`、`demo_a_student`、`demo_b_teacher`、`demo_b_student`，口令只从 `runtime/acceptance/config.json` 的 `CAMPUSCLAW_SEED_PASSWORD` 在本机读取，不输出到终端或提交。HTTPS 地址为 `https://localhost:8444`，证书只用于该隔离环境。根目录私有 `.env` 可提供 `CHAT_*`、`EMBEDDING_*` 和 `RETRIEVAL_MIN_SCORE`；缺少时状态明确为未配置，确定性烟测不能替代真实模型或真人最终验收。真实运行证据见[完整隔离预验收环境](docs/changes/2026-11-25-acceptance-environment.md)。

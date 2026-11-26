@@ -2,6 +2,7 @@
 
 import pytest
 
+from scripts.dependency_sources import mirrored_image
 from tests.integration.test_compose import mirrored_dependencies
 
 
@@ -29,6 +30,13 @@ def test_mirror_preserves_both_digests_and_does_not_override_application():
         }
     }
     assert original == configuration()
+
+
+def test_mirror_preserves_gateway_digest_for_direct_runtime():
+    original = "nginx:1.30-alpine@sha256:" + "c" * 64
+    assert mirrored_image("gateway", original, "mirror.example") == (
+        "mirror.example/library/nginx:1.30-alpine@sha256:" + "c" * 64
+    )
 
 
 @pytest.mark.parametrize(

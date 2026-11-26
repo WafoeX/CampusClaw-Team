@@ -1,25 +1,36 @@
 """显式浏览器回归：一次性 MySQL、HTTPS 应用与 Chromium，结束清理。"""
 
+import json
 import os
 import secrets
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from scripts.dependency_sources import mirrored_dependencies  # noqa: E402
 
 
 def run(*args, capture=False, timeout=420, **options):
-    result = subprocess.run(
-        args,
-        cwd=ROOT,
-        check=True,
-        timeout=timeout,
-        text=True,
-        capture_output=capture,
-        **options,
-    )
+    try:
+        result = subprocess.run(
+            args,
+            cwd=ROOT,
+            check=True,
+            timeout=timeout,
+            text=True,
+            capture_output=capture,
+            **options,
+        )
+    except subprocess.CalledProcessError as error:
+        if capture:
+            print(error.stdout or "", end="")
+            print(error.stderr or "", end="", file=sys.stderr)
+        raise
     return result.stdout.strip() if capture else ""
 
 
@@ -56,7 +67,7 @@ def main():
             )
             + "\n"
         )
-        base = (
+        base = [
             "docker",
             "compose",
             "--project-name",
@@ -65,7 +76,16 @@ def main():
             str(config),
             "--file",
             str(ROOT / "docker-compose.yml"),
-        )
+        ]
+        if mirror := os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR"):
+            configuration = json.loads(
+                run(*base, "config", "--format", "json", capture=True)
+            )
+            source_overlay = Path(folder) / "dependency-sources.json"
+            source_overlay.write_text(
+                json.dumps(mirrored_dependencies(configuration, mirror, ("mysql",)))
+            )
+            base.extend(("--file", str(source_overlay)))
         try:
             run(*base, "up", "-d", "mysql", capture=True)
             for _ in range(60):

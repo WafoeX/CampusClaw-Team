@@ -12,15 +12,24 @@ SOURCES = {
 
 
 def mirrored_dependencies(configuration, mirror, services=("mysql", "qdrant")):
+    return {
+        "services": {
+            service: {
+                "image": mirrored_image(
+                    service, configuration["services"][service]["image"], mirror
+                )
+            }
+            for service in services
+        }
+    }
+
+
+def mirrored_image(service, original, mirror):
     if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)+(?::[0-9]{1,5})?", mirror):
         raise ValueError("测试镜像来源必须是无路径和凭据的仓库主机名")
-    images = {}
-    for service in services:
-        prefix, path = SOURCES[service]
-        original = configuration["services"][service]["image"]
-        if not original.startswith(prefix) or not re.search(
-            r"@sha256:[0-9a-f]{64}$", original
-        ):
-            raise ValueError("测试镜像必须保留已锁定来源与完整摘要")
-        images[service] = {"image": f"{mirror}/{path}{original.removeprefix(prefix)}"}
-    return {"services": images}
+    prefix, path = SOURCES[service]
+    if not original.startswith(prefix) or not re.search(
+        r"@sha256:[0-9a-f]{64}$", original
+    ):
+        raise ValueError("测试镜像必须保留已锁定来源与完整摘要")
+    return f"{mirror}/{path}{original.removeprefix(prefix)}"

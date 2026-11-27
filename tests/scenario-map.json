@@ -969,7 +969,7 @@
         "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
         "script": "tests/integration/teaching_runtime.py",
         "runner": "verify_teaching_core",
-        "assertion": "assert first.status_code == 201 and set(first.json[\"data\"]) == {\"submission_id\", \"accepted_at\"}"
+        "assertion": "assert first.status_code == 202 and set(first.json[\"data\"]) == {\"task_id\", \"submission_id\", \"quiz_id\", \"status\", \"accepted_at\", \"started_at\", \"completed_at\"}"
       },
       "SB-B01": {
         "test": "tests/integration/test_compose.py",
@@ -1546,6 +1546,65 @@
         "script": "tests/integration/ai_apps_runtime.py",
         "runner": "verify_ai_apps",
         "assertion": "assert standard_answer not in rendered"
+      }
+    },
+    "2026-11-27-add-async-submissions/specs/async-submission-jobs/spec.md": {
+      "ASJ-N01": {
+        "test": "tests/browser/test_teaching.py",
+        "function": "test_SB_B02_browser_draft_survives_relogin"
+      },
+      "ASJ-F01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(again,\"POST\",f\"/api/v1/quizzes/{quiz_id}/submissions\",{\"draft_revision\":1,\"answers\":{\"bogus\":\"A\"}},key=\"bad-answer\").status_code == 400"
+      },
+      "ASJ-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(teacher, \"GET\", task_path).status_code == 403"
+      },
+      "ASJ-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert all(response.status_code == 404 for response in hidden_tasks)"
+      },
+      "ASJ-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert replayed.status_code == 202 and replayed.json[\"data\"] == first.json[\"data\"]"
+      },
+      "ASJ-B02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert sum(pool.map(drain_submissions, range(2))) == len(burst_responses)"
+      },
+      "ASJ-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert connection.scalar(select(quiz_submissions.c.id).where(quiz_submissions.c.quiz_id == quiz_id)) is None"
+      },
+      "ASJ-F05": {
+        "test": "tests/unit/test_submission_jobs.py",
+        "function": "test_ASJ_F05_resource_changes_fail_without_submission"
+      },
+      "ASJ-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert all(response.status_code == 202 for response in burst_responses), [response.json for response in burst_responses]"
       }
     }
   },

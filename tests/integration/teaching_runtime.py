@@ -156,6 +156,7 @@ teacher2 = login("demo_a_teacher")
 student = login("demo_a_student")
 student2 = login("teaching_a_student_2")
 outsider = login("demo_b_teacher")
+outside_student = login("demo_b_student")
 anonymous = app.test_client()
 assert teacher.get("/console/questions", base_url=origin).status_code == 200
 assert student.get("/console/questions", base_url=origin).status_code == 403
@@ -425,6 +426,30 @@ assert first.status_code == 202 and set(first.json["data"]) == {
     "started_at",
     "completed_at",
 }
+task_path = f"/api/v1/submission-jobs/{first.json['data']['task_id']}"
+own_task = request(again, "GET", task_path)
+assert own_task.status_code == 200
+assert not (
+    {"answers", "score", "student_id", "request_key", "lease_token"}
+    & set(own_task.json["data"])
+)
+hidden_tasks = [
+    request(student2, "GET", task_path),
+    request(outside_student, "GET", task_path),
+    request(student2, "GET", f"/api/v1/submission-jobs/{uuid4()}"),
+]
+assert all(response.status_code == 404 for response in hidden_tasks)
+assert (
+    len(
+        {
+            (response.json["code"], response.json["message"], response.json["data"])
+            for response in hidden_tasks
+        }
+    )
+    == 1
+)
+assert request(teacher, "GET", task_path).status_code == 403
+assert request(anonymous, "GET", task_path).status_code == 401
 replayed = request(
     again,
     "POST",

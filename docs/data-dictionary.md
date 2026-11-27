@@ -257,3 +257,11 @@ Kafka 按每分区 7 天或 64 MiB 保留引用消息。任务、结果、发件
 0018 只扩展 `skills.builtin_key` 的检查约束，允许新增 `mistake_explanation`；不新增表、列或索引，也不回填、改名或删除既有技能。该技能仍使用 `skills`、`skill_revisions` 和 `assistant_skills` 的原有班级归属、修订、启停和级联删除契约，定义中只保存审核过的固定槽位配置，不保存学生作答、标准答案、会话正文或模型输出。
 
 应用回退可保留 0018 约束和新技能行；旧应用会把未知内置技能视为未选中的配置，不应写改其定义。物理降至 0017 只允许 `campusclaw_test_` 合成隔离库，且存在 `mistake_explanation` 行时拒绝降级；删除合成技能行后才可恢复旧约束。正式环境不物理降级，恢复时按既有 MySQL 14 天轮转备份恢复技能及绑定，再核对助手当前修订引用的技能仍启用。该迁移没有新增数据副本、留存期限或清理任务。
+
+## 学生正式提交任务（0019）
+
+`quiz_submission_jobs` 是学生本人正式交卷的持久受理事实，归属链为 `classes → quizzes → quiz_participants → quiz_submission_jobs`。`class_id + quiz_id + student_id` 唯一，确保同一冻结参与者每份测验至多一个任务；`submission_id` 预分配且唯一，成功后与 `quiz_submissions.id` 对齐。任务保存请求幂等键的二进制值、请求指纹、草稿修订、受理时间及处理中所需的作答副本，不保存 Cookie、密码、模型输入、标准答案或其他学生数据。
+
+状态只允许 `pending`、`running`、`succeeded`、`failed`，尝试次数为 0–5。worker 通过 `lease_token` 和 `lease_expires_at` 条件完成，`next_attempt_at` 控制有界重试；失败只记录稳定的去内容 `failure_code`。成功事务写入既有 `quiz_submissions`、`quiz_results` 和唯一 `submitted` 审计后，将任务 `answers` 置空，正式作答只在既有提交表保留。失败任务仍属于学生私人教学数据，沿用测验数据的留存、备份和本人/本班授权边界，不进入教师统计分母。
+
+0019 不回填既有同步提交，也不修改旧表；旧应用可忽略新表，但不能处理已经受理而尚未成功的任务。回退前须停止新受理并由同版本 worker 排空 `pending/running`；正式环境保留任务表，不做物理降级。物理降级仅允许 `campusclaw_test_` 合成隔离库并删除该测试表；恢复备份后接流量前先运行同版本 worker 收敛未完成租约，再核对任务与正式提交的一对一关系和统计分母。

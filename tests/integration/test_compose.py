@@ -83,6 +83,18 @@ def eventually(action, timeout=90):
     pytest.fail("隔离服务在时限内未达到预期状态")
 
 
+def pull_dependencies(compose, *services, attempts=3):
+    """在外部仓库短暂不可用时重试锁定摘要，不改变镜像身份。"""
+    for attempt in range(1, attempts + 1):
+        try:
+            compose("pull", "--quiet", *services, timeout=120)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == attempts:
+                raise
+            time.sleep(attempt * 2)
+
+
 def assert_project_clean(project, env):
     label = f"label=com.docker.compose.project={project}"
     for list_command in (
@@ -248,6 +260,7 @@ def stack(tmp_path_factory):
         ).stdout.strip()
 
     try:
+        pull_dependencies(compose, "mysql", "qdrant")
         compose("up", "--build", "-d")
         scanner = os.environ.get("CAMPUSCLAW_IMAGE_SCANNER")
         if scanner:
@@ -1052,14 +1065,22 @@ def verify_ai_apps(compose):
         "from pathlib import Path; import sys; Path('/tmp/feedback_runtime.py').write_text(sys.argv[1])",
         Path(__file__).with_name("feedback_runtime.py").read_text(),
     )
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/ai_apps_runtime.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("ai_apps_runtime.py").read_text(),
+    )
     evidence = compose(
         "exec",
         "-T",
         "app",
         "python",
         "-c",
-        "import sys; sys.path.insert(0, '/tmp'); exec(sys.argv[1])",
-        Path(__file__).with_name("ai_apps_runtime.py").read_text(),
+        "import runpy, sys; sys.path.insert(0, '/tmp'); runpy.run_path('/tmp/ai_apps_runtime.py', run_name='__main__')",
     )
     return json.loads(
         next(

@@ -411,8 +411,50 @@ class TeachingRepository(MaterialRepository):
     def add_submission_job(self, connection, values):
         connection.execute(insert(quiz_submission_jobs).values(values))
 
+    def requeue_submission_job(self, connection, task_id, now):
+        connection.execute(
+            update(quiz_submission_jobs)
+            .where(
+                quiz_submission_jobs.c.id == task_id,
+                quiz_submission_jobs.c.status == "failed",
+            )
+            .values(
+                status="pending",
+                attempts=0,
+                next_attempt_at=now,
+                lease_token=None,
+                lease_expires_at=None,
+                failure_code=None,
+                started_at=None,
+                completed_at=None,
+            )
+        )
+
     def claim_submission_job(self, connection, token, lease_seconds):
         now = self.now(connection)
+        connection.execute(
+            update(quiz_submission_jobs)
+            .where(
+                quiz_submission_jobs.c.attempts >= 5,
+                or_(
+                    and_(
+                        quiz_submission_jobs.c.status == "pending",
+                        quiz_submission_jobs.c.next_attempt_at <= now,
+                    ),
+                    and_(
+                        quiz_submission_jobs.c.status == "running",
+                        quiz_submission_jobs.c.lease_expires_at <= now,
+                    ),
+                ),
+            )
+            .values(
+                status="failed",
+                lease_token=None,
+                lease_expires_at=None,
+                failure_code="dependency_exhausted",
+                completed_at=now,
+            )
+        )
         row = (
             connection.execute(
                 select(quiz_submission_jobs)

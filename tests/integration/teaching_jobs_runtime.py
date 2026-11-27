@@ -7,7 +7,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import quantiles
-from time import monotonic
+from time import monotonic, sleep
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -27,6 +27,7 @@ from app.adapters.operation_audit_schema_v13 import events
 from app.adapters.retrieval_repository import RetrievalRepository
 from app.adapters.teaching_jobs import TeachingJobs
 from app.adapters.teaching_kafka import commit, consumer, producer, publish
+from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import quiz_results, quizzes
 from app.adapters.teaching_schema_v12 import (
     generated_questions,
@@ -36,6 +37,7 @@ from app.adapters.teaching_schema_v12 import (
     quarantine,
 )
 from app.config import Settings
+from app.services.submission_jobs import SubmissionJobWorker
 from app.services.teaching_candidates import CandidateJobs, UsageCapture
 from app.teaching_job_contract import (
     CLASS_CAPACITY,
@@ -68,6 +70,7 @@ AuthRepository(engine).seed_demo_accounts(
     generate_password_hash(settings.mysql_password, method="scrypt")
 )
 repository = TeachingJobs(engine)
+submission_worker = SubmissionJobWorker(TeachingRepository(engine))
 quote = "串联电路各处电流相等，并联电路各支路电压相等。"
 sample = {
     "kind": "true_false",
@@ -97,6 +100,19 @@ def request(client, method, path, payload=None, key=None):
     return client.open(
         path, method=method, json=payload, headers=headers, base_url=ORIGIN
     )
+
+
+def complete_submission(client, response):
+    assert response.status_code == 202 and response.json["code"] == 0
+    task_id = response.json["data"]["task_id"]
+    for _ in range(100):
+        submission_worker.run_once()
+        current = request(client, "GET", "/api/v1/submission-jobs/" + task_id)
+        if current.json["data"]["status"] == "succeeded":
+            return current.json["data"]
+        assert current.json["data"]["status"] in {"pending", "running"}
+        sleep(0.05)
+    raise AssertionError("正式提交任务未在时限内成功")
 
 
 def login(name):
@@ -483,15 +499,15 @@ if sys.argv[1:] == ["storage"]:
     published = request(teacher, "POST", path + "/publications", {})
     assert published.status_code == 200
     item_id = published.json["data"]["items"][0]["id"]
-    assert (
+    complete_submission(
+        student,
         request(
             student,
             "POST",
             path + "/submissions",
             {"draft_revision": 0, "answers": {item_id: "false"}},
             key="wrong-candidate",
-        ).status_code
-        == 201
+        ),
     )
     with engine.begin() as connection:
         now = repository.now(connection)
@@ -844,7 +860,7 @@ submitted = request(
     {"draft_revision": 0, "answers": {item: "true"}},
     key="manual-during-model-outage",
 )
-assert submitted.status_code == 201 and submitted.json["code"] == 0
+complete_submission(student, submitted)
 with engine.connect() as connection:
     assert (
         connection.scalar(

@@ -704,9 +704,7 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     verify_retrieval(compose, "delete")
     compose("stop", "qdrant")
     assert status("degraded")[0] == 200
-    compose("stop", "submission-worker")
     verify_teaching_core(compose)
-    compose("start", "submission-worker")
     compose("start", "qdrant")
     assert status("ready")[0] == 200
     verify_streaming_proxy(compose, tmp_path / "streaming-proxy")
@@ -772,14 +770,18 @@ def verify_chapter_api(compose):
 
 
 def verify_teaching_core(compose):
-    evidence = compose(
-        "exec",
-        "-T",
-        "app",
-        "python",
-        "-c",
-        Path(__file__).with_name("teaching_runtime.py").read_text(),
-    )
+    compose("stop", "submission-worker")
+    try:
+        evidence = compose(
+            "exec",
+            "-T",
+            "app",
+            "python",
+            "-c",
+            Path(__file__).with_name("teaching_runtime.py").read_text(),
+        )
+    finally:
+        compose("start", "submission-worker")
     assert "TEACHING_RUNTIME_OK" in evidence
     print(evidence)
     return evidence

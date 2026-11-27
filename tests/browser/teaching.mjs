@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { candidates } from "./candidates.mjs";
 import { checkLoginTheme, checkStudentTheme } from "./student_theme.mjs";
@@ -145,21 +145,51 @@ try {
   await wait(() => js('location.pathname.startsWith("/quizzes/") && document.getElementById("notice")?.textContent === "已加载。" && !!document.querySelector("#quiz-items input[type=radio]:checked")'));
   const draft = await api(`/api/v1/quizzes/${quiz.id}/draft`);
   assert.deepEqual(Object.values(draft.answers), ["A"]);
+  const failedTask = randomUUID();
+  async function interceptFailedSubmission({data}) {
+    const message = JSON.parse(data);
+    if (message.method !== "Fetch.requestPaused") return;
+    const {requestId, request} = message.params;
+    if (new URL(request.url).pathname === `/api/v1/quizzes/${quiz.id}/my-submission`) {
+      const body = Buffer.from(JSON.stringify({code:0,message:"成功",request_id:"failed-browser",data:{submitted:false,server_time:new Date().toISOString(),submission_job:{task_id:failedTask,submission_id:randomUUID(),quiz_id:quiz.id,status:"failed",failure_code:"dependency_exhausted",accepted_at:new Date().toISOString(),started_at:new Date().toISOString(),completed_at:new Date().toISOString()}}})).toString("base64");
+      await send("Fetch.fulfillRequest", {requestId,responseCode:200,responseHeaders:[{name:"Content-Type",value:"application/json"}],body});
+    } else await send("Fetch.continueRequest", {requestId});
+  }
+  await js(`sessionStorage.setItem(${JSON.stringify(`campusclaw-submission-key-${quiz.id}`)}, "browser-retry-key")`);
+  socket.addEventListener("message", interceptFailedSubmission);
+  await send("Fetch.enable", {patterns:[{urlPattern:"*/my-submission",requestStage:"Request"}]});
+  await send("Page.reload", {ignoreCache:true});
+  await wait(() => js('document.getElementById("my-result")?.textContent.includes("处理失败")'));
+  assert.equal(await js('document.getElementById("submit-quiz").textContent'), "重试正式提交");
+  assert.equal(await js('document.getElementById("submit-quiz").disabled'), false);
+  await send("Fetch.disable");
+  socket.removeEventListener("message", interceptFailedSubmission);
   let submissionStatus;
+  let submissionRequests = 0;
   const submissionUrl = origin + `/api/v1/quizzes/${quiz.id}/submissions`;
   function observeSubmission({ data }) {
     const message = JSON.parse(data);
+    if (message.method === "Network.requestWillBeSent" && message.params.request.url === submissionUrl) submissionRequests++;
     if (message.method === "Network.responseReceived" && message.params.response.url === submissionUrl) {
       submissionStatus = message.params.response.status;
-      socket.removeEventListener("message", observeSubmission);
     }
   }
   socket.addEventListener("message", observeSubmission);
-  await js('document.querySelectorAll("#quiz-items input[type=radio]")[1].click(); document.getElementById("submit-quiz").click()');
-  await wait(() => js('document.getElementById("notice")?.textContent === "正式提交成功。"'));
-  assert.equal(await wait(async () => submissionStatus), 201);
+  await js('document.querySelectorAll("#quiz-items input[type=radio]")[1].click(); document.getElementById("submit-quiz").click(); document.getElementById("submit-quiz").click()');
+  assert.equal(await wait(async () => submissionStatus), 202);
+  assert.equal(submissionRequests, 1, "重复点击只能发送一次正式提交");
+  socket.removeEventListener("message", observeSubmission);
+  await wait(() => js('document.getElementById("my-result")?.textContent.includes("待处理")'));
   assert.equal(await js('document.getElementById("submit-quiz").disabled'), true, "正式提交后按钮应保持禁用");
   assert.equal(await js('document.getElementById("save-draft").disabled'), true, "正式提交后草稿应只读");
+  await send("Page.reload", {ignoreCache:true});
+  await wait(() => js('document.getElementById("my-result")?.textContent.includes("待处理")'));
+  const submissionTask = (await api(`/api/v1/quizzes/${quiz.id}/my-submission`)).submission_job.task_id;
+  await writeFile("/tmp/browser-control/submission", submissionTask);
+  await wait(() => readFile("/tmp/browser-control/submission-running", "utf8"));
+  await wait(() => js('document.getElementById("my-result")?.textContent.includes("处理中")'));
+  await writeFile("/tmp/browser-control/submission-complete", submissionTask);
+  await wait(() => js('document.getElementById("my-result")?.textContent.includes("已正式提交")'));
   await navigate("/mistakes");
   await wait(() => js('document.getElementById("notice")?.textContent === "已加载。"'));
   assert.equal(await js('document.getElementById("summary-list").textContent.includes("答案尚未开放")'), true);
@@ -286,7 +316,7 @@ try {
   delete foreignJob.body.request_id;
   delete missingJob.body.request_id;
   assert.deepEqual(foreignJob.body, missingJob.body);
-  console.log("H5_BROWSER_CONTRACT_OK: 390px HTTPS, login=200, quiz=201, cross-origin=blocked, cross-class=404/1300");
+  console.log("H5_BROWSER_CONTRACT_OK: 390px HTTPS, login=200, submit=202, cross-origin=blocked, cross-class=404/1300");
 } finally {
   socket.close();
 }

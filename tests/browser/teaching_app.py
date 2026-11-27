@@ -15,8 +15,10 @@ from app.adapters.index_schema_v5 import builds, chunks, materials
 from app.adapters.material_schema_v2 import bodies
 from app.adapters.retrieval_repository import RetrievalRepository
 from app.adapters.teaching_jobs import TeachingJobs
+from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v12 import generated_questions, job_results, outbox
 from app.config import Settings
+from app.services.submission_jobs import SubmissionJobWorker
 from app.services.teaching_candidates import CandidateJobs
 from app.teaching_job_contract import Event
 
@@ -138,6 +140,26 @@ def coordinate(repository, service):
         raise
 
 
+def coordinate_submission(engine):
+    try:
+        task_id = wait_file("submission")
+        repository = TeachingRepository(engine)
+        worker = SubmissionJobWorker(repository)
+        token = str(uuid4())
+        with repository.transaction() as connection:
+            claimed = repository.claim_submission_job(
+                connection, token, worker.LEASE_SECONDS
+            )
+        assert claimed is not None and claimed["id"] == task_id
+        (CONTROL / "submission-running").write_text(task_id)
+        assert wait_file("submission-complete") == task_id
+        worker._complete(task_id, token)
+        (CONTROL / "submission-succeeded").write_text(task_id)
+    except Exception:
+        (CONTROL / "submission-failed").write_text("浏览器正式提交夹具失败")
+        raise
+
+
 def main():
     settings = Settings.load(
         {**os.environ, "TEACHING_JOBS_ENABLED": "1"}, Path("app/BUILD_VERSION")
@@ -160,6 +182,7 @@ def main():
     )
     app = create_app(settings, candidate_jobs=service)
     threading.Thread(target=coordinate, args=(repository, service), daemon=True).start()
+    threading.Thread(target=coordinate_submission, args=(engine,), daemon=True).start()
     app.run(host="0.0.0.0", port=8443, ssl_context="adhoc")
 
 

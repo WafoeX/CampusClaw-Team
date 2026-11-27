@@ -264,7 +264,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、正式交卷 `202`、`pending → running → succeeded`、失败重试、刷新恢复、来源限制和换班隔离。候选题使用固定模型；正式交卷使用文件闸门控制真实 MySQL worker 推进，并核对重复点击、成功停询及唯一结果。测试使用合成账号并清理临时容器和数据卷。H5 七列审计的课程语义仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
 
-两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
+两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`；依赖仓库不可达时追加 `--mirror-host=<镜像仓库主机名>`，工具只替换已知依赖来源并保留完整 SHA-256。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 
 应用和 MCP 运行镜像复制构建阶段生成的 Python 3.13 字节码及必要模板，保留现有启动、迁移与管理命令。候选构建会逐层检查项目源码和构建工具，避免文件从镜像的旧层恢复。运行口令仍从环境注入。
 

@@ -329,7 +329,12 @@ def create_app(
         )
         install_material_pages(app)
         install_openapi(app)
-        install_teaching(app, teaching, candidate_jobs)
+        install_teaching(
+            app,
+            teaching,
+            candidate_jobs,
+            app.extensions["private_sessions"],
+        )
         install_teaching_pages(app, generation_enabled=settings.teaching_jobs_enabled)
         install_tool_connectors(app, tool_connectors)
         install_operation_audit(app, audit)

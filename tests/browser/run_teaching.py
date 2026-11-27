@@ -1,25 +1,42 @@
 """显式浏览器回归：一次性 MySQL、HTTPS 应用与 Chromium，结束清理。"""
 
+import json
 import os
 import secrets
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from scripts.dependency_sources import (  # noqa: E402
+    mirrored_dependencies,
+    mirrored_image,
+    resolve_test_mirror,
+)
+
+NODE_IMAGE = "public.ecr.aws/docker/library/node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202"
 
 
 def run(*args, capture=False, timeout=420, **options):
-    result = subprocess.run(
-        args,
-        cwd=ROOT,
-        check=True,
-        timeout=timeout,
-        text=True,
-        capture_output=capture,
-        **options,
-    )
+    try:
+        result = subprocess.run(
+            args,
+            cwd=ROOT,
+            check=True,
+            timeout=timeout,
+            text=True,
+            capture_output=capture,
+            **options,
+        )
+    except subprocess.CalledProcessError as error:
+        if capture:
+            print(error.stdout or "", end="")
+            print(error.stderr or "", end="", file=sys.stderr)
+        raise
     return result.stdout.strip() if capture else ""
 
 
@@ -34,9 +51,16 @@ def main():
     origin = f"https://{app_name}:8443"
     password = "Synthetic" + secrets.token_hex(12)
     # BuildKit caches Chromium between runs. Finish downloads before starting MySQL.
-    run(
-        "docker", "build", "-t", browser_image, str(ROOT / "tests/browser"), timeout=900
-    )
+    browser_build = ["docker", "build", "-t", browser_image]
+    mirror = resolve_test_mirror(os.environ)
+    if mirror:
+        browser_build.extend(
+            (
+                "--build-arg",
+                f"NODE_IMAGE={mirrored_image('browser', NODE_IMAGE, mirror)}",
+            )
+        )
+    run(*browser_build, str(ROOT / "tests/browser"), timeout=900)
     with tempfile.TemporaryDirectory(prefix=project + "-") as folder:
         control = Path(folder) / "control"
         control.mkdir(mode=0o777)
@@ -56,7 +80,7 @@ def main():
             )
             + "\n"
         )
-        base = (
+        base = [
             "docker",
             "compose",
             "--project-name",
@@ -65,7 +89,16 @@ def main():
             str(config),
             "--file",
             str(ROOT / "docker-compose.yml"),
-        )
+        ]
+        if mirror:
+            configuration = json.loads(
+                run(*base, "config", "--format", "json", capture=True)
+            )
+            source_overlay = Path(folder) / "dependency-sources.json"
+            source_overlay.write_text(
+                json.dumps(mirrored_dependencies(configuration, mirror, ("mysql",)))
+            )
+            base.extend(("--file", str(source_overlay)))
         try:
             run(*base, "up", "-d", "mysql", capture=True)
             for _ in range(60):

@@ -36,7 +36,106 @@
   }
   retry.addEventListener('click', load);
 
-  function renderMistakes(panel, data) {
+  function mistakeExplanation(row, quizId, item) {
+    if (!quizId) return;
+    const controls = element('div'); controls.className = 'row';
+    const start = element('button', '开始错题讲解'); start.type = 'button';
+    const cancel = element('button', '取消生成'); cancel.type = 'button'; cancel.disabled = true;
+    const retryTurn = element('button', '重试讲解'); retryTurn.type = 'button'; retryTurn.hidden = true;
+    const status = element('p', '讲解只给错误原因和改进提示，不直接显示标准答案。'); status.setAttribute('role', 'status');
+    const output = element('pre'); output.hidden = true;
+    const form = element('form'); form.hidden = true;
+    const label = element('label'); label.append(element('span', '继续追问'));
+    const input = element('textarea'); input.maxLength = 500; input.required = true;
+    const send = element('button', '发送追问'); send.type = 'submit';
+    label.append(input); form.append(label, send);
+    controls.append(start, cancel, retryTurn); row.append(controls, status, output, form);
+    let session = null, sessionKey = crypto.randomUUID(), controller = null;
+    let lastQuestion = null, lastKey = null;
+
+    async function stream(question, turnKey) {
+      controller = new AbortController();
+      const timer = setTimeout(() => controller?.abort(), 45000);
+      start.disabled = send.disabled = true; cancel.disabled = false; retryTurn.hidden = true;
+      output.hidden = false; output.textContent = '';
+      let reader;
+      try {
+        status.textContent = '正在生成，当前内容尚未完成…';
+        const response = await fetch('/api/v1/sessions/' + encodeURIComponent(session.id) + '/messages', {
+          method: 'POST', credentials: 'same-origin', signal: controller.signal,
+          headers: { ...writing, 'Idempotency-Key': turnKey },
+          body: JSON.stringify({ question, retrieval_mode: 'keyword' })
+        });
+        if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || '讲解失败，请重试。'); }
+        if (!response.headers.get('Content-Type')?.startsWith('text/event-stream')) throw new Error('讲解流格式错误。');
+        reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8', { fatal: true });
+        let buffer = '', state = 'initial', text = '', deltas = 0;
+        function frame(value) {
+          if (!value.trim() || value.startsWith(':')) return;
+          const lines = value.split('\n');
+          const events = lines.filter(line => line.startsWith('event:'));
+          const datas = lines.filter(line => line.startsWith('data:'));
+          if (events.length !== 1 || datas.length !== 1 || state === 'done') throw new Error('收到异常讲解流。');
+          const name = events[0].slice(6).trim();
+          const payload = JSON.parse(datas[0].slice(5).trim());
+          if (typeof payload.request_id !== 'string') throw new Error('讲解流缺少请求标识。');
+          if (name === 'error') throw new Error(payload.message || '讲解未完成。');
+          if (payload.code !== 0) throw new Error('讲解业务结果错误。');
+          if (name === 'meta' && state === 'initial') { state = 'stream'; return; }
+          if (name === 'delta' && state === 'stream' && typeof payload.data?.text === 'string' && payload.data.text && ++deltas <= 8) {
+            text += payload.data.text;
+            if ([...text].length > 12000) throw new Error('讲解正文超限。');
+            output.textContent = text;
+            return;
+          }
+          if (name === 'done' && state === 'stream' && deltas && typeof payload.data?.message_id === 'string') { state = 'done'; return; }
+          throw new Error('讲解流帧顺序错误。');
+        }
+        while (true) {
+          const { done, value } = await reader.read();
+          buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+          buffer = buffer.replace(/\r\n/g, '\n');
+          if (buffer.length > 131072) throw new Error('讲解流缓冲超限。');
+          let end;
+          while ((end = buffer.indexOf('\n\n')) >= 0) { const part = buffer.slice(0, end); buffer = buffer.slice(end + 2); frame(part); }
+          if (done) break;
+        }
+        if (buffer.trim() || state !== 'done') throw new Error('连接已断开，讲解未完成。');
+        status.textContent = '讲解已完成并保存，可继续追问。';
+        form.hidden = false; input.focus(); lastQuestion = lastKey = null;
+      } catch (error) {
+        status.textContent = error.name === 'AbortError' ? '已取消本次生成，可重试。' : error.message;
+        retryTurn.hidden = false;
+        if (reader) await reader.cancel().catch(() => {});
+      } finally {
+        clearTimeout(timer); controller = null; cancel.disabled = true; start.disabled = false; send.disabled = false;
+      }
+    }
+
+    async function begin() {
+      start.disabled = true; retryTurn.hidden = true; status.textContent = '正在建立本人错题讲解会话…';
+      try {
+        session = await api('/api/v1/quizzes/' + encodeURIComponent(quizId) + '/mistakes/' + encodeURIComponent(item.item_id) + '/explanation-sessions', operation('POST', {}, sessionKey));
+        start.textContent = '重新讲解';
+        lastQuestion = session.opening_question; lastKey = crypto.randomUUID();
+        await stream(lastQuestion, lastKey);
+      } catch (error) { status.textContent = error.message; start.disabled = false; }
+    }
+    start.addEventListener('click', begin);
+    cancel.addEventListener('click', () => controller?.abort());
+    retryTurn.addEventListener('click', () => { if (lastQuestion && lastKey) stream(lastQuestion, lastKey); });
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const question = input.value.trim();
+      const length = [...question].length;
+      if (length < 2 || length > 500) { status.textContent = '请输入2至500个字符的问题。'; return; }
+      lastQuestion = question; lastKey = crypto.randomUUID(); input.value = '';
+      stream(lastQuestion, lastKey);
+    });
+  }
+
+  function renderMistakes(panel, data, quizId = data.quiz_id) {
     if (!data.open) panel.append(element('p', '答案尚未开放或尚未提交。'));
     else if (!data.items.length) panel.append(element('p', '暂无错题。'));
     else for (const item of data.items) {
@@ -47,6 +146,7 @@
         row.append(element('p', '出处：' + source.title + '（原文版本 ' + source.source_version + '）'));
         if (source.text) row.append(element('blockquote', source.text));
       } else row.append(element('p', '来源不可用。'));
+      mistakeExplanation(row, quizId, item);
       panel.append(row);
     }
   }
@@ -219,7 +319,8 @@
         const section = element('section'); section.className = 'card';
         const link = element('a', quiz.title); link.href = '/quizzes/' + quiz.quiz_id;
         section.append(link);
-        render(section, quiz);
+        if (teachingView === 'mistakes') render(section, quiz, quiz.quiz_id);
+        else render(section, quiz);
         list.append(section);
       }
       previous.disabled = page === 1;
@@ -259,7 +360,7 @@
       $('save-draft').disabled = closed; $('submit-quiz').disabled = closed;
       const mistakes = await api('/api/v1/quizzes/' + teachingTarget + '/my-mistakes');
       const mistakePanel = $('my-mistakes'); mistakePanel.replaceChildren();
-      renderMistakes(mistakePanel, mistakes);
+      renderMistakes(mistakePanel, mistakes, teachingTarget);
     };
     $('save-draft')?.addEventListener('click', event => act(event.currentTarget, async () => {
       draft = await api('/api/v1/quizzes/' + teachingTarget + '/draft', operation('PUT', { draft_revision: draft.revision, answers: currentAnswers() }));

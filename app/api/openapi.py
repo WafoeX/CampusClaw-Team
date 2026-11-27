@@ -150,7 +150,13 @@ REQUESTS = {
             obj(SKILL),
             obj(
                 {
-                    "builtin_key": {"enum": ["problem_guidance", "learning_plan"]},
+                    "builtin_key": {
+                        "enum": [
+                            "problem_guidance",
+                            "learning_plan",
+                            "mistake_explanation",
+                        ]
+                    },
                     "enabled": ENABLED,
                 }
             ),
@@ -166,6 +172,7 @@ REQUESTS = {
     "create_private_session": obj(
         {"assistant_id": ID, "mode": {"enum": ["material_qa", "problem_guidance"]}}
     ),
+    "create_mistake_explanation_session": obj({}),
     "register_tool_connector": obj({"alias": TEXT, "key": TEXT}),
     "connect_tool_connector": obj({}),
     "review_connector_tool": obj(

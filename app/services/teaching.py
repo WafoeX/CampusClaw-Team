@@ -788,6 +788,20 @@ class TeachingService:
         except self.database_error:
             raise unavailable() from None
 
+    def mistake_explanation_prompt(self, identity, quiz_id, item_id):
+        result = self.my_mistakes(identity, quiz_id)
+        if not result["open"]:
+            raise missing()
+        item = next((row for row in result["items"] if row["item_id"] == item_id), None)
+        if item is None:
+            raise missing()
+        submitted = item["submitted_answer"] or "未作答"
+        return (
+            f"错题讲解。题目：{item['stem']}\n"
+            f"我的错误作答：{submitted}\n"
+            "请先帮助我定位错误思路并给出下一步提示，不要直接给标准答案。"
+        )
+
     def insights(self, identity, quiz_id):
         try:
             with self.repository.engine.connect() as connection:

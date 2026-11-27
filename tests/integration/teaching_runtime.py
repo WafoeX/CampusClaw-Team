@@ -16,6 +16,14 @@ from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
 
 from app import create_app
+from app.adapters.assistant_schema_v8 import (
+    assistant_revisions,
+    assistant_skills,
+    assistants,
+    sessions,
+    skill_revisions,
+    skills,
+)
 from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import DatabaseError, mysql_engine
@@ -35,6 +43,7 @@ from app.adapters.teaching_schema_v10 import (
     quizzes,
 )
 from app.config import Settings
+from app.services.skills import BUILTINS
 from app.services.teaching import TeachingService
 
 origin = "https://campusclaw.test"
@@ -90,7 +99,11 @@ with engine.begin() as connection:
 
 app = create_app(
     Settings.load(
-        {**os.environ, "APP_PUBLIC_ORIGIN": origin},
+        {
+            **os.environ,
+            "APP_PUBLIC_ORIGIN": origin,
+            "AI_DATA_EXPIRES_AT": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+        },
         Path(os.environ.get("CAMPUSCLAW_TEST_VERSION_FILE", "app/BUILD_VERSION")),
     ),
     teaching=TeachingService(TeachingRepository(engine), DatabaseError),
@@ -735,6 +748,153 @@ assert wrong_item["submitted_answer"] == "A"
 assert (
     wrong_item["answer"] == "B" and wrong_item["explanation"] == choice["explanation"]
 )
+
+# ME-N01、ME-F01–F04：只从本人已开放错题派生开场，并要求专用助手配置。
+explanation_path = (
+    f"/api/v1/quizzes/{new_quiz_id}/mistakes/{new_item}/explanation-sessions"
+)
+missing_configuration = request(
+    student2, "POST", explanation_path, {}, key="mistake-session"
+)
+assert (missing_configuration.status_code, missing_configuration.json["code"]) == (
+    409,
+    1400,
+), missing_configuration.json
+assert "配置" in missing_configuration.json["message"]
+assert request(student2, "POST", explanation_path, {}).status_code == 400
+assert (
+    request(
+        student2,
+        "POST",
+        explanation_path,
+        {"answer": "B"},
+        key="mistake-invalid-body",
+    ).status_code
+    == 400
+)
+assert (
+    request(teacher, "POST", explanation_path, {}, key="teacher-denied").status_code
+    == 403
+)
+assert (
+    request(
+        again,
+        "POST",
+        explanation_path,
+        {},
+        key="unsubmitted-hidden",
+    ).status_code
+    == 404
+)
+assert (
+    request(
+        student2,
+        "POST",
+        f"/api/v1/quizzes/{new_quiz_id}/mistakes/{uuid4()}/explanation-sessions",
+        {},
+        key="missing-hidden",
+    ).status_code
+    == 404
+)
+with engine.connect() as connection:
+    teacher_actor = (
+        connection.execute(
+            select(accounts).where(accounts.c.login_name == teacher_name)
+        )
+        .mappings()
+        .one()
+    )
+now = datetime.now(UTC).replace(tzinfo=None)
+skill_id, assistant_id = str(uuid4()), str(uuid4())
+with engine.begin() as connection:
+    connection.execute(
+        insert(skills).values(
+            id=skill_id,
+            class_id=first_student["class_id"],
+            creator_id=teacher_actor["id"],
+            name="错题讲解",
+            name_key="错题讲解".encode(),
+            builtin_key="mistake_explanation",
+            revision=1,
+            enabled=True,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    connection.execute(
+        insert(skill_revisions).values(
+            class_id=first_student["class_id"],
+            skill_id=skill_id,
+            revision=1,
+            creator_id=teacher_actor["id"],
+            definition=BUILTINS["mistake_explanation"],
+            created_at=now,
+        )
+    )
+    connection.execute(
+        insert(assistants).values(
+            id=assistant_id,
+            class_id=first_student["class_id"],
+            creator_id=teacher_actor["id"],
+            name="专用错题助手",
+            revision=1,
+            enabled=True,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    connection.execute(
+        insert(assistant_revisions).values(
+            class_id=first_student["class_id"],
+            assistant_id=assistant_id,
+            revision=1,
+            creator_id=teacher_actor["id"],
+            prompt="只执行服务端错题讲解槽位",
+            created_at=now,
+        )
+    )
+    connection.execute(
+        insert(assistant_skills).values(
+            class_id=first_student["class_id"],
+            assistant_id=assistant_id,
+            revision=1,
+            skill_id=skill_id,
+        )
+    )
+created_explanation = request(
+    student2, "POST", explanation_path, {}, key="mistake-session"
+)
+assert (created_explanation.status_code, created_explanation.json["code"]) == (201, 0)
+explanation_data = created_explanation.json["data"]
+assert explanation_data["mode"] == "problem_guidance"
+assert explanation_data["assistant_id"] == assistant_id
+assert "我的错误作答：A" in explanation_data["opening_question"]
+assert "答案：B" not in explanation_data["opening_question"]
+replayed_explanation = request(
+    student2, "POST", explanation_path, {}, key="mistake-session"
+)
+assert replayed_explanation.status_code == 200
+assert replayed_explanation.json["data"]["id"] == explanation_data["id"]
+with engine.connect() as connection:
+    assert connection.scalar(select(func.count()).select_from(sessions)) == 1
+
+
+def fail_explanation_session(_conn, _cursor, statement, _parameters, _context, _many):
+    if statement.startswith("INSERT INTO sessions"):
+        raise OperationalError(statement, (), RuntimeError("synthetic session failure"))
+
+
+session_engine = app.extensions["private_sessions"].repository.engine
+event.listen(session_engine, "before_cursor_execute", fail_explanation_session)
+try:
+    failed_explanation = request(
+        student2, "POST", explanation_path, {}, key="mistake-storage-failure"
+    )
+finally:
+    event.remove(session_engine, "before_cursor_execute", fail_explanation_session)
+assert (failed_explanation.status_code, failed_explanation.json["code"]) == (503, 1500)
+with engine.connect() as connection:
+    assert connection.scalar(select(func.count()).select_from(sessions)) == 1
 unsubmitted_mistakes = request(again, "GET", mistakes_path)
 assert (
     unsubmitted_mistakes.status_code == 200 and unsubmitted_mistakes.json["code"] == 0
@@ -979,6 +1139,9 @@ with engine.connect() as connection:
 assert existing_results
 assert "quiz_score_overrides" in inspect(engine).get_table_names()
 existing_list = request(teacher, "GET", "/api/v1/quizzes").json["data"]
+# 0018 的受控降级要求先移除合成库专用技能；会话行仍用于核对上游数据兼容。
+with engine.begin() as connection:
+    connection.execute(delete(skills).where(skills.c.id == skill_id))
 config = migration_config()
 with engine.connect() as connection:
     config.attributes["connection"] = connection

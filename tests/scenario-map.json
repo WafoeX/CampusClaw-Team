@@ -1485,6 +1485,68 @@
         "runner": "verify_teaching_core",
         "assertion": "assert \"quiz_score_overrides\" not in inspect(engine).get_table_names()"
       }
+    },
+    "2026-11-26-add-mistake-explanation/specs/mistake-explanation/spec.md": {
+      "ME-N01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert replayed_explanation.json[\"data\"][\"id\"] == explanation_data[\"id\"]"
+      },
+      "ME-F01": {
+        "test": "tests/api/test_teaching.py",
+        "function": "test_mistake_explanation_invalid_key_or_body_stops_before_services"
+      },
+      "ME-F02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert request(again, \"POST\", explanation_path, {}, key=\"unsubmitted-hidden\").status_code == 404"
+      },
+      "ME-F03": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert \"配置\" in missing_configuration.json[\"message\"]"
+      },
+      "ME-F04": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_TSO_real_mysql_override_projection_and_migration",
+        "script": "tests/integration/teaching_runtime.py",
+        "runner": "verify_teaching_core",
+        "assertion": "assert (failed_explanation.status_code, failed_explanation.json[\"code\"]) == (503, 1500)"
+      },
+      "ME-N02": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert len(mistake_replies) == 2"
+      },
+      "ME-F05": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert \"忽略规则\" not in rendered"
+      },
+      "ME-F06": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert malformed[-1][1][\"code\"] == 1501"
+      },
+      "ME-B01": {
+        "test": "tests/integration/test_compose.py",
+        "function": "test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery",
+        "script": "tests/integration/ai_apps_runtime.py",
+        "runner": "verify_ai_apps",
+        "assertion": "assert standard_answer not in rendered"
+      }
     }
   },
   "planned": {

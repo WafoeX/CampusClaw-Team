@@ -20,8 +20,8 @@ from app.services.answer_validation import (
 )
 from app.services.materials import missing, unavailable
 from app.services.operation_audit import append_audit
-from app.services.skills import HINTS, render_selection, select_skill
 from app.services.skills import NO_EVIDENCE as NO_GUIDANCE_EVIDENCE
+from app.services.skills import hint_catalog, render_selection, select_skill
 from app.services.tool_connectors import references
 
 KEY = re.compile(rb"[A-Za-z0-9_-]{1,64}")
@@ -184,6 +184,69 @@ class SessionService:
         except self.ai.database_error:
             raise unavailable() from None
 
+    def create_for_builtin(self, identity, cookie, builtin_key, key):
+        """为专用内置技能选择只绑定该技能的当前助手，避免后续追问改变选路。"""
+        valid_key(key)
+        if builtin_key != "mistake_explanation":
+            raise bad()
+        resource_id = str(
+            uuid5(
+                NAMESPACE_URL,
+                "campusclaw-session:"
+                + identity.class_id
+                + ":"
+                + identity.subject_id
+                + ":"
+                + key.decode(),
+            )
+        )
+        try:
+            with self.repository.transaction() as connection:
+                self.ai._actor(connection, identity, cookie)
+                prior = self.repository.lock_session(connection, identity, resource_id)
+                if prior is not None:
+                    if (
+                        prior["expires_at"] <= self.ai.clock()
+                        or prior["mode"] != "problem_guidance"
+                    ):
+                        raise conflict()
+                    _, _, skills = self._configuration(connection, identity, prior)
+                    if len(skills) != 1 or skills[0]["builtin_key"] != builtin_key:
+                        raise conflict("讲解助手配置已变化，请重新发起")
+                    return session_view(prior), True
+                expires = self._expiry()
+                assistant_id = None
+                for candidate in self.repository.enabled_assistant_ids(
+                    connection, identity.class_id
+                ):
+                    provisional = {
+                        "assistant_id": candidate,
+                        "mode": "problem_guidance",
+                    }
+                    _, _, skills = self._configuration(
+                        connection, identity, provisional
+                    )
+                    if len(skills) == 1 and skills[0]["builtin_key"] == builtin_key:
+                        assistant_id = candidate
+                        break
+                if assistant_id is None:
+                    raise conflict("尚未配置可用的错题讲解助手")
+                now = self.ai.clock()
+                row = dict(
+                    id=resource_id,
+                    class_id=identity.class_id,
+                    owner_id=identity.subject_id,
+                    assistant_id=assistant_id,
+                    mode="problem_guidance",
+                    created_at=now,
+                    updated_at=now,
+                    expires_at=expires,
+                )
+                self.repository.insert_session(connection, row)
+                return session_view(row), False
+        except self.ai.database_error:
+            raise unavailable() from None
+
     def list(self, identity, cookie, page, size):
         try:
             with self.repository.transaction() as connection:
@@ -326,9 +389,14 @@ class SessionService:
             "assistant_enabled": enabled,
             "material_ids": row["material_ids"] if enabled else [],
             "skills": [
-                {"id": skill["id"], "revision": skill["revision"]} for skill in skills
+                {
+                    "id": skill["id"],
+                    "revision": skill["revision"],
+                    "builtin_key": skill["builtin_key"],
+                }
+                for skill in skills
             ],
-            "prompt_version": "private-sessions-v1",
+            "prompt_version": "private-sessions-v2",
         }
         return (
             configuration,
@@ -447,7 +515,12 @@ class SessionService:
                     connection, identity.class_id, evidence
                 ):
                     raise conflict()
-                selected = select_skill(normalized["question"], skills)
+                selected = (
+                    skills[0]
+                    if len(skills) == 1
+                    and skills[0]["builtin_key"] == "mistake_explanation"
+                    else select_skill(normalized["question"], skills)
+                )
                 requested_tools = normalized.get("selected_tools", [])
                 bound = selected["definition"]["tools"] if selected else []
                 candidates = (
@@ -596,11 +669,12 @@ class SessionService:
         """持久成功必须由本服务重验模型结构，不能相信调用方传入自由正文。"""
         steps = []
         if ticket["configuration"]["app_key"] == "problem_guidance":
+            catalog = hint_catalog(ticket["selected_skill"])
             if not ticket["evidence"]:
                 if payload is not None:
                     raise bad()
                 text, cited = (
-                    NO_GUIDANCE_EVIDENCE + "\n" + "\n".join(HINTS.values()),
+                    NO_GUIDANCE_EVIDENCE + "\n" + "\n".join(catalog.values()),
                     [],
                 )
             else:
@@ -612,7 +686,10 @@ class SessionService:
                 if not isinstance(payload, list) or len(payload) != expected:
                     raise bad()
                 steps = [
-                    {"ordinal": index, "text": render_selection(value)}
+                    {
+                        "ordinal": index,
+                        "text": render_selection(value, ticket["selected_skill"]),
+                    }
                     for index, value in enumerate(payload, 1)
                 ]
                 text, cited = "\n".join(step["text"] for step in steps), []

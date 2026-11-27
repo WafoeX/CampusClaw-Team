@@ -12,7 +12,7 @@ import pytest
 
 from app.config import ChatSettings, ConfigError
 from app.teaching_job_contract import CLASS_CAPACITY
-from scripts.dependency_sources import mirrored_dependencies
+from scripts.dependency_sources import mirrored_dependencies, resolve_test_mirror
 from scripts.observability_dashboard import render, summarize, utc
 from scripts.verify_runtime import inspect_probes
 from tests.integration.streaming_proxy_check import verify_streaming_proxy
@@ -188,7 +188,8 @@ def stack(tmp_path_factory):
         str(ROOT / "docker-compose.yml"),
         *overlay,
     ]
-    mirror = os.environ.get("CAMPUSCLAW_TEST_DOCKER_MIRROR")
+    mirror = resolve_test_mirror(os.environ)
+    teaching_source_overlay = None
     if mirror:
         configuration = json.loads(
             subprocess.check_output(
@@ -200,18 +201,42 @@ def stack(tmp_path_factory):
             json.dumps(mirrored_dependencies(configuration, mirror))
         )
         command.extend(("--file", str(source_overlay)))
+        teaching_configuration = json.loads(
+            subprocess.check_output(
+                [
+                    *command,
+                    "--file",
+                    str(ROOT / "docker-compose.teaching.yml"),
+                    "--profile",
+                    "teaching",
+                    "config",
+                    "--format",
+                    "json",
+                ],
+                env=env,
+                text=True,
+                timeout=30,
+            )
+        )
+        teaching_source_overlay = folder / "teaching-dependency-sources.json"
+        teaching_source_overlay.write_text(
+            json.dumps(
+                mirrored_dependencies(
+                    teaching_configuration, mirror, ("kafka", "kafka-topics")
+                )
+            )
+        )
 
     def compose(*args, check=True, teaching=False, timeout=420):
-        extension = (
-            [
+        extension = []
+        if teaching:
+            extension = [
                 "--file",
                 str(ROOT / "docker-compose.teaching.yml"),
-                "--profile",
-                "teaching",
             ]
-            if teaching
-            else []
-        )
+            if teaching_source_overlay:
+                extension.extend(("--file", str(teaching_source_overlay)))
+            extension.extend(("--profile", "teaching"))
         return subprocess.run(
             [*command, *extension, *args],
             cwd=ROOT,
@@ -890,6 +915,21 @@ def test_TJA_data_migration_empty_existing_repeat_and_downgrade(stack):
     assert request("/health")[0] == 200
     result = verify_audit_migration(compose)
     assert result.splitlines()[-1] == "teaching_job_audit_migration_ok"
+
+
+def test_ME_data_migration_empty_existing_repeat_and_downgrade(stack):
+    compose, request, _, _ = stack
+    assert request("/live")[0] == 200
+    assert request("/health")[0] == 200
+    result = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("mistake_explanation_migration.py").read_text(),
+    )
+    assert result.splitlines()[-1] == "mistake_explanation_migration_ok"
 
 
 def test_TSO_real_mysql_override_projection_and_migration(stack):

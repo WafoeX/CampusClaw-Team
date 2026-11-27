@@ -22,3 +22,4 @@ def test_SB_B02_browser_draft_survives_relogin():
     assert "H5_AUDIT_BROWSER_OK" in result.stdout
     assert "SR_F08_XSS_BROWSER_OK" in result.stdout
     assert "STUDENT_THEME_BROWSER_OK" in result.stdout
+    assert "MISTAKE_EXPLANATION_BROWSER_OK" in result.stdout

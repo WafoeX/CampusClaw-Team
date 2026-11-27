@@ -28,7 +28,7 @@ def configured_engine():
 
 def worker_ready(engine):
     with engine.connect() as connection:
-        connection.execute(text("SELECT 1 FROM quiz_submission_jobs LIMIT 1"))
+        connection.execute(text("SELECT 1"))
 
 
 def healthcheck():

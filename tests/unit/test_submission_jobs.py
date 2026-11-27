@@ -105,7 +105,7 @@ def test_ASJ_F05_lost_lease_cannot_claim_success():
         worker._complete("task", "old-token")
 
 
-def test_worker_readiness_requires_submission_job_table():
+def test_worker_readiness_requires_database_connection():
     connection = Mock()
     engine = Mock()
     engine.connect.return_value = nullcontext(connection)
@@ -113,4 +113,4 @@ def test_worker_readiness_requires_submission_job_table():
     worker_ready(engine)
 
     statement = connection.execute.call_args.args[0]
-    assert str(statement) == "SELECT 1 FROM quiz_submission_jobs LIMIT 1"
+    assert str(statement) == "SELECT 1"

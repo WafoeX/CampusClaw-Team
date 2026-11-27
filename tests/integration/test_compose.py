@@ -645,8 +645,9 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
         ]
         for row in map(json.loads, compose("ps", "--format", "json").splitlines())
     }
-    assert set(published) == {"app", "mysql", "qdrant"}
+    assert set(published) == {"app", "mysql", "qdrant", "submission-worker"}
     assert published["mysql"] == published["qdrant"] == []
+    assert published["submission-worker"] == []
     assert len(published["app"]) == 1
     assert published["app"][0]["URL"] == "127.0.0.1"
     assert published["app"][0]["TargetPort"] == 8080
@@ -703,7 +704,9 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
     verify_retrieval(compose, "delete")
     compose("stop", "qdrant")
     assert status("degraded")[0] == 200
+    compose("stop", "submission-worker")
     verify_teaching_core(compose)
+    compose("start", "submission-worker")
     compose("start", "qdrant")
     assert status("ready")[0] == 200
     verify_streaming_proxy(compose, tmp_path / "streaming-proxy")

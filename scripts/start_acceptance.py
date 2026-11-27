@@ -31,6 +31,7 @@ MODEL_KEYS = (
 ORIGIN = "https://localhost:8444"
 REQUIRED = {
     "app",
+    "submission-worker",
     "mysql",
     "qdrant",
     "gateway",

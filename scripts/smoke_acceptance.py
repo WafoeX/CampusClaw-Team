@@ -2,6 +2,7 @@
 
 import json
 import ssl
+import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -130,7 +131,7 @@ def smoke(state, values):
         "POST",
         f"/api/v1/quizzes/{quiz['id']}/submissions",
         payload,
-        201,
+        202,
         submit_key,
     )["data"]
     repeated = send(
@@ -138,11 +139,22 @@ def smoke(state, values):
         "POST",
         f"/api/v1/quizzes/{quiz['id']}/submissions",
         payload,
-        201,
+        202,
         submit_key,
     )["data"]
     if first != repeated:
         raise ValueError("同键正式交卷没有保持幂等")
+    for _ in range(120):
+        task = send(student, "GET", f"/api/v1/submission-jobs/{first['task_id']}")[
+            "data"
+        ]
+        if task["status"] == "succeeded":
+            break
+        if task["status"] == "failed":
+            raise ValueError("正式交卷任务处理失败")
+        time.sleep(0.25)
+    else:
+        raise ValueError("正式交卷任务未在时限内完成")
     insights = send(teacher, "GET", f"/api/v1/quizzes/{quiz['id']}/insights")["data"]
     if insights["submissions"] != 1 or insights["average_score"] != 5:
         raise ValueError("真实成绩或教师汇总与合成结果不一致")

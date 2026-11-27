@@ -432,58 +432,49 @@ class TeachingRepository(MaterialRepository):
 
     def claim_submission_job(self, connection, token, lease_seconds):
         now = self.now(connection)
-        connection.execute(
-            update(quiz_submission_jobs)
-            .where(
-                quiz_submission_jobs.c.attempts >= 5,
-                or_(
-                    and_(
-                        quiz_submission_jobs.c.status == "pending",
-                        quiz_submission_jobs.c.next_attempt_at <= now,
-                    ),
-                    and_(
-                        quiz_submission_jobs.c.status == "running",
-                        quiz_submission_jobs.c.lease_expires_at <= now,
-                    ),
-                ),
-            )
-            .values(
-                status="failed",
-                lease_token=None,
-                lease_expires_at=None,
-                failure_code="dependency_exhausted",
-                completed_at=now,
-            )
-        )
-        row = (
-            connection.execute(
-                select(quiz_submission_jobs)
-                .where(
-                    or_(
-                        and_(
-                            quiz_submission_jobs.c.status == "pending",
-                            quiz_submission_jobs.c.next_attempt_at <= now,
-                        ),
-                        and_(
-                            quiz_submission_jobs.c.status == "running",
-                            quiz_submission_jobs.c.lease_expires_at <= now,
-                        ),
-                    ),
-                    quiz_submission_jobs.c.attempts < 5,
+        while True:
+            row = (
+                connection.execute(
+                    select(quiz_submission_jobs)
+                    .where(
+                        or_(
+                            and_(
+                                quiz_submission_jobs.c.status == "pending",
+                                quiz_submission_jobs.c.next_attempt_at <= now,
+                            ),
+                            and_(
+                                quiz_submission_jobs.c.status == "running",
+                                quiz_submission_jobs.c.lease_expires_at <= now,
+                            ),
+                        )
+                    )
+                    .order_by(
+                        quiz_submission_jobs.c.next_attempt_at,
+                        quiz_submission_jobs.c.accepted_at,
+                        quiz_submission_jobs.c.id,
+                    )
+                    .limit(1)
+                    .with_for_update(skip_locked=True)
                 )
-                .order_by(
-                    quiz_submission_jobs.c.next_attempt_at,
-                    quiz_submission_jobs.c.accepted_at,
-                    quiz_submission_jobs.c.id,
-                )
-                .limit(1)
-                .with_for_update(skip_locked=True)
+                .mappings()
+                .one_or_none()
             )
-            .mappings()
-            .one_or_none()
-        )
-        if row is None:
-            return None
+            if row is None:
+                return None
+            if row["attempts"] >= 5:
+                connection.execute(
+                    update(quiz_submission_jobs)
+                    .where(quiz_submission_jobs.c.id == row["id"])
+                    .values(
+                        status="failed",
+                        lease_token=None,
+                        lease_expires_at=None,
+                        failure_code="dependency_exhausted",
+                        completed_at=now,
+                    )
+                )
+                continue
+            break
         connection.execute(
             update(quiz_submission_jobs)
             .where(quiz_submission_jobs.c.id == row["id"])

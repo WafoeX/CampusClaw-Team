@@ -2,7 +2,7 @@
 
 ## 1. 规约与基线
 
-- [ ] 1.1 建立 proposal、design 和 async-submission-jobs spec，严格校验，并用现有 API/真实 MySQL 回归固定 `201` 同步提交、事务评分、幂等及答案开放基线。
+- [x] 1.1 建立 proposal、design 和 async-submission-jobs spec，严格校验，并用现有 API/真实 MySQL 回归固定 `201` 同步提交、事务评分、幂等及答案开放基线。
 
 ## 2. 数据与任务处理
 

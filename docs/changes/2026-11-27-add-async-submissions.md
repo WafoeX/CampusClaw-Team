@@ -76,6 +76,20 @@ Harness 七类核查：
 
 AI 提示词、模型、检索参数及技能行为未改变，`project-prompt-eval` 不适用；本地未做真人体验、跨机器复验或人工批准。
 
+### 任务 4.3：安全门禁、候选与评审准备
+
+本组按 `project-review` 读取本变更全部规划产物、评审规范和实际差异，核对任务、文档、权限、数据副本、命令与失败记录。约束文件的修订只更新已实现的作业 202 现状和剩余验收缺口，没有删除断言、降低门禁或自填人工批准。
+
+| 命令 | 实际结果 |
+| --- | --- |
+| `make check-security SECURITY_CANDIDATE=2266898...` | 首轮非零：历史、工作区和依赖为 0 发现，但前端、日志及两个镜像资产缺失，四项 exit 2；不计通过。随后以 `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-2266898 ... -k security_precheck` 采集同提交资产，1 项通过、13 未选择，39.53 秒；安全门禁七范围全部 exit 0。 |
+| `.venv/bin/python -m scripts.build_candidate 2266898...` | 首次因本机缺 buildx 插件未开始；安装 Ubuntu `docker-buildx 0.30.1` 后，第二次在 Python 包源连接超时；重试成功构建镜像，但启动阶段因工具没有依赖镜像代理参数而访问 Docker Hub 超时。新增显式 `--mirror-host`，复用锁定摘要转换，相关单元 20 项通过。 |
+| `.venv/bin/python -m scripts.build_candidate 83ebe65... --mirror-host=docker.m.daocloud.io` | 退出 0。app 镜像摘要 `sha256:1da2c141...e920f`、检查 5 层；MCP 镜像摘要 `sha256:74df8391...62e4b`、检查 4 层。app、submission-worker、MCP、MySQL、Qdrant 均健康，运行版本与提交一致，`/live`、`/health` 均 200，结束后隔离容器和卷已清理。 |
+| `CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-83ebe65 ... -k security_precheck` | 最终提交资产采集退出 0，1 项通过、13 未选择，39.33 秒。 |
+| `make check-security SECURITY_ASSETS=reports/security-assets-83ebe65 SECURITY_CANDIDATE=83ebe65...` | 退出 0；可达历史 391 提交、工作区、前端、日志、app 与 MCP 镜像秘密均为 0，锁定依赖 High 0、Critical 0，漏洞库更新时间为 2026-11-27。 |
+
+交付自检结论：规约与代码范围通过，权限和答案边界通过，迁移/回退证据通过，README、产品清单、数据字典和课程差异同步通过，自动化门禁与候选启动通过。真实课程模型评测不适用；生产迁移、生产容量、真人体验、跨机器复验未执行。实际同伴代码评审、PR 必需检查和最终真人验收待执行，助手自检不构成人工批准。
+
 ## 评审结论
 
-任务 1.1、2.1、2.2、3.1–3.3、4.1 和 4.2 已完成自动化实现与对应验证。安全门禁、候选镜像构建和独立人工代码评审仍待 4.3；最终真人验收未执行。
+任务 1.1、2.1、2.2、3.1–3.3、4.1 和 4.2 已完成；4.3 的安全门禁、候选镜像与评审准备已完成，分支推送、独立 PR 及远端必需检查尚待执行。实际同伴代码评审和最终真人验收未执行。

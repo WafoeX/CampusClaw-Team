@@ -2,8 +2,11 @@
 
 import os
 import signal
+import sys
 import threading
 from pathlib import Path
+
+from sqlalchemy import text
 
 from app.adapters.database import DatabaseError, mysql_engine
 from app.adapters.teaching_repository import TeachingRepository
@@ -12,15 +15,32 @@ from app.observability import log_event
 from app.services.submission_jobs import SubmissionJobWorker
 
 
-def main():
+def configured_engine():
     settings = Settings.load(os.environ, Path(__file__).with_name("BUILD_VERSION"))
-    engine = mysql_engine(
+    return settings, mysql_engine(
         host=settings.mysql_host,
         port=settings.mysql_port,
         database=settings.mysql_database,
         user=settings.mysql_user,
         password=settings.mysql_password,
     )
+
+
+def worker_ready(engine):
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1 FROM quiz_submission_jobs LIMIT 1"))
+
+
+def healthcheck():
+    _, engine = configured_engine()
+    try:
+        worker_ready(engine)
+    finally:
+        engine.dispose()
+
+
+def main():
+    settings, engine = configured_engine()
     repository = TeachingRepository(engine)
     worker = SubmissionJobWorker(repository)
     stopping = threading.Event()
@@ -56,4 +76,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--healthcheck"]:
+        healthcheck()
+    elif sys.argv[1:]:
+        raise SystemExit("submission-worker 参数无效")
+    else:
+        main()

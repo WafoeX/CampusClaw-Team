@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.services.submission_jobs import SubmissionInvariantError, SubmissionJobWorker
+from app.submission_worker import worker_ready
 
 NOW = datetime(2030, 1, 1)
 
@@ -102,3 +103,14 @@ def test_ASJ_F05_lost_lease_cannot_claim_success():
     worker = SubmissionJobWorker(store)
     with pytest.raises(SubmissionInvariantError):
         worker._complete("task", "old-token")
+
+
+def test_worker_readiness_requires_submission_job_table():
+    connection = Mock()
+    engine = Mock()
+    engine.connect.return_value = nullcontext(connection)
+
+    worker_ready(engine)
+
+    statement = connection.execute.call_args.args[0]
+    assert str(statement) == "SELECT 1 FROM quiz_submission_jobs LIMIT 1"

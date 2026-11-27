@@ -49,7 +49,10 @@ services:
     command: ["python", "-m", "app.submission_worker"]
     ports: !override []
     healthcheck:
-      disable: true
+      test: ["CMD", "python", "-m", "app.submission_worker", "--healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
     depends_on: !override
       mysql:
         condition: service_healthy

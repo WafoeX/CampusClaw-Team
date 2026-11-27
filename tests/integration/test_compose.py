@@ -95,6 +95,18 @@ def pull_dependencies(compose, *services, attempts=3):
             time.sleep(attempt * 2)
 
 
+def start_stack(compose, attempts=2):
+    """重试一次临时构建服务故障，最终失败仍由门禁阻断。"""
+    for attempt in range(1, attempts + 1):
+        try:
+            compose("up", "--build", "-d")
+            return
+        except subprocess.CalledProcessError:
+            if attempt == attempts:
+                raise
+            time.sleep(2)
+
+
 def assert_project_clean(project, env):
     label = f"label=com.docker.compose.project={project}"
     for list_command in (
@@ -261,7 +273,7 @@ def stack(tmp_path_factory):
 
     try:
         pull_dependencies(compose, "mysql", "qdrant")
-        compose("up", "--build", "-d")
+        start_stack(compose)
         scanner = os.environ.get("CAMPUSCLAW_IMAGE_SCANNER")
         if scanner:
             scan_image(scanner, f"campusclaw-skeleton:{image_tag}", folder, env)

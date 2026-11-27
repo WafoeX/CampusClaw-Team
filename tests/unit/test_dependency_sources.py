@@ -5,7 +5,11 @@ import subprocess
 import pytest
 
 from scripts.dependency_sources import mirrored_image, resolve_test_mirror
-from tests.integration.test_compose import mirrored_dependencies, pull_dependencies
+from tests.integration.test_compose import (
+    mirrored_dependencies,
+    pull_dependencies,
+    start_stack,
+)
 
 
 def configuration():
@@ -86,6 +90,20 @@ def test_dependency_pull_keeps_final_failure(monkeypatch):
     monkeypatch.setattr("tests.integration.test_compose.time.sleep", lambda _: None)
     with pytest.raises(subprocess.CalledProcessError):
         pull_dependencies(compose, "mysql", "qdrant")
+
+
+def test_stack_start_retries_transient_build_service_failure(monkeypatch):
+    calls = []
+
+    def compose(*args):
+        calls.append(args)
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr("tests.integration.test_compose.time.sleep", lambda _: None)
+    start_stack(compose)
+
+    assert calls == [("up", "--build", "-d"), ("up", "--build", "-d")]
 
 
 def test_mirror_preserves_teaching_kafka_digest():

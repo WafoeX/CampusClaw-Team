@@ -89,6 +89,7 @@ AI 提示词、模型、检索参数及技能行为未改变，`project-prompt-e
 | `make check-security SECURITY_ASSETS=reports/security-assets-83ebe65 SECURITY_CANDIDATE=83ebe65...` | 退出 0；可达历史 391 提交、工作区、前端、日志、app 与 MCP 镜像秘密均为 0，锁定依赖 High 0、Critical 0，漏洞库更新时间为 2026-11-27。 |
 | PR #78 首轮远端 `make check`（运行 `45978013127`、`45978021085`） | 两个独立事件的安全门禁均通过；完整门禁均未通过。一个在 `ai_apps` 容器脚本返回非零时因超长命令行未保留内部 traceback，无法据此认定业务根因；另一个明确在拉取锁定摘要 Qdrant 镜像时遭遇 DaoCloud TLS 握手超时。两者均如实保留为失败，候选构建按依赖关系跳过。 |
 | `CI=true .venv/bin/python scripts/check_pytest.py ... -k RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery` | 相同 CI 镜像来源下定向复跑退出 0，1 项通过、13 项未选择，256.59 秒；实际越过 `ai_apps` 并完成异步提交、依赖中断与恢复。随后为锁定摘要依赖增加三次有界拉取重试，并把 `ai_apps` 脚本写入容器文件后用短命令执行，使后续失败保留可定位 traceback。首次直接执行文件因 Python 搜索路径改变报 `ModuleNotFoundError: app`，1 项失败、13 项未选择，67.97 秒；改为从应用工作目录用 `runpy` 加载后，同一场景复测退出 0，1 项通过、13 项未选择，257.00 秒。上述调整不改变镜像摘要或业务断言。 |
+| PR #78 提交 `e6d63b5...` 的 push 事件远端 `make check`（运行 `45981624447`） | 静态、单元/API、安全扫描及 16 项集成通过后，第 17 个隔离栈构建 app 时 BuildKit 返回 `Unavailable: error reading from server: EOF`；MySQL/Qdrant 锁定镜像均已成功拉取，没有业务断言失败。门禁仍非零、候选构建仍跳过。隔离栈启动因此增加一次有界重试，第二次仍失败时保持原异常和非零结果；相关单元共 16 项通过，同口径 Kafka/候选恢复场景复跑退出 0，1 项通过、13 项未选择，135.93 秒。 |
 
 交付自检结论：规约与代码范围通过，权限和答案边界通过，迁移/回退证据通过，README、产品清单、数据字典和课程差异同步通过，自动化门禁与候选启动通过。真实课程模型评测不适用；生产迁移、生产容量、真人体验、跨机器复验未执行。实际同伴代码评审、PR 必需检查和最终真人验收待执行，助手自检不构成人工批准。
 

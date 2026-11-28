@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段（2026-11-27，主干基线 `770676e`）**：核心教学闭环、检索与流式助手、受控 MCP、Kafka 候选题、任务审计、界面更新、API 安全审查、教师改分和独立错题讲解均已合入 `main`。学生正式交卷的 `202` 持久受理、三态轮询和 MySQL worker 已形成待评审候选；真实课程模型效果与人工体验仍待最终验收。最终人工验收尚未启动，第 10 课技术任务为 8/14，最终验收为 0/21。由 lezhonglezhong 统一推进本轮收尾，按[最终验收剩余事项表](reports/final-acceptance-readiness.md)执行预验收、安全加固、剩余课程差异收口、候选冻结和正式验收。旧候选 `a0dd0a0` 及其镜像仅代表历史版本，新候选尚未冻结；历史成功不自动代表本轮全部成果通过。选题说明中的外部历史证据不作为本仓库结论。
+**当前阶段（2026-11-28，主干基线 `e2ada0d`）**：核心教学闭环、检索与流式助手、受控 MCP、Kafka 候选题、任务审计、界面更新、API 安全审查、教师改分、独立错题讲解和正式交卷 `202` 三态均已合入 `main`。本轮补齐正式交卷任务的七列审计关联并完成 H5 自动化四步回归，第 10 课技术任务推进至 9/14；最终人工验收仍为 0/21。真实课程模型效果、课程差异结论、正式告警收件、候选冻结和人工体验仍待完成。由 lezhonglezhong 统一推进收尾，按[最终验收剩余事项表](reports/final-acceptance-readiness.md)执行。旧候选 `a0dd0a0` 及其镜像仅代表历史版本，新候选尚未冻结；历史成功不自动代表本轮全部成果通过。选题说明中的外部历史证据不作为本仓库结论。
 
 ## 开发者快速开始
 
@@ -260,9 +260,9 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 先完成纳入交付范围的必做功能及自动化回归、安全预检与修复技术验证、双门禁、启动与制品追溯、观测通知和对照压测。齐备后冻结候选，项目最终验收集中执行四项技能、手机四步、跨功能场景、同伴独立复验及至少三名真实使用者试用。第 8 课 SEC-08 仅选做准备素材；第 9 课按清单执行必做四步，真人观察集中在最终验收。查看[第 10 课验收规约](openspec/changes/2026-11-04-define-lesson-10-acceptance/specs/lesson-10-acceptance/spec.md)和[项目业务走查](openspec/changes/2026-11-04-project-final-acceptance/design.md)。5.1 的[候选清单](reports/candidate-checklist.md)保留 `a0dd0a0` 的历史制品输入；本轮须按[剩余事项表](reports/final-acceptance-readiness.md)补齐技术缺口，重新固定包含后续改动的提交、CI 和镜像摘要，再由验收负责人决定冻结。
 
-第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。两条命令已于 2026-11-19 在候选 `d7ac3d1` 按实际判据本地复核退出 0，证据见[第 10 课变更记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁实际判据复核21-部分l10-03)。两项均已为主干准入条件：仓库管理员于 2026-11-19 将 `make check-security` 加入 `main` 必需状态检查，与既有 `make check` 并列，PR 合并须两项全部通过（见[准入设置记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁准入设置完成21-收尾l10-03l10-f03)）。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
+第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。两条命令已于 2026-11-19 在候选 `d7ac3d1` 按实际判据本地复核退出 0，证据见[第 10 课变更记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁实际判据复核21-部分l10-03)。两项均已为主干准入条件：仓库管理员于 2026-11-19 将 `make check-security` 加入 `main` 必需状态检查，与既有 `make check` 并列，PR 合并须两项全部通过（见[准入设置记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁准入设置完成21-收尾l10-03l10-f03)）。教师改分和作业提交 `202` 已按上游场景实现；同源 Cookie 与 Bearer Swagger、评分写入入口等剩余差异仍需课程方确认。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
-运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、正式交卷 `202`、`pending → running → succeeded`、失败重试、刷新恢复、来源限制和换班隔离。候选题使用固定模型；正式交卷使用文件闸门控制真实 MySQL worker 推进，并核对重复点击、成功停询及唯一结果。测试使用合成账号并清理临时容器和数据卷。H5 七列审计的课程语义仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
+运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、正式交卷 `202`、`pending → running → succeeded`、失败重试、刷新恢复、来源限制、七列审计关联和换班隔离。候选题使用固定模型；正式交卷使用文件闸门控制真实 MySQL worker 推进，并核对重复点击、成功停询、唯一结果及跨班审计空结果。测试使用合成账号并清理临时容器和数据卷。课程语义仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
 
 两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`；依赖仓库不可达时追加 `--mirror-host=<镜像仓库主机名>`，工具只替换已知依赖来源并保留完整 SHA-256。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 
@@ -306,7 +306,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 | [安全修复](openspec/changes/2026-11-04-remediate-security-findings/tasks.md) | 安全预检的版本、报告和实际复现结果 | 修复并复测实际发现，复用预检安全入口。SEC-08 按第 9 课必做四步，真人观察交最终验收 4.3 |
 | [第 10 课交付](openspec/changes/2026-11-04-define-lesson-10-acceptance/tasks.md)与[项目最终验收](openspec/changes/2026-11-04-project-final-acceptance/tasks.md) | 第 10 课 1–4 组完成交付验证，且纳入交付的必做能力和证据齐备后，由 5.1 冻结候选 | 项目最终验收用同一候选执行跨功能卡，结果回到第 10 课 5.2–5.4。正式人工走查只安排一轮，换候选后复验受影响场景 |
 
-课程等价由对应任务记录。第 5 课 Bearer Swagger、第 8 课作业提交 `202` 与评分写入路径、第 10 课教师改分等差异在确认前保留为验收缺项。只暂停依赖未决契约的任务，已明确契约的独立组可以继续。
+课程等价由对应任务记录。正式交卷 `202` 和教师改分已经实现；第 5 课 Bearer Swagger、独立评分写入路径、JSON 技能字段、MCP 目录及去内容审计映射等差异在确认前保留为验收缺项。只暂停依赖未决契约的任务，已明确契约的独立组可以继续。
 
 - 使用 `main` 为主干、`change/<变更名>` 为后续短分支。首次建仓按用户明确指令初始化和推送 `main`；常规后续变更禁止直接推送主干，先自检和评审再合并。历史文档直推按当时的[单次例外](docs/standards/08-评审与完成定义规范.md)执行，不推广到后续变更。GitHub 已确认远程 `main` 启用保护，复测见[骨架证据](docs/changes/2026-11-04-add-skeleton.md)。
 - 每次先明确边界，建立 proposal、design、specs、tasks；场景采用“前置条件→操作→可观测结果”。本次纯文档的 `skip_specs: true` 不适用于业务行为变更。

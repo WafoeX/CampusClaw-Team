@@ -27,7 +27,7 @@ class OperationAuditRepositoryMixin:
         if job_id is not None:
             conditions.extend(
                 (
-                    events.c.resource_type == "teaching_job",
+                    events.c.resource_type.in_(("teaching_job", "submission_job")),
                     events.c.resource_id == job_id,
                 )
             )

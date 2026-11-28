@@ -7,7 +7,6 @@ from sqlalchemy import func, insert, or_, select, update
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from app.adapters.auth_schema_v1 import accounts, classes
-from app.adapters.operation_audit_repository import OperationAuditRepositoryMixin
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v12 import (
     generated_questions,
@@ -29,7 +28,7 @@ from app.teaching_job_contract import (
 )
 
 
-class TeachingJobs(OperationAuditRepositoryMixin, TeachingRepository):
+class TeachingJobs(TeachingRepository):
     def add_candidate(self, connection, job, fields, snapshot, now):
         question_id = str(uuid4())
         question = {

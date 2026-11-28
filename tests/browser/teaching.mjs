@@ -263,6 +263,27 @@ try {
   await wait(() => js('document.getElementById("notice")?.textContent === "最终分已更新。"'));
   const overridden = (await api(`/api/v1/quizzes/${quiz.id}/submission-results`)).items[0];
   assert.deepEqual({rule: overridden.rule_score, final: overridden.score, source: overridden.score_source}, {rule: 0, final: 6, source: "teacher_override"});
+  const submissionAudit = await api(`/api/v1/operation-audits?job_id=${submissionTask}`);
+  assert.equal(submissionAudit.total, 2, "正式交卷应有受理和终态两条审计");
+  assert.deepEqual(
+    new Set(submissionAudit.items.map(item => item.action)),
+    new Set(["submission_admit", "submission_terminal"]),
+  );
+  for (const item of submissionAudit.items) {
+    assert.equal(item.resource_type, "submission_job");
+    assert.equal(item.resource_id, submissionTask);
+    assert.equal(item.actor_id, overridden.student_id);
+    assert.equal(item.skill_id, null, "确定性规则评分不是技能调用");
+    assert.equal(item.usage_status, "not_applicable");
+    assert.equal(item.total_tokens, null);
+    assert.ok(Number.isInteger(item.duration_ms) && item.duration_ms >= 0);
+    assert.ok(!JSON.stringify(item).includes("browser-retry-key"));
+  }
+  assert.equal(
+    submissionAudit.items.find(item => item.action === "submission_terminal").outcome,
+    "succeeded",
+  );
+  console.log("H5_SUBMISSION_AUDIT_BROWSER_OK: actor/time/action/object/outcome/skill/usage+duration linked by task");
   console.log("TEACHING_BROWSER_OK: 草稿恢复、正式提交、答案门控和看板统计");
   console.log("TEACHER_SCORE_OVERRIDE_BROWSER_OK: 390px 教师改分=6, 规则分=0");
 
@@ -316,6 +337,13 @@ try {
   delete foreignJob.body.request_id;
   delete missingJob.body.request_id;
   assert.deepEqual(foreignJob.body, missingJob.body);
+  const foreignAudit = await api(`/api/v1/operation-audits?job_id=${submissionTask}`);
+  const missingAudit = await api(`/api/v1/operation-audits?job_id=${randomUUID()}`);
+  assert.deepEqual(
+    {items: foreignAudit.items, total: foreignAudit.total},
+    {items: missingAudit.items, total: missingAudit.total},
+    "跨班与不存在任务的审计查询都应为空",
+  );
   console.log("H5_BROWSER_CONTRACT_OK: 390px HTTPS, login=200, submit=202, cross-origin=blocked, cross-class=404/1300");
 } finally {
   socket.close();

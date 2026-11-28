@@ -58,6 +58,13 @@ def test_ASJ_N01_worker_scores_once_and_clears_task_payload():
         {"item_id": "item-b", "correct": False, "awarded_points": 0},
     ]
     assert store.finish_submission_job.call_count == 1
+    audit = store.append_operation_audit.call_args.args[1]
+    assert (audit["action"], audit["resource_type"], audit["resource_id"]) == (
+        "submission_terminal",
+        "submission_job",
+        "task",
+    )
+    assert audit["outcome"] == "succeeded" and audit["duration_ms"] == 0
 
 
 def test_ASJ_B01_recovered_existing_submission_is_not_scored_twice():
@@ -89,6 +96,8 @@ def test_ASJ_F05_resource_changes_fail_without_submission(change, repository_cha
     assert SubmissionJobWorker(store).run_once() is True
     store.submit.assert_not_called()
     store.fail_submission_job.assert_called_once()
+    audit = store.append_operation_audit.call_args.args[1]
+    assert audit["outcome"] == "failed" and audit["resource_id"] == "task"
 
 
 def test_ASJ_B02_no_due_job_does_not_open_processing_transaction():

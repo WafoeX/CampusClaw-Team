@@ -10,6 +10,7 @@ from app.adapters.chapter_schema_v4 import chapters, materials
 from app.adapters.feedback_repository import FeedbackRepositoryMixin
 from app.adapters.index_schema_v5 import materials as indexed_materials
 from app.adapters.material_repository import MaterialRepository
+from app.adapters.operation_audit_repository import OperationAuditRepositoryMixin
 from app.adapters.score_override_schema_v17 import (
     score_override_events,
     score_overrides,
@@ -31,7 +32,7 @@ from app.adapters.teaching_schema_v10 import (
 from app.adapters.teaching_schema_v12 import generated_questions, question_sources
 
 
-class TeachingRepository(MaterialRepository):
+class TeachingRepository(OperationAuditRepositoryMixin, MaterialRepository):
     def now(self, connection):
         return connection.scalar(text("SELECT UTC_TIMESTAMP(6)"))
 
@@ -526,24 +527,22 @@ class TeachingRepository(MaterialRepository):
             )
         ).rowcount
 
-    def fail_submission_job(self, task_id, token, code):
-        with self.transaction() as connection:
-            now = self.now(connection)
-            return connection.execute(
-                update(quiz_submission_jobs)
-                .where(
-                    quiz_submission_jobs.c.id == task_id,
-                    quiz_submission_jobs.c.status == "running",
-                    quiz_submission_jobs.c.lease_token == token,
-                )
-                .values(
-                    status="failed",
-                    lease_token=None,
-                    lease_expires_at=None,
-                    failure_code=code,
-                    completed_at=now,
-                )
-            ).rowcount
+    def fail_submission_job(self, connection, task_id, token, code, now):
+        return connection.execute(
+            update(quiz_submission_jobs)
+            .where(
+                quiz_submission_jobs.c.id == task_id,
+                quiz_submission_jobs.c.status == "running",
+                quiz_submission_jobs.c.lease_token == token,
+            )
+            .values(
+                status="failed",
+                lease_token=None,
+                lease_expires_at=None,
+                failure_code=code,
+                completed_at=now,
+            )
+        ).rowcount
 
     def submission_job_metrics(self):
         with self.engine.connect() as connection:

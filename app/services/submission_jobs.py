@@ -1,6 +1,9 @@
 """正式交卷任务的确定性评分与租约恢复。"""
 
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
+
+from app.services.access import Identity
+from app.services.operation_audit import append_audit
 
 
 class SubmissionInvariantError(Exception):
@@ -24,8 +27,41 @@ class SubmissionJobWorker:
         try:
             self._complete(claim["id"], token)
         except SubmissionInvariantError:
-            self.repository.fail_submission_job(claim["id"], token, "resource_changed")
+            self._fail(claim["id"], token, "resource_changed")
         return True
+
+    @staticmethod
+    def _duration(job, now):
+        return max(0, round((now - job["accepted_at"]).total_seconds() * 1000))
+
+    def _audit(self, connection, job, now, outcome):
+        append_audit(
+            self.repository,
+            connection,
+            Identity(job["student_id"], job["class_id"], frozenset()),
+            now,
+            uuid5(
+                NAMESPACE_URL,
+                f"submission-job:{job['id']}:terminal:{outcome}",
+            ).hex,
+            "submission_terminal",
+            "submission_job",
+            resource_id=job["id"],
+            outcome=outcome,
+            duration_ms=self._duration(job, now),
+        )
+
+    def _fail(self, task_id, token, code):
+        with self.repository.transaction() as connection:
+            job = self.repository.locked_submission_job(connection, task_id, token)
+            if job is None:
+                return
+            now = self.repository.now(connection)
+            if not self.repository.fail_submission_job(
+                connection, task_id, token, code, now
+            ):
+                raise SubmissionInvariantError()
+            self._audit(connection, job, now, "failed")
 
     def _complete(self, task_id, token):
         with self.repository.transaction() as connection:
@@ -99,3 +135,4 @@ class SubmissionJobWorker:
                 connection, task_id, token, now
             ):
                 raise SubmissionInvariantError()
+            self._audit(connection, job, now, "succeeded")

@@ -8,6 +8,7 @@ from uuid import uuid4
 from app.services.access import AccessDenied
 from app.services.auth import digest_cookie, invalid_session, utc_now
 from app.services.materials import missing, unavailable
+from app.services.operation_audit import append_audit
 
 TEACHING_WRITE = "teaching:write"
 TEACHING_ANSWER = "teaching:answer"
@@ -530,7 +531,16 @@ class TeachingService:
         except self.database_error:
             raise unavailable() from None
 
-    def submit(self, identity, cookie, quiz_id, request_key, draft_revision, answers):
+    def submit(
+        self,
+        identity,
+        cookie,
+        quiz_id,
+        request_key,
+        draft_revision,
+        answers,
+        request_id,
+    ):
         try:
             with self.repository.transaction() as connection:
                 self._actor(connection, identity, cookie, "student")
@@ -569,6 +579,16 @@ class TeachingService:
                                 "completed_at": None,
                                 "failure_code": None,
                             }
+                            append_audit(
+                                self.repository,
+                                connection,
+                                identity,
+                                now,
+                                request_id,
+                                "submission_replay",
+                                "submission_job",
+                                resource_id=job["id"],
+                            )
                         return submission_job_view(job)
                     if job["request_key"] == request_key:
                         raise conflict("请求标识已用于不同作答")
@@ -611,6 +631,16 @@ class TeachingService:
                     "completed_at": None,
                 }
                 self.repository.add_submission_job(connection, job)
+                append_audit(
+                    self.repository,
+                    connection,
+                    identity,
+                    now,
+                    request_id,
+                    "submission_admit",
+                    "submission_job",
+                    resource_id=job["id"],
+                )
                 return submission_job_view(job)
         except self.database_error:
             raise unavailable() from None

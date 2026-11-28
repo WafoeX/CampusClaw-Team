@@ -356,6 +356,7 @@ def install_teaching(app, service, candidate_jobs=None, private_sessions=None):
             key,
             rev,
             answers,
+            g.request_id,
         )
         return (
             success(job),

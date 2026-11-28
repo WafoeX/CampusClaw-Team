@@ -206,7 +206,11 @@ attempt_lock = Lock()
 
 
 def count_audits(_connection, _cursor, statement, _parameters, _context, _many):
-    if statement.startswith("INSERT INTO operation_audit_events"):
+    denied = any(
+        row.get("outcome") == "denied"
+        for row in getattr(_context, "compiled_parameters", ())
+    )
+    if statement.startswith("INSERT INTO operation_audit_events") and denied:
         with attempt_lock:
             audit_attempts[0] += 1
 

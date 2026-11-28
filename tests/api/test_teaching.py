@@ -1,3 +1,4 @@
+import re
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -156,6 +157,7 @@ def test_ASJ_N01_submission_contract_is_202_location_and_no_score(candidate):
     assert result.json["data"] == teaching.submit.return_value
     assert result.headers["Location"] == f"/api/v1/submission-jobs/{ID}"
     assert result.headers["Cache-Control"] == "no-store"
+    assert re.fullmatch(r"[0-9a-f]{32}", teaching.submit.call_args.args[-1])
 
 
 def test_ASJ_F03_submission_job_is_read_through_identity(candidate):

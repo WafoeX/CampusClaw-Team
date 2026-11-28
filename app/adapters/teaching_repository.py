@@ -1,8 +1,9 @@
 """教学闭环的 MySQL 访问；所有正式写入由调用方事务包裹。"""
 
+from datetime import timedelta
 from uuid import uuid4
 
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import and_, func, insert, or_, select, text, update
 
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.chapter_schema_v4 import chapters, materials
@@ -13,6 +14,7 @@ from app.adapters.score_override_schema_v17 import (
     score_override_events,
     score_overrides,
 )
+from app.adapters.submission_job_schema_v19 import quiz_submission_jobs
 from app.adapters.teaching_schema_v10 import (
     question_audits,
     question_versions,
@@ -383,6 +385,185 @@ class TeachingRepository(MaterialRepository):
             .mappings()
             .one_or_none()
         )
+
+    def submission_job(self, connection, class_id, quiz_id, student_id, *, lock=False):
+        statement = select(quiz_submission_jobs).where(
+            quiz_submission_jobs.c.class_id == class_id,
+            quiz_submission_jobs.c.quiz_id == quiz_id,
+            quiz_submission_jobs.c.student_id == student_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return connection.execute(statement).mappings().one_or_none()
+
+    def submission_job_by_id(
+        self, connection, class_id, student_id, task_id, *, lock=False
+    ):
+        statement = select(quiz_submission_jobs).where(
+            quiz_submission_jobs.c.class_id == class_id,
+            quiz_submission_jobs.c.student_id == student_id,
+            quiz_submission_jobs.c.id == task_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return connection.execute(statement).mappings().one_or_none()
+
+    def add_submission_job(self, connection, values):
+        connection.execute(insert(quiz_submission_jobs).values(values))
+
+    def requeue_submission_job(self, connection, task_id, now):
+        connection.execute(
+            update(quiz_submission_jobs)
+            .where(
+                quiz_submission_jobs.c.id == task_id,
+                quiz_submission_jobs.c.status == "failed",
+            )
+            .values(
+                status="pending",
+                attempts=0,
+                next_attempt_at=now,
+                lease_token=None,
+                lease_expires_at=None,
+                failure_code=None,
+                started_at=None,
+                completed_at=None,
+            )
+        )
+
+    def claim_submission_job(self, connection, token, lease_seconds):
+        now = self.now(connection)
+        while True:
+            row = (
+                connection.execute(
+                    select(quiz_submission_jobs)
+                    .where(
+                        or_(
+                            and_(
+                                quiz_submission_jobs.c.status == "pending",
+                                quiz_submission_jobs.c.next_attempt_at <= now,
+                            ),
+                            and_(
+                                quiz_submission_jobs.c.status == "running",
+                                quiz_submission_jobs.c.lease_expires_at <= now,
+                            ),
+                        )
+                    )
+                    .order_by(
+                        quiz_submission_jobs.c.next_attempt_at,
+                        quiz_submission_jobs.c.accepted_at,
+                        quiz_submission_jobs.c.id,
+                    )
+                    .limit(1)
+                    .with_for_update(skip_locked=True)
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                return None
+            if row["attempts"] >= 5:
+                connection.execute(
+                    update(quiz_submission_jobs)
+                    .where(quiz_submission_jobs.c.id == row["id"])
+                    .values(
+                        status="failed",
+                        lease_token=None,
+                        lease_expires_at=None,
+                        failure_code="dependency_exhausted",
+                        completed_at=now,
+                    )
+                )
+                continue
+            break
+        connection.execute(
+            update(quiz_submission_jobs)
+            .where(quiz_submission_jobs.c.id == row["id"])
+            .values(
+                status="running",
+                attempts=row["attempts"] + 1,
+                lease_token=token,
+                lease_expires_at=now + timedelta(seconds=lease_seconds),
+                started_at=func.coalesce(quiz_submission_jobs.c.started_at, now),
+                failure_code=None,
+            )
+        )
+        return dict(row) | {
+            "status": "running",
+            "attempts": row["attempts"] + 1,
+            "lease_token": token,
+        }
+
+    def locked_submission_job(self, connection, task_id, token):
+        return (
+            connection.execute(
+                select(quiz_submission_jobs)
+                .where(
+                    quiz_submission_jobs.c.id == task_id,
+                    quiz_submission_jobs.c.status == "running",
+                    quiz_submission_jobs.c.lease_token == token,
+                )
+                .with_for_update()
+            )
+            .mappings()
+            .one_or_none()
+        )
+
+    def finish_submission_job(self, connection, task_id, token, now):
+        return connection.execute(
+            update(quiz_submission_jobs)
+            .where(
+                quiz_submission_jobs.c.id == task_id,
+                quiz_submission_jobs.c.status == "running",
+                quiz_submission_jobs.c.lease_token == token,
+            )
+            .values(
+                status="succeeded",
+                answers=None,
+                lease_token=None,
+                lease_expires_at=None,
+                failure_code=None,
+                completed_at=now,
+            )
+        ).rowcount
+
+    def fail_submission_job(self, task_id, token, code):
+        with self.transaction() as connection:
+            now = self.now(connection)
+            return connection.execute(
+                update(quiz_submission_jobs)
+                .where(
+                    quiz_submission_jobs.c.id == task_id,
+                    quiz_submission_jobs.c.status == "running",
+                    quiz_submission_jobs.c.lease_token == token,
+                )
+                .values(
+                    status="failed",
+                    lease_token=None,
+                    lease_expires_at=None,
+                    failure_code=code,
+                    completed_at=now,
+                )
+            ).rowcount
+
+    def submission_job_metrics(self):
+        with self.engine.connect() as connection:
+            now = self.now(connection)
+            rows = connection.execute(
+                select(quiz_submission_jobs.c.status, func.count()).group_by(
+                    quiz_submission_jobs.c.status
+                )
+            ).all()
+            oldest = connection.scalar(
+                select(func.min(quiz_submission_jobs.c.accepted_at)).where(
+                    quiz_submission_jobs.c.status.in_(("pending", "running"))
+                )
+            )
+        return {
+            "states": {status: count for status, count in rows},
+            "oldest_seconds": max(0, int((now - oldest).total_seconds()))
+            if oldest
+            else 0,
+        }
 
     def result(self, connection, submission_id):
         return (

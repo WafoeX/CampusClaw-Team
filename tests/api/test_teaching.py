@@ -134,12 +134,17 @@ def test_SB_F02_teacher_cannot_submit_and_anonymous_cannot_read(candidate):
     assert teaching.mock_calls == []
 
 
-def test_SB_N01_submission_contract_is_201_and_no_score(candidate):
+def test_ASJ_N01_submission_contract_is_202_location_and_no_score(candidate):
     client, auth, teaching = candidate
     auth.current.return_value.role = "student"
     teaching.submit.return_value = {
+        "task_id": ID,
         "submission_id": ID,
+        "quiz_id": ID,
+        "status": "pending",
         "accepted_at": "2030-01-01T00:00:00+00:00",
+        "started_at": None,
+        "completed_at": None,
     }
     result = client.post(
         f"/api/v1/quizzes/{ID}/submissions",
@@ -147,8 +152,26 @@ def test_SB_N01_submission_contract_is_201_and_no_score(candidate):
         headers={**HEADERS, "Idempotency-Key": "one"},
         json={"draft_revision": 0, "answers": {}},
     )
-    assert result.status_code == 201 and result.json["code"] == 0
+    assert result.status_code == 202 and result.json["code"] == 0
     assert result.json["data"] == teaching.submit.return_value
+    assert result.headers["Location"] == f"/api/v1/submission-jobs/{ID}"
+    assert result.headers["Cache-Control"] == "no-store"
+
+
+def test_ASJ_F03_submission_job_is_read_through_identity(candidate):
+    client, auth, teaching = candidate
+    auth.current.return_value.role = "student"
+    teaching.read_submission_job.return_value = {
+        "task_id": ID,
+        "submission_id": ID,
+        "quiz_id": ID,
+        "status": "running",
+    }
+    result = client.get(
+        f"/api/v1/submission-jobs/{ID}", base_url=ORIGIN, headers=HEADERS
+    )
+    assert result.status_code == 200 and result.json["data"]["status"] == "running"
+    assert teaching.read_submission_job.call_args.args[1] == ID
     assert result.headers["Cache-Control"] == "no-store"
 
 

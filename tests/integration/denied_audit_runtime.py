@@ -24,10 +24,12 @@ from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import mysql_engine
 from app.adapters.migrations.runner import migrate
 from app.adapters.operation_audit_schema_v13 import events
+from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import quiz_results
 from app.api.auth import COOKIE
 from app.config import Settings
 from app.services.denied_audit_budget import DeniedAuditBudget
+from app.services.submission_jobs import SubmissionJobWorker
 
 origin = "https://campusclaw.test"
 headers = {"Origin": origin, "X-CampusClaw-Request": "same-origin"}
@@ -55,6 +57,7 @@ with patch.object(
     campus, "DeniedAuditBudget", partial(DeniedAuditBudget, clock=lambda: 0)
 ):
     app = campus.create_app(settings)
+submission_worker = SubmissionJobWorker(TeachingRepository(engine))
 
 
 def call(client, method, path, payload=None, extra=None):
@@ -74,6 +77,17 @@ def checked(client, method, path, payload=None, status=200, extra=None):
         response.status_code,
     )
     return response.json["data"]
+
+
+def complete_submission(client, response):
+    assert response.status_code == 202 and response.json["code"] == 0
+    task_id = response.json["data"]["task_id"]
+    for _ in range(20):
+        submission_worker.run_once()
+        current = call(client, "GET", "/api/v1/submission-jobs/" + task_id)
+        if current.json["data"]["status"] == "succeeded":
+            return current.json["data"]
+    raise AssertionError("正式提交任务未成功")
 
 
 def login(name):
@@ -229,14 +243,14 @@ def normal():
         f"/api/v1/quizzes/{quiz['id']}/draft",
         {"draft_revision": 0, "answers": {item: "A"}},
     )
-    submitted = checked(
+    response = call(
         student_a,
         "POST",
         f"/api/v1/quizzes/{quiz['id']}/submissions",
         {"draft_revision": saved["revision"], "answers": {item: "A"}},
-        201,
         {"Idempotency-Key": "denied-budget-submit"},
     )
+    submitted = complete_submission(student_a, response)
     return timings, submitted["submission_id"]
 
 

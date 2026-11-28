@@ -419,16 +419,19 @@ def document(app):
             }
             if endpoint == "login":
                 operation["security"] = []
-            if endpoint in {"create_generation_job", "replay_teaching_job"}:
+            if endpoint in {
+                "create_generation_job",
+                "replay_teaching_job",
+                "submit_quiz",
+            }:
                 operation["responses"]["202"] = {
-                    "description": "任务与发件箱已提交，可按 Location 轮询。",
+                    "description": "任务已持久受理，可按 Location 轮询。",
                     "headers": {"Location": {"schema": {"type": "string"}}},
                     "content": {"application/json": {"schema": ENVELOPE}},
                 }
                 del operation["responses"]["200"]
             elif endpoint.startswith("create_") or endpoint in {
                 "run_ai_app",
-                "submit_quiz",
             }:
                 operation["responses"]["201"] = operation["responses"]["200"]
             if endpoint in REQUESTS:

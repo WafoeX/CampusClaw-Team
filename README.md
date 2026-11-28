@@ -2,7 +2,7 @@
 
 基于可追溯知识库与 AI 应用平台的班级智能助学系统，面向 Freebird 三人小组学期项目。
 
-**当前阶段（2026-11-26，主干基线 `580c4f0`）**：核心教学闭环、检索与流式助手、受控 MCP、Kafka 候选题、任务审计、界面更新、API 安全审查和教师改分均已合入 `main`。独立错题讲解已形成待评审候选，完成本人已开放错题入口、固定安全提示、流式追问、数据兼容和自动化回归；真实课程模型效果与人工体验仍待最终验收。最终人工验收尚未启动，第 10 课技术任务为 8/14，最终验收为 0/21。由 lezhonglezhong 统一推进本轮收尾，按[最终验收剩余事项表](reports/final-acceptance-readiness.md)执行预验收、安全加固、课程差异收口、候选冻结和正式验收。已知拒绝审计容量风险和学生作业 202/三态差异仍待处置。旧候选 `a0dd0a0` 及其镜像仅代表历史版本，新候选尚未冻结；历史成功不自动代表本轮全部成果通过。选题说明中的外部历史证据不作为本仓库结论。
+**当前阶段（2026-11-27，主干基线 `770676e`）**：核心教学闭环、检索与流式助手、受控 MCP、Kafka 候选题、任务审计、界面更新、API 安全审查、教师改分和独立错题讲解均已合入 `main`。学生正式交卷的 `202` 持久受理、三态轮询和 MySQL worker 已形成待评审候选；真实课程模型效果与人工体验仍待最终验收。最终人工验收尚未启动，第 10 课技术任务为 8/14，最终验收为 0/21。由 lezhonglezhong 统一推进本轮收尾，按[最终验收剩余事项表](reports/final-acceptance-readiness.md)执行预验收、安全加固、剩余课程差异收口、候选冻结和正式验收。旧候选 `a0dd0a0` 及其镜像仅代表历史版本，新候选尚未冻结；历史成功不自动代表本轮全部成果通过。选题说明中的外部历史证据不作为本仓库结论。
 
 ## 开发者快速开始
 
@@ -262,9 +262,9 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 第 10 课开始执行技术交付。面向 `main` 的 PR 以及向 `main`、`change/**` 的推送，会在同一工作流内分别运行 `make check` 和 `make check-security`。安全检查先用隔离合成数据跑预检并采集对应提交的资产，然后扫描本地可达历史、候选资产和锁定依赖。两条命令已于 2026-11-19 在候选 `d7ac3d1` 按实际判据本地复核退出 0，证据见[第 10 课变更记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁实际判据复核21-部分l10-03)。两项均已为主干准入条件：仓库管理员于 2026-11-19 将 `make check-security` 加入 `main` 必需状态检查，与既有 `make check` 并列，PR 合并须两项全部通过（见[准入设置记录](docs/changes/2026-11-04-define-lesson-10-acceptance.md#2026-11-19-双门禁准入设置完成21-收尾l10-03l10-f03)）。课程要求的教师改分、作业提交 `202` 和实际登录方式需与批准的上游契约逐项核对。实际验收将结论与证据指针写入根目录 `report.md`。查看[证据清单和任务](openspec/changes/2026-11-04-define-lesson-10-acceptance/design.md)。
 
-运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、候选题 `202` 及三态轮询、测验交卷 `201`、来源限制和换班隔离。候选题使用固定模型及文件闸门控制实际任务推进，并核对成功停询、刷新只读及唯一草稿批；Kafka 投递由独立集成回归覆盖。测试使用合成账号并清理临时容器和数据卷。候选题任务审计已补齐并可按任务 ID 关联耗时与实际用量；学生作业 `202` 与课程对七列的语义认可仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
+运行 `uv run --locked python scripts/check_pytest.py -q tests/browser/test_teaching.py` 可在隔离 Chromium、HTTPS 和 MySQL 环境实测 390px H5 登录、正式交卷 `202`、`pending → running → succeeded`、失败重试、刷新恢复、来源限制和换班隔离。候选题使用固定模型；正式交卷使用文件闸门控制真实 MySQL worker 推进，并核对重复点击、成功停询及唯一结果。测试使用合成账号并清理临时容器和数据卷。H5 七列审计的课程语义仍待确认，真人试用由最终验收 4.5 记录到[试用反馈](reports/feedback.md)。
 
-两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
+两项 CI 门禁通过后，`Build candidate images` 用同一提交构建应用和 MCP 镜像，再以 `docker compose up --no-build` 在隔离项目中启动成品。作业输出记录提交、镜像标签和摘要、容器镜像身份及实际就绪版本。按同一方式本地复跑可用 `uv run --locked python -m scripts.build_candidate "$(git rev-parse HEAD)"`；依赖仓库不可达时追加 `--mirror-host=<镜像仓库主机名>`，工具只替换已知依赖来源并保留完整 SHA-256。已验证的本地与 CI 候选见[制品运行报告](reports/delivery-runtime.md)。
 
 应用和 MCP 运行镜像复制构建阶段生成的 Python 3.13 字节码及必要模板，保留现有启动、迁移与管理命令。候选构建会逐层检查项目源码和构建工具，避免文件从镜像的旧层恢复。运行口令仍从环境注入。
 
@@ -394,7 +394,7 @@ uv run --locked python scripts/verify_runtime.py --port 8000 --output reports/co
 
 ## 异步教学
 
-教师在 `/console/questions` 建题、审核，组卷后同步发布。学生在 `/quizzes` 恢复草稿和正式交卷，MySQL 在同一事务完成规则评分并返回 201。本班教师可在测验详情按提交填写最终分和改分理由；规则分保持不可变，学生答案开放后的本人成绩、教师提交列表和平均分采用最新教师覆盖分，逐题正误仍显示规则结果。改分使用修订号防并发覆盖，跨班与不存在同形，历史只增。答案开放后可进入 `/mistakes`，教师从 `/console/dashboard` 查看冻结名单、提交率、平均分、逐题正确率和章节未解决反馈。资料重建后仍可查看有权限的历史出处。资料删除会清除出处，评分保持原值。
+教师在 `/console/questions` 建题、审核，组卷后同步发布。学生在 `/quizzes` 恢复草稿并正式交卷；接口持久受理后返回 `202` 和任务地址，独立 MySQL worker 在一个事务中写入唯一正式提交、规则评分和审计。页面显示待处理、处理中、成功或失败，并在刷新后恢复。本班教师可在测验详情按提交填写最终分和改分理由；规则分保持不可变，学生答案开放后的本人成绩、教师提交列表和平均分采用最新教师覆盖分，逐题正误仍显示规则结果。改分使用修订号防并发覆盖，跨班与不存在同形，历史只增。答案开放后可进入 `/mistakes`，教师从 `/console/dashboard` 查看冻结名单、提交率、平均分、逐题正确率和章节未解决反馈。资料重建后仍可查看有权限的历史出处。资料删除会清除出处，评分保持原值。
 
 AI 候选题使用 Compose 的 `teaching` 扩展。先按本页认证配置准备私有 `.env`，在应用镜像中执行 0012 迁移，再启动 Kafka、投递器和 worker。课程聊天网关通过私有 `CHAT_BASE_URL`、`CHAT_MODEL`、`CHAT_API_KEY` 配置。
 
@@ -406,7 +406,7 @@ docker compose run --rm --no-deps app python -m app.auth_admin upgrade
 docker compose -f docker-compose.yml -f docker-compose.teaching.yml --profile teaching up -d
 ```
 
-在题库选择本班资料或章节并提交 1–10 道候选题。受理返回 202 和任务地址，页面轮询至终态。成功的草稿须经教师审核才能发布。Kafka 单节点使用持久卷，broker 不发布宿主端口。候选与死信 topic 各 3 分区、单副本，broker 容器上限 1 GiB、JVM 堆 512 MiB，每班最多 20 个在途候选任务。候选用已发布的关系证据，最多 8 片。人工建题、草稿、交卷与规则评分使用 MySQL。
+在题库选择本班资料或章节并提交 1–10 道候选题。受理返回 202 和任务地址，页面轮询至终态。成功的草稿须经教师审核才能发布。Kafka 单节点使用持久卷，broker 不发布宿主端口。候选与死信 topic 各 3 分区、单副本，broker 容器上限 1 GiB、JVM 堆 512 MiB，每班最多 20 个在途候选任务。候选用已发布的关系证据，最多 8 片。人工建题和作答草稿使用 MySQL；正式交卷由 `submission-worker` 扫描 MySQL 任务表完成，不依赖 Kafka、Qdrant 或课程模型。
 
 暂停新候选受理时设置 `TEACHING_JOBS_ENABLED=0` 并重新创建应用，保留投递器与 worker 排空已受理任务。检查 `teaching_backlog`、`teaching_lag` 和死信后按数据字典回退。后台索引继续走同步构建接口。
 

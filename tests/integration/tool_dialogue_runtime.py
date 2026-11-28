@@ -20,8 +20,10 @@ from app.adapters.auth_repository import AuthRepository
 from app.adapters.auth_schema_v1 import accounts
 from app.adapters.database import mysql_engine
 from app.adapters.migrations.runner import migrate
+from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.tool_schema_v11 import attempts, results
 from app.config import Settings
+from app.services.submission_jobs import SubmissionJobWorker
 from app.services.tool_runner import ToolRunner
 
 origin = "https://campusclaw.test"
@@ -38,6 +40,7 @@ engine = mysql_engine(
 assert engine.url.database.startswith("campusclaw_test_")
 migrate(engine)
 password = uuid4().hex
+submission_worker = SubmissionJobWorker(TeachingRepository(engine))
 AuthRepository(engine).seed_demo_accounts(
     generate_password_hash(password, method="scrypt")
 )
@@ -67,6 +70,17 @@ def call(client, method, path, payload=None, key=None):
     if payload is not None:
         options["json"] = payload
     return client.open(path, method=method, **options)
+
+
+def complete_submission(client, response):
+    assert response.status_code == 202 and response.json["code"] == 0
+    task_id = response.json["data"]["task_id"]
+    for _ in range(20):
+        submission_worker.run_once()
+        current = call(client, "GET", "/api/v1/submission-jobs/" + task_id)
+        if current.json["data"]["status"] == "succeeded":
+            return
+    raise AssertionError("正式提交任务未成功")
 
 
 setup = create_app(settings)
@@ -524,15 +538,15 @@ quiz_path = "/api/v1/quizzes/" + quiz.json["data"]["id"]
 publication = call(teacher, "POST", quiz_path + "/publications", {})
 assert publication.status_code == 200
 item = publication.json["data"]["items"][0]["id"]
-assert (
+complete_submission(
+    student,
     call(
         student,
         "POST",
         quiz_path + "/submissions",
         {"draft_revision": 0, "answers": {item: "A"}},
         "closed-quiz",
-    ).status_code
-    == 201
+    ),
 )
 assert "score" not in call(student, "GET", quiz_path + "/my-submission").json["data"]
 assert call(student, "GET", quiz_path + "/my-mistakes").json["data"] == {

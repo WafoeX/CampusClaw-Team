@@ -1,9 +1,15 @@
 """隔离集成可改变镜像来源，但不允许解除内容摘要锁定。"""
 
+import subprocess
+
 import pytest
 
 from scripts.dependency_sources import mirrored_image, resolve_test_mirror
-from tests.integration.test_compose import mirrored_dependencies
+from tests.integration.test_compose import (
+    mirrored_dependencies,
+    pull_dependencies,
+    start_stack,
+)
 
 
 def configuration():
@@ -57,6 +63,47 @@ def test_ci_uses_locked_test_mirror_without_changing_local_default():
         )
         == "mirror.example"
     )
+
+
+def test_dependency_pull_retries_transient_registry_failure(monkeypatch):
+    calls = []
+
+    def compose(*args, **kwargs):
+        calls.append((args, kwargs))
+        if len(calls) < 3:
+            raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr("tests.integration.test_compose.time.sleep", lambda _: None)
+    pull_dependencies(compose, "mysql", "qdrant")
+
+    assert calls == [
+        (("pull", "--quiet", "mysql", "qdrant"), {"timeout": 120}),
+        (("pull", "--quiet", "mysql", "qdrant"), {"timeout": 120}),
+        (("pull", "--quiet", "mysql", "qdrant"), {"timeout": 120}),
+    ]
+
+
+def test_dependency_pull_keeps_final_failure(monkeypatch):
+    def compose(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr("tests.integration.test_compose.time.sleep", lambda _: None)
+    with pytest.raises(subprocess.CalledProcessError):
+        pull_dependencies(compose, "mysql", "qdrant")
+
+
+def test_stack_start_retries_transient_build_service_failure(monkeypatch):
+    calls = []
+
+    def compose(*args):
+        calls.append(args)
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr("tests.integration.test_compose.time.sleep", lambda _: None)
+    start_stack(compose)
+
+    assert calls == [("up", "--build", "-d"), ("up", "--build", "-d")]
 
 
 def test_mirror_preserves_teaching_kafka_digest():

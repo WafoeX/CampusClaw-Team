@@ -360,7 +360,7 @@ def main():
             {"draft_revision": 0, "answers": {str(UUID(int=200 + number)): "true"}},
             f"bench-submit-{number}",
         )
-        return response.status_code == 201 and response.json["code"] == 0
+        return response.status_code == 202 and response.json["code"] == 0
 
     def retrieve(_):
         response = search(search_reader)

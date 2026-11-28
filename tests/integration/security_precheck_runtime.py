@@ -32,12 +32,14 @@ from app.adapters.csrf_schema_v14 import csrf_tokens
 from app.adapters.database import mysql_engine
 from app.adapters.migrations.runner import migrate, migration_config
 from app.adapters.operation_audit_schema_v13 import events
+from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import quiz_results, quiz_submissions
 from app.adapters.teaching_schema_v12 import jobs, outbox
 from app.api.auth import COOKIE
 from app.api.csrf import CSRF_HEADER
 from app.config import ChatSettings, Settings
 from app.services.auth import digest_cookie, utc_now
+from app.services.submission_jobs import SubmissionJobWorker
 
 origin = "https://campusclaw.test"
 headers = {"Origin": origin, "X-CampusClaw-Request": "same-origin"}
@@ -59,6 +61,7 @@ settings = Settings.load(
     os.environ | {"APP_PUBLIC_ORIGIN": origin}, Path("app/BUILD_VERSION")
 )
 app = create_app(settings)
+submission_worker = SubmissionJobWorker(TeachingRepository(engine))
 
 
 def call(client, method, path, payload=None, *, issue_csrf=True):
@@ -80,6 +83,17 @@ def checked(client, method, path, payload=None, status=200):
     response = call(client, method, path, payload)
     assert response.status_code == status, (method, path, response.status_code)
     return response.json["data"]
+
+
+def complete_submission(client, response):
+    assert response.status_code == 202 and response.json["code"] == 0
+    task_id = response.json["data"]["task_id"]
+    for _ in range(20):
+        submission_worker.run_once()
+        current = call(client, "GET", "/api/v1/submission-jobs/" + task_id)
+        if current.json["data"]["status"] == "succeeded":
+            return
+    raise AssertionError("正式提交任务未成功")
 
 
 def login(name):
@@ -386,12 +400,14 @@ published = checked(teacher, "POST", quiz_path + "/publications", {})
 item = published["items"][0]["id"]
 view = checked(student, "GET", quiz_path)
 assert all("answer" not in row and "explanation" not in row for row in view["items"])
-checked(
+complete_submission(
     student,
-    "POST",
-    quiz_path + "/submissions",
-    {"draft_revision": 0, "answers": {item: "A"}},
-    status=201,
+    call(
+        student,
+        "POST",
+        quiz_path + "/submissions",
+        {"draft_revision": 0, "answers": {item: "A"}},
+    ),
 )
 checked(student, "GET", quiz_path + "/my-submission")
 grading = (quiz_submissions, quiz_results, jobs, outbox)

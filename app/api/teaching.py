@@ -28,6 +28,7 @@ TEACHING_POLICIES = {
         ("read_quiz_draft", ("GET", "HEAD"), TEACHING_ANSWER),
         ("save_quiz_draft", ("PUT",), TEACHING_ANSWER),
         ("submit_quiz", ("POST",), TEACHING_ANSWER),
+        ("read_submission_job", ("GET", "HEAD"), TEACHING_ANSWER),
         ("read_my_submission", ("GET", "HEAD"), TEACHING_ANSWER),
         ("list_submission_results", ("GET", "HEAD"), TEACHING_WRITE),
         ("override_submission_score", ("PUT",), TEACHING_WRITE),
@@ -148,6 +149,7 @@ def install_teaching(app, service, candidate_jobs=None, private_sessions=None):
                 "/api/v1/quizzes",
                 "/api/v1/teaching-jobs",
                 "/api/v1/question-generation-jobs",
+                "/api/v1/submission-jobs",
                 "/api/v1/mistakes",
                 "/api/v1/learning-insights",
             )
@@ -347,16 +349,24 @@ def install_teaching(app, service, candidate_jobs=None, private_sessions=None):
         _query()
         key = submit_key()
         rev, answers = answers_payload(body())
-        return success(
-            service.submit(
-                g.identity,
-                request.cookies.get(COOKIE),
-                material_id(value),
-                key,
-                rev,
-                answers,
-            )
-        ), 201
+        job = service.submit(
+            g.identity,
+            request.cookies.get(COOKIE),
+            material_id(value),
+            key,
+            rev,
+            answers,
+        )
+        return (
+            success(job),
+            202,
+            {"Location": f"/api/v1/submission-jobs/{job['task_id']}"},
+        )
+
+    @app.get("/api/v1/submission-jobs/<value>")
+    def read_submission_job(value):
+        _query()
+        return success(service.read_submission_job(g.identity, material_id(value)))
 
     @app.get("/api/v1/quizzes/<value>/my-submission")
     def read_my_submission(value):

@@ -79,6 +79,7 @@ expected = {
     "quiz_results",
     "quiz_score_overrides",
     "quiz_score_override_events",
+    "quiz_submission_jobs",
     "quiz_audits",
     "tool_connectors",
     "tool_discoveries",

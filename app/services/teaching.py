@@ -81,6 +81,21 @@ def quiz_view(row, items, *, teacher, now):
     return result
 
 
+def submission_job_view(row):
+    result = {
+        "task_id": row["id"],
+        "submission_id": row["submission_id"],
+        "quiz_id": row["quiz_id"],
+        "status": row["status"],
+        "accepted_at": iso(row["accepted_at"]),
+        "started_at": iso(row["started_at"]),
+        "completed_at": iso(row["completed_at"]),
+    }
+    if row["status"] == "failed":
+        result["failure_code"] = row["failure_code"] or "processing_failed"
+    return result
+
+
 class TeachingService:
     def __init__(self, repository, database_error, clock=utc_now):
         self.repository = repository
@@ -457,11 +472,15 @@ class TeachingService:
                 submitted = self.repository.submission(
                     connection, identity.class_id, quiz_id, identity.subject_id
                 )
+                job = self.repository.submission_job(
+                    connection, identity.class_id, quiz_id, identity.subject_id
+                )
                 now = self.repository.now(connection)
                 return {
                     "revision": draft["revision"] if draft else 0,
                     "answers": draft["answers"] if draft else {},
                     "submitted": submitted is not None,
+                    "submission_job": submission_job_view(job) if job else None,
                     "deadline_at": iso(quiz["deadline_at"]),
                     "server_time": iso(now),
                 }
@@ -485,6 +504,8 @@ class TeachingService:
                 if expected_revision != (draft["revision"] if draft else 0):
                     raise conflict("草稿修订已变化")
                 if self.repository.submission(
+                    connection, identity.class_id, quiz_id, identity.subject_id
+                ) or self.repository.submission_job(
                     connection, identity.class_id, quiz_id, identity.subject_id
                 ):
                     raise conflict("已正式提交", 1401)
@@ -524,20 +545,38 @@ class TeachingService:
                         separators=(",", ":"),
                     ).encode()
                 ).digest()
+                job = self.repository.submission_job(
+                    connection,
+                    identity.class_id,
+                    quiz_id,
+                    identity.subject_id,
+                    lock=True,
+                )
+                if job is not None:
+                    if (
+                        job["request_key"] == request_key
+                        and job["fingerprint"] == fingerprint
+                    ):
+                        if job["status"] == "failed":
+                            now = self.repository.now(connection)
+                            self.repository.requeue_submission_job(
+                                connection, job["id"], now
+                            )
+                            job = dict(job) | {
+                                "status": "pending",
+                                "attempts": 0,
+                                "started_at": None,
+                                "completed_at": None,
+                                "failure_code": None,
+                            }
+                        return submission_job_view(job)
+                    if job["request_key"] == request_key:
+                        raise conflict("请求标识已用于不同作答")
+                    raise conflict("已正式提交或正在处理", 1401)
                 prior = self.repository.submission(
                     connection, identity.class_id, quiz_id, identity.subject_id
                 )
                 if prior is not None:
-                    if (
-                        prior["request_key"] == request_key
-                        and prior["fingerprint"] == fingerprint
-                    ):
-                        return {
-                            "submission_id": prior["id"],
-                            "accepted_at": iso(prior["accepted_at"]),
-                        }
-                    if prior["request_key"] == request_key:
-                        raise conflict("请求标识已用于不同作答")
                     raise conflict("已正式提交", 1401)
                 draft = self.repository.draft(
                     connection,
@@ -551,36 +590,43 @@ class TeachingService:
                 now = self.repository.now(connection)
                 if now >= quiz["deadline_at"]:
                     raise conflict("提交截止时间已到", 1402)
-                details = [
-                    {
-                        "item_id": item["id"],
-                        "correct": answers.get(item["id"]) == item["answer"],
-                        "awarded_points": item["points"]
-                        if answers.get(item["id"]) == item["answer"]
-                        else 0,
-                    }
-                    for item in items
-                ]
-                submission = {
+                job = {
                     "id": str(uuid4()),
+                    "submission_id": str(uuid4()),
                     "quiz_id": quiz_id,
                     "class_id": identity.class_id,
                     "student_id": identity.subject_id,
                     "request_key": request_key,
                     "fingerprint": fingerprint,
+                    "draft_revision": draft_revision,
                     "answers": answers,
+                    "status": "pending",
+                    "attempts": 0,
+                    "next_attempt_at": now,
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "failure_code": None,
                     "accepted_at": now,
+                    "started_at": None,
+                    "completed_at": None,
                 }
-                result = {
-                    "submission_id": submission["id"],
-                    "score": sum(detail["awarded_points"] for detail in details),
-                    "max_score": sum(item["points"] for item in items),
-                    "details": details,
-                    "scoring_version": 1,
-                    "created_at": now,
-                }
-                self.repository.submit(connection, submission, result, now)
-                return {"submission_id": submission["id"], "accepted_at": iso(now)}
+                self.repository.add_submission_job(connection, job)
+                return submission_job_view(job)
+        except self.database_error:
+            raise unavailable() from None
+
+    def read_submission_job(self, identity, task_id):
+        try:
+            with self.repository.engine.connect() as connection:
+                row = self.repository.submission_job_by_id(
+                    connection,
+                    identity.class_id,
+                    identity.subject_id,
+                    task_id,
+                )
+                if row is None:
+                    raise missing()
+                return submission_job_view(row)
         except self.database_error:
             raise unavailable() from None
 
@@ -660,7 +706,17 @@ class TeachingService:
                 )
                 now = self.repository.now(connection)
                 if submission is None:
-                    return {"submitted": False, "server_time": iso(now)}
+                    job = self.repository.submission_job(
+                        connection,
+                        identity.class_id,
+                        quiz_id,
+                        identity.subject_id,
+                    )
+                    return {
+                        "submitted": False,
+                        "submission_job": submission_job_view(job) if job else None,
+                        "server_time": iso(now),
+                    }
                 projection = {
                     "submitted": True,
                     "submission_id": submission["id"],

@@ -12,6 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from scripts.dependency_sources import mirrored_dependencies
 from scripts.verify_runtime import ROOT, VerificationError, inspect_probes
 
 PROJECT_CODE = ("srv/campusclaw/app/", "srv/campusclaw/mcp-server/")
@@ -112,7 +113,7 @@ def pull_dependency(compose, service):
             time.sleep(retry_delay)
 
 
-def start_images(revision, images, env):
+def start_images(revision, images, env, folder, mirror_host=None):
     project = "campusclaw-candidate-" + secrets.token_hex(8)
     env = {
         **env,
@@ -126,14 +127,37 @@ def start_images(revision, images, env):
         "MCP_SERVICE_TOKEN": secrets.token_hex(16),
     }
 
+    compose_files = ["--file", "docker-compose.yml"]
+    if mirror_host:
+        configuration = json.loads(
+            run(
+                "docker",
+                "compose",
+                "--file",
+                "docker-compose.yml",
+                "--env-file",
+                os.devnull,
+                "--profile",
+                "tools",
+                "config",
+                "--format",
+                "json",
+                env=env,
+            )
+        )
+        override = folder / "dependency-sources.json"
+        override.write_text(
+            json.dumps(mirrored_dependencies(configuration, mirror_host))
+        )
+        compose_files.extend(("--file", str(override)))
+
     def compose(*args, timeout=60, stderr=None):
         return run(
             "docker",
             "compose",
             "--project-name",
             project,
-            "--file",
-            "docker-compose.yml",
+            *compose_files,
             "--env-file",
             os.devnull,
             "--profile",
@@ -181,7 +205,9 @@ def start_images(revision, images, env):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("revision", help="检出的完整 Git 提交号")
-    revision = parser.parse_args().revision
+    parser.add_argument("--mirror-host", help="显式依赖来源主机，保持全部摘要")
+    args = parser.parse_args()
+    revision = args.revision
     env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
     if not re.fullmatch(r"[0-9a-f]{40}", revision) or revision != run(
         "git", "rev-parse", "HEAD", env=env
@@ -211,17 +237,18 @@ def main():
         env=env,
     ).startswith("unix://"):
         parser.error("候选构建和启动需要本机 Docker")
-    with tempfile.TemporaryDirectory(prefix="campusclaw-build-") as folder:
+    with tempfile.TemporaryDirectory(prefix="campusclaw-build-") as temporary:
+        folder = Path(temporary)
         images = {
             service: build_image(
-                target, repository, revision, Path(folder) / f"{target}.json", env
+                target, repository, revision, folder / f"{target}.json", env
             )
             for service, target, repository in (
                 ("app", "app", "campusclaw-skeleton"),
                 ("mcp-server", "mcp-service", "campusclaw-mcp"),
             )
         }
-    probes = start_images(revision, images, env)
+        probes = start_images(revision, images, env, folder, args.mirror_host)
     print(
         json.dumps(
             {

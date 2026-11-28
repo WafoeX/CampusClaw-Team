@@ -33,6 +33,7 @@ from app.adapters.score_override_schema_v17 import (
     score_override_events,
     score_overrides,
 )
+from app.adapters.submission_job_schema_v19 import quiz_submission_jobs
 from app.adapters.teaching_repository import TeachingRepository
 from app.adapters.teaching_schema_v10 import (
     questions,
@@ -44,6 +45,7 @@ from app.adapters.teaching_schema_v10 import (
 )
 from app.config import Settings
 from app.services.skills import BUILTINS
+from app.services.submission_jobs import SubmissionJobWorker
 from app.services.teaching import TeachingService
 
 origin = "https://campusclaw.test"
@@ -97,6 +99,8 @@ with engine.begin() as connection:
         ],
     )
 
+repository = TeachingRepository(engine)
+submission_worker = SubmissionJobWorker(repository)
 app = create_app(
     Settings.load(
         {
@@ -106,7 +110,7 @@ app = create_app(
         },
         Path(os.environ.get("CAMPUSCLAW_TEST_VERSION_FILE", "app/BUILD_VERSION")),
     ),
-    teaching=TeachingService(TeachingRepository(engine), DatabaseError),
+    teaching=TeachingService(repository, DatabaseError),
 )
 headers = {"Origin": origin, "X-CampusClaw-Request": "same-origin"}
 
@@ -134,11 +138,25 @@ def request(client, method, path, payload=None, *, key=None):
     return client.open(path, method=method, **options)
 
 
+def finish_submission(response, client):
+    assert response.status_code == 202, response.json
+    task_id = response.json["data"]["task_id"]
+    task_path = f"/api/v1/submission-jobs/{task_id}"
+    pending = request(client, "GET", task_path)
+    assert pending.status_code == 200 and pending.json["data"]["status"] == "pending"
+    assert submission_worker.run_once() is True
+    succeeded = request(client, "GET", task_path)
+    assert succeeded.status_code == 200
+    assert succeeded.json["data"]["status"] == "succeeded"
+    return response
+
+
 teacher = login(teacher_name)
 teacher2 = login("demo_a_teacher")
 student = login("demo_a_student")
 student2 = login("teaching_a_student_2")
 outsider = login("demo_b_teacher")
+outside_student = login("demo_b_student")
 anonymous = app.test_client()
 assert teacher.get("/console/questions", base_url=origin).status_code == 200
 assert student.get("/console/questions", base_url=origin).status_code == 403
@@ -344,7 +362,13 @@ try:
         {"draft_revision": 1, "answers": {item_one: "A", item_two: "false"}},
         key="final-one",
     )
-    assert failed.status_code == 503 and failed.json["code"] == 1500
+    assert failed.status_code == 202 and failed.json["data"]["status"] == "pending"
+    try:
+        submission_worker.run_once()
+    except OperationalError:
+        pass
+    else:
+        raise AssertionError("评分事务故障必须传递给 worker 重试循环")
 finally:
     event.remove(engine, "before_cursor_execute", fail_result)
 with engine.connect() as connection:
@@ -354,6 +378,16 @@ with engine.connect() as connection:
         )
         is None
     )
+    failed_job = (
+        connection.execute(
+            select(quiz_submission_jobs).where(
+                quiz_submission_jobs.c.id == failed.json["data"]["task_id"]
+            )
+        )
+        .mappings()
+        .one()
+    )
+    assert failed_job["status"] == "running"
 
 after_failed_score = request(
     teacher, "GET", f"/api/v1/quizzes/{quiz_id}/insights"
@@ -365,6 +399,17 @@ submission_payload = {
     "draft_revision": 1,
     "answers": {item_one: "A", item_two: "false"},
 }
+with engine.begin() as connection:
+    connection.execute(
+        update(quiz_submission_jobs)
+        .where(quiz_submission_jobs.c.id == failed.json["data"]["task_id"])
+        .values(
+            status="pending",
+            lease_token=None,
+            lease_expires_at=None,
+            next_attempt_at=connection.scalar(select(func.utc_timestamp(6))),
+        )
+    )
 first = request(
     again,
     "POST",
@@ -372,10 +417,39 @@ first = request(
     submission_payload,
     key="final-one",
 )
-assert first.status_code == 201 and set(first.json["data"]) == {
+assert first.status_code == 202 and set(first.json["data"]) == {
+    "task_id",
     "submission_id",
+    "quiz_id",
+    "status",
     "accepted_at",
+    "started_at",
+    "completed_at",
 }
+task_path = f"/api/v1/submission-jobs/{first.json['data']['task_id']}"
+own_task = request(again, "GET", task_path)
+assert own_task.status_code == 200
+assert not (
+    {"answers", "score", "student_id", "request_key", "lease_token"}
+    & set(own_task.json["data"])
+)
+hidden_tasks = [
+    request(student2, "GET", task_path),
+    request(outside_student, "GET", task_path),
+    request(student2, "GET", f"/api/v1/submission-jobs/{uuid4()}"),
+]
+assert all(response.status_code == 404 for response in hidden_tasks)
+assert (
+    len(
+        {
+            (response.json["code"], response.json["message"], response.json["data"])
+            for response in hidden_tasks
+        }
+    )
+    == 1
+)
+assert request(teacher, "GET", task_path).status_code == 403
+assert request(anonymous, "GET", task_path).status_code == 401
 replayed = request(
     again,
     "POST",
@@ -383,7 +457,7 @@ replayed = request(
     submission_payload,
     key="final-one",
 )
-assert replayed.status_code == 201 and replayed.json["data"] == first.json["data"]
+assert replayed.status_code == 202 and replayed.json["data"] == first.json["data"]
 assert (
     request(
         again,
@@ -404,6 +478,7 @@ assert (
     ).json["code"]
     == 1400
 )
+finish_submission(first, again)
 before_open = request(again, "GET", f"/api/v1/quizzes/{quiz_id}/my-submission")
 assert before_open.status_code == 200
 assert (
@@ -698,8 +773,10 @@ with engine.begin() as connection:
             {"draft_revision": 0, "answers": {new_item: "B"}},
             key="late-final",
         )
-        assert other.result(timeout=2).status_code == 201
+        late_submit = other.result(timeout=2)
+        assert late_submit.status_code == 202
     assert monotonic() - start < 2
+finish_submission(late_submit, late)
 second_submit = request(
     student2,
     "POST",
@@ -707,7 +784,7 @@ second_submit = request(
     {"draft_revision": 0, "answers": {new_item: "A"}},
     key="second-final",
 )
-assert second_submit.status_code == 201, second_submit.json
+finish_submission(second_submit, student2)
 # L10-N03 前置边界：本人确有错题，答案开放后才可取冻结结果与解析。
 mistakes_path = f"/api/v1/quizzes/{new_quiz_id}/my-mistakes"
 closed_mistakes = request(student2, "GET", mistakes_path)
@@ -950,8 +1027,13 @@ after_cutoff_replay = request(
     submission_payload,
     key="final-one",
 )
-assert after_cutoff_replay.status_code == 201
-assert after_cutoff_replay.json["data"] == first.json["data"]
+assert after_cutoff_replay.status_code == 202
+assert after_cutoff_replay.json["data"]["status"] == "succeeded"
+assert after_cutoff_replay.json["data"]["task_id"] == first.json["data"]["task_id"]
+assert (
+    after_cutoff_replay.json["data"]["submission_id"]
+    == first.json["data"]["submission_id"]
+)
 
 # 截止前集中提交：八个不同学生同时冲击同一发布快照，逐人仅有一个结果。
 burst_names = [f"teaching_burst_{index}" for index in range(8)]
@@ -996,13 +1078,16 @@ barrier = Barrier(len(burst_clients))
 def burst_submit(index, client):
     barrier.wait(timeout=10)
     started = monotonic()
-    response = request(
-        client,
-        "POST",
-        f"/api/v1/quizzes/{burst_quiz}/submissions",
-        {"draft_revision": 0, "answers": {burst_item: "B"}},
-        key=f"burst-{index}",
-    )
+    for _ in range(3):
+        response = request(
+            client,
+            "POST",
+            f"/api/v1/quizzes/{burst_quiz}/submissions",
+            {"draft_revision": 0, "answers": {burst_item: "B"}},
+            key=f"burst-{index}",
+        )
+        if response.status_code != 503:
+            break
     return response, (monotonic() - started) * 1000
 
 
@@ -1010,9 +1095,21 @@ with ThreadPoolExecutor(max_workers=len(burst_clients)) as pool:
     burst_responses, burst_ms = zip(
         *pool.map(burst_submit, range(8), burst_clients), strict=True
     )
-assert all(response.status_code == 201 for response in burst_responses), [
+assert all(response.status_code == 202 for response in burst_responses), [
     response.json for response in burst_responses
 ]
+
+
+def drain_submissions(_):
+    worker = SubmissionJobWorker(repository)
+    completed = 0
+    while worker.run_once():
+        completed += 1
+    return completed
+
+
+with ThreadPoolExecutor(max_workers=2) as pool:
+    assert sum(pool.map(drain_submissions, range(2))) == len(burst_responses)
 same_student_barrier = Barrier(2)
 
 
@@ -1029,8 +1126,12 @@ def repeat_burst(key):
 
 with ThreadPoolExecutor(max_workers=2) as pool:
     same_student = list(pool.map(repeat_burst, ("burst-0", "burst-extra")))
-assert same_student[0].status_code == 201
-assert same_student[0].json["data"] == burst_responses[0].json["data"]
+assert same_student[0].status_code == 202
+assert (
+    same_student[0].json["data"]["task_id"]
+    == burst_responses[0].json["data"]["task_id"]
+)
+assert same_student[0].json["data"]["status"] == "succeeded"
 assert same_student[1].status_code == 409 and same_student[1].json["code"] == 1401
 with engine.connect() as connection:
     assert connection.scalar(
@@ -1079,16 +1180,14 @@ source_quiz = source_quiz_response.json["data"]["id"]
 source_item = request(
     teacher, "POST", f"/api/v1/quizzes/{source_quiz}/publications", {}
 ).json["data"]["items"][0]["id"]
-assert (
-    request(
-        again,
-        "POST",
-        f"/api/v1/quizzes/{source_quiz}/submissions",
-        {"draft_revision": 0, "answers": {source_item: "B"}},
-        key="wrong-with-source",
-    ).status_code
-    == 201
+source_submit = request(
+    again,
+    "POST",
+    f"/api/v1/quizzes/{source_quiz}/submissions",
+    {"draft_revision": 0, "answers": {source_item: "B"}},
+    key="wrong-with-source",
 )
+finish_submission(source_submit, again)
 with engine.begin() as connection:
     connection.execute(
         update(quizzes)

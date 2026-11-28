@@ -83,6 +83,30 @@ def eventually(action, timeout=90):
     pytest.fail("隔离服务在时限内未达到预期状态")
 
 
+def pull_dependencies(compose, *services, attempts=3):
+    """在外部仓库短暂不可用时重试锁定摘要，不改变镜像身份。"""
+    for attempt in range(1, attempts + 1):
+        try:
+            compose("pull", "--quiet", *services, timeout=120)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == attempts:
+                raise
+            time.sleep(attempt * 2)
+
+
+def start_stack(compose, attempts=2):
+    """重试一次临时构建服务故障，最终失败仍由门禁阻断。"""
+    for attempt in range(1, attempts + 1):
+        try:
+            compose("up", "--build", "-d")
+            return
+        except subprocess.CalledProcessError:
+            if attempt == attempts:
+                raise
+            time.sleep(2)
+
+
 def assert_project_clean(project, env):
     label = f"label=com.docker.compose.project={project}"
     for list_command in (
@@ -248,7 +272,8 @@ def stack(tmp_path_factory):
         ).stdout.strip()
 
     try:
-        compose("up", "--build", "-d")
+        pull_dependencies(compose, "mysql", "qdrant")
+        start_stack(compose)
         scanner = os.environ.get("CAMPUSCLAW_IMAGE_SCANNER")
         if scanner:
             scan_image(scanner, f"campusclaw-skeleton:{image_tag}", folder, env)
@@ -645,8 +670,9 @@ def test_RT_N01_RT_F03_RT_B01_RT_B04_cold_start_and_recovery(stack, tmp_path):
         ]
         for row in map(json.loads, compose("ps", "--format", "json").splitlines())
     }
-    assert set(published) == {"app", "mysql", "qdrant"}
+    assert set(published) == {"app", "mysql", "qdrant", "submission-worker"}
     assert published["mysql"] == published["qdrant"] == []
+    assert published["submission-worker"] == []
     assert len(published["app"]) == 1
     assert published["app"][0]["URL"] == "127.0.0.1"
     assert published["app"][0]["TargetPort"] == 8080
@@ -769,14 +795,18 @@ def verify_chapter_api(compose):
 
 
 def verify_teaching_core(compose):
-    evidence = compose(
-        "exec",
-        "-T",
-        "app",
-        "python",
-        "-c",
-        Path(__file__).with_name("teaching_runtime.py").read_text(),
-    )
+    compose("stop", "submission-worker")
+    try:
+        evidence = compose(
+            "exec",
+            "-T",
+            "app",
+            "python",
+            "-c",
+            Path(__file__).with_name("teaching_runtime.py").read_text(),
+        )
+    finally:
+        compose("start", "submission-worker")
     assert "TEACHING_RUNTIME_OK" in evidence
     print(evidence)
     return evidence
@@ -932,6 +962,21 @@ def test_ME_data_migration_empty_existing_repeat_and_downgrade(stack):
     assert result.splitlines()[-1] == "mistake_explanation_migration_ok"
 
 
+def test_ASJ_data_migration_empty_repeat_compatibility_and_downgrade(stack):
+    compose, request, _, _ = stack
+    assert request("/live")[0] == 200
+    assert request("/health")[0] == 200
+    result = compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        Path(__file__).with_name("submission_job_migration.py").read_text(),
+    )
+    assert result.splitlines()[-1] == "submission_job_migration_ok"
+
+
 def test_TSO_real_mysql_override_projection_and_migration(stack):
     compose, _, _, _ = stack
     evidence = verify_teaching_core(compose)
@@ -1032,14 +1077,22 @@ def verify_ai_apps(compose):
         "from pathlib import Path; import sys; Path('/tmp/feedback_runtime.py').write_text(sys.argv[1])",
         Path(__file__).with_name("feedback_runtime.py").read_text(),
     )
+    compose(
+        "exec",
+        "-T",
+        "app",
+        "python",
+        "-c",
+        "from pathlib import Path; import sys; Path('/tmp/ai_apps_runtime.py').write_text(sys.argv[1])",
+        Path(__file__).with_name("ai_apps_runtime.py").read_text(),
+    )
     evidence = compose(
         "exec",
         "-T",
         "app",
         "python",
         "-c",
-        "import sys; sys.path.insert(0, '/tmp'); exec(sys.argv[1])",
-        Path(__file__).with_name("ai_apps_runtime.py").read_text(),
+        "import runpy, sys; sys.path.insert(0, '/tmp'); runpy.run_path('/tmp/ai_apps_runtime.py', run_name='__main__')",
     )
     return json.loads(
         next(

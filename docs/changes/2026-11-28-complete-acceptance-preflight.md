@@ -31,6 +31,9 @@
 | `CAMPUSCLAW_TEST_DOCKER_MIRROR=docker.m.daocloud.io CAMPUSCLAW_SECURITY_ASSETS=reports/security-assets-20261128-58cb77c-retry uv run --locked python scripts/check_pytest.py -q tests/integration/test_compose.py -k security_precheck` | 退出 0，1 项通过、13 项未选择，39.13 秒；镜像摘要不变 |
 | 首次 `make check-security ... SECURITY_CANDIDATE=58cb77c4f528b6f6aed7c3208c7a643075693915` | 退出 2；秘密和镜像分项通过，漏洞库已于 2026-11-26 过期，依赖扫描工具未完成，按失败保留 |
 | 更新漏洞库后重跑同一 `make check-security` | 退出 0；历史、工作区、前端、日志、应用镜像和 MCP 镜像秘密均为 0，锁依赖 High/Critical 为 0；数据库更新时间 `2026-11-28T01:04:49.651015735Z` |
+| 首次完整 `make check CHANGE=2026-11-04-define-lesson-10-acceptance` | 静态、602 项单元/API、4 项启动、秘密与依赖扫描通过；真实集成 16 通过、1 失败，806.14 秒。拒绝预算用例的观察器把新增的合法正式交卷终态审计误计为拒绝审计写入尝试；数据库拒绝审计行数、合法评分和其余断言均已通过 |
+
+针对上述失败，观察器改为只统计编译参数中 `outcome=denied` 的 INSERT，继续保留拒绝写入尝试必须精确等于 3 的断言，未降低预算、并发或教学副作用判据。定向复测退出 0，1 项通过、13 项未选择，26.26 秒；完整复测结果在分支收尾后追加。
 
 原始安全资产位于被忽略的 `reports/security-assets-20261128-58cb77c-retry/`，只保留本页脱敏摘要。完整 `make check` 与远端双门禁在分支收尾执行，未执行前不写通过。
 
